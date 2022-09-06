@@ -6,7 +6,7 @@
 
 More specifically `mpEZTrack` is a hosted API that generates a "templated Mixpanel implementation" for web applications. It does this by wrapping the [mixpanel snippet](https://developer.mixpanel.com/docs/javascript-quickstart#installation-option-2-html), initializes it with [best practices](https://mixpanel.com/blog/best-practices-updated/), and adds listeners for common events like `page view`, `page exit`, `button click`, `link click`, etc... 
 
-the "template" delivered to your end-users configurable by [passing options](#options) as query string params.
+the "template" delivered to your end-users is configurable by [passing options](#options) as query string params within the `<script>`'s `src` attribute.
 
 the service is hosted (and free to use) in a Google Cloud Function.
 
@@ -17,7 +17,7 @@ finally, feel free to read my thoughts on [why this tool exists](#motivation), a
 
 ## tldr;  📦<div  id="tldr"></div>
 
-include the following `<script>` tag on any page you wish to track: 
+include the following `<script>` tag on any page you wish to add Mixpanel to: 
 ```html
 <script src="https://us-central1-ak-internal-tool-1613096051700.cloudfunctions.net/mp-ez-track?token=YOUR-PROJECT-TOKEN"></script>
 ```
@@ -27,7 +27,7 @@ one deployed, look in your mixpanel project; you are now collecting many useful 
 
 ![useful events!](https://aktunes.neocities.org/manyUsefulEvents.png)
 
-curious about how this is possible? please audit the implementation for yourself:
+curious about how this is possible? feel free to peak at the implementation for yourself:
 
 ```bash
 $ curl --request GET \
@@ -35,19 +35,23 @@ $ curl --request GET \
 ```
 
 ## options 🎛 <div  id="options"></div> 
-the API of `mpEZTrack` uses [query string parameters](https://en.wikipedia.org/wiki/Query_string) to deliver different templated implementations based on your preferences.
+the API of `mpEZTrack` uses [query string parameters](https://en.wikipedia.org/wiki/Query_string) to deliver different "implementation" templates based on your given configuration.
 
 the general format of query parameters is:
 ```
 https://myUrl?keyA=valueForA&keyB=valueForB
 ```
-where `keyA` is an "option" and `valueForA` is the value for that option.
+where  
 
-note that a **`?`** signifies the beginning of a query string; options are chained together with an **`&`**
+ -  **`?`** signifies the **beginning** of a query string
+ - **`=`** divides a `key` from it's `value` 
+ - subsequent key:value paris  are chained together with an **`&`**
 
-in the table below, you will find all the options provided by this module; if an option is a `default`, it does not need to be explicitly passed into the query string:
+in the example above, `keyA` is an _option_ and `valueForA` is the _value_ for _that_ option
 
-| option         | required? | expected value    | default? | notes                                                       |
+in the table below, you will find all the options provided by this module; if you wish to use a `default` value for any particular option, it does not need to be explicitly passed into the query string:
+
+| option         | required? | expected value    | default | notes                                                       |
 |----------------|-----------|-------------------|----------|-------------------------------------------------------------|
 | `token`        | ✅         | --                | --       | expects a 32 character string                               |
 | `superProps`   | ❌         | `true` or `false` | `true`   | adds information about the client device to all events      |
@@ -70,15 +74,14 @@ in the table below, you will find all the options provided by this module; if an
 ```html
 <script src="https://us-central1-ak-internal-tool-1613096051700.cloudfunctions.net/mp-ez-track?token=YOUR-PROJECT-TOKEN&pageExits=true"></script>
 ```
-
- - don't track form submissions
+- don't set super properties
 ```html
-<script src="https://us-central1-ak-internal-tool-1613096051700.cloudfunctions.net/mp-ez-track?token=YOUR-PROJECT-TOKEN&formSubmits=false"></script>
+<script src="https://us-central1-ak-internal-tool-1613096051700.cloudfunctions.net/mp-ez-track?token=YOUR-PROJECT-TOKEN&superProps=false"></script>
 ```
 
- - don't track page views or create user profiles
+ - don't track page views, form submissions, or create user profiles
 ```html
-<script src="https://us-central1-ak-internal-tool-1613096051700.cloudfunctions.net/mp-ez-track?token=YOUR-PROJECT-TOKEN&pageViews=false&userProfiles=false"></script>
+<script src="https://us-central1-ak-internal-tool-1613096051700.cloudfunctions.net/mp-ez-track?token=YOUR-PROJECT-TOKEN&pageViews=false&formSubmits=false&userProfiles=false"></script>
 ```
 
  - don't minify the payload; put everything in debug mode and log all errors to the console (client side)
@@ -96,9 +99,9 @@ there are [many opinions](https://mixpanel.com/blog/codeless-analytics-problems/
 
 my ultimate conclusion on the topic is this:
 
-> Regardless of your organization's chosen data collection strategy, **someone** is going to have to **manage the schema**. All data needs to be organized in order to be leveraged. Ideally, **everyone can participate in the taxonomy** so that **everyone who needs the data has some familiarity with it**.
+> Regardless of your organization's chosen data collection strategy, **someone** is going to have to **manage the schema**. All data needs to be organized in order to be leveraged. Ideally, **everyone can participate in the taxonomy** so that **everyone who needs the data has _some_ familiarity with it**.
 
-this utility aims to find a middle ground between two opposing camps. it removes some of the "gatekeeping" in event-driven analytics, and allows for non-technical users to work through a useful taxonomy in a GUI, using [Mixpanel's governance tools](https://help.mixpanel.com/hc/en-us/articles/360001307806-Lexicon-Overview).
+this utility aims to find a middle ground between two opposing camps. it removes some of the "gatekeeping" in event-driven analytics, and allows for non-technical users to work through a useful taxonomy in a GUI, using [Mixpanel's governance tools](https://help.mixpanel.com/hc/en-us/articles/360001307806-Lexicon-Overview). It's not _precision tracking_ ... but it's also not _auto-capture_
 
 
 ### what this is
