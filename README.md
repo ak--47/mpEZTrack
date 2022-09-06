@@ -35,7 +35,7 @@ $ curl --request GET \
 ```
 
 ## options 🎛 <div  id="options"></div> 
-the API of `mpEZTrack` uses [query string parameters](https://en.wikipedia.org/wiki/Query_string) to deliver different "implementation" templates based on your given configuration.
+the API of `mpEZTrack` uses [query string parameters](https://en.wikipedia.org/wiki/Query_string) to deliver different implementation templates based on your given configuration.
 
 the general format of query parameters is:
 ```
@@ -45,7 +45,7 @@ where
 
  -  **`?`** signifies the **beginning** of a query string
  - **`=`** divides a `key` from it's `value` 
- - subsequent key:value paris  are chained together with an **`&`**
+ - subsequent `key:value` paris  are chained together with an **`&`**
 
 in the example above, `keyA` is an _option_ and `valueForA` is the _value_ for _that_ option
 
