@@ -231,13 +231,12 @@ exports.trackYoutube = function (params) {
 			const firstScriptTag = document.getElementsByTagName('script')[0];
 			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 		
-			// called by iframe api
-			window.onYouTubeIframeAPIReady = function() {
-		
+			// called by youtube's iframe api
+			window.onYouTubeIframeAPIReady = function() {		
 				const videos = [...${exports.getAllTags(YOUTUBE_SELECTOR)}].filter(frame => frame.src.includes('youtube.com/embed'))
-				for (const video of videos) {
-					bindTrackingToVideo(video.id)
-				}
+					for (const video of videos) {
+						bindTrackingToVideo(video.id)
+					}
 			}
 		
 			function bindTrackingToVideo(videoId) {
@@ -266,8 +265,8 @@ exports.trackYoutube = function (params) {
 		
 			function onPlayerReady(event) {     
 				const videoInfo = getVideoInfo(event.target);
-				mixpanel.ez.track('youtube player load', videoInfo);
-				mixpanel.ez.time_event('youtube video started');
+				mp.track('youtube player load', videoInfo);
+				mp.time_event('youtube video started');
 			}
 		
 		
@@ -281,28 +280,28 @@ exports.trackYoutube = function (params) {
 		
 				switch (playerStatus) {
 					case -1:
-						//mixpanel.ez.track('youtube video unstarted but ready', videoInfo);   
+						//mp.track('youtube video unstarted but ready', videoInfo);   
 					break;
 		
 					case 0:
-						mixpanel.ez.track('youtube video finish', videoInfo);
+						mp.track('youtube video finish', videoInfo);
 					break;
 		
 					case 1:
-						mixpanel.ez.track('youtube video play', videoInfo);            
-						mixpanel.ez.time_event('youtube video finish');
+						mp.track('youtube video play', videoInfo);            
+						mp.time_event('youtube video finish');
 					break;
 		
 					case 2:
-						mixpanel.ez.track('youtube video pause', videoInfo);
+						mp.track('youtube video pause', videoInfo);
 					break;
 		
 					case 3:
-						// mixpanel.ez.track('youtube video buffer', videoInfo);
+						// mp.track('youtube video buffer', videoInfo);
 					break;
 		
 					case 5:
-						// mixpanel.ez.track('youtube video queued', videoInfo);
+						// mp.track('youtube video queued', videoInfo);
 					break;
 		
 					default:
@@ -311,7 +310,7 @@ exports.trackYoutube = function (params) {
 			   
 			}
 		
-			const videos = mixpanel.ez.ezselector('iframe').filter(frame => frame.src.includes('youtube.com/embed'))
+			const videos = [...${exports.getAllTags(YOUTUBE_SELECTOR)}].filter(frame => frame.src.includes('youtube.com/embed'))
 			
 			for (video of videos) {
 				if (!video.src.includes('enablejsapi')) {
