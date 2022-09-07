@@ -11,8 +11,8 @@ const cacheStrategy = `public, max-age=604800` //cache for one week
 //exposed API
 exports.start = async (req, res) => {
 	try {
-		const params = u.parseParams(req.query); //url params
-		const script = main(params);
+		const params = u.parseParams(req.query); //user given url params
+		const script = exports.main(params);
 		res.set('Content-Type', contentType).set('Cache-Control', cacheStrategy).status(200).send(script);
 	} catch (e) {
 		console.error(e);
@@ -22,7 +22,7 @@ exports.start = async (req, res) => {
 };
 
 
-function main(params = {}) {
+exports.main = function(params = {}) {
 	const defaultParams = {
 		//required
 		token: null,
@@ -75,4 +75,3 @@ function main(params = {}) {
 	return payload;
 }
 
-exports.main = main;
