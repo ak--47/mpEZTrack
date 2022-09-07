@@ -125,8 +125,6 @@ test('components legal in all cases', () => {
 
 	}	
 	
-	u.trackViews();
-	expect().toBe();
 });
 
 
