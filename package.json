@@ -8,7 +8,7 @@
     "watch": "npm-watch dev",
     "dev": "npx functions-framework --target=start  --signature-type=http --port 420",
     "deploy": "gcloud functions deploy mp-ez-track --timeout=540 --runtime nodejs16 --trigger-http --allow-unauthenticated --entry-point=start --source=./",
-    "test": "jest --watch"
+    "test": "jest --watchAll"
   },
   "watch": {
     "dev": "*.js"
