@@ -22,6 +22,7 @@ const LINK_SELECTORS = String.raw`a`
 const BUTTON_SELECTORS = String.raw`button, .button, .btn`
 const FORM_SELECTORS = String.raw`form`
 const ALL_SELECTOR = String.raw`*`
+const YOUTUBE_SELECTOR = String.raw`iframe`
 
 module.exports = {
 	SNIPPET,
@@ -30,5 +31,6 @@ module.exports = {
 	LINK_SELECTORS,
 	BUTTON_SELECTORS,
 	FORM_SELECTORS,
-	ALL_SELECTOR
+	ALL_SELECTOR,
+	YOUTUBE_SELECTOR
 }

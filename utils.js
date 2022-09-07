@@ -4,6 +4,7 @@ const { SNIPPET,
 	BUTTON_SELECTORS, 
 	LINK_SELECTORS, 
 	FORM_SELECTORS,
+	YOUTUBE_SELECTOR,
 	ALL_SELECTOR } = require('./magicStrings');
 
 // mp snippet: https://developer.mixpanel.com/docs/javascript-quickstart#installation-option-2-html
@@ -224,7 +225,107 @@ exports.trackYoutube = function (params) {
 	const funcTitle = "EZTrackYoutube";
 	if (params?.youtube) {
 		return `function ${funcTitle}(mp) {
-
+			const tag = document.createElement('script');
+			tag.id = 'mixpanel-iframe-tracker';
+			tag.src = 'https://www.youtube.com/iframe_api';
+			const firstScriptTag = document.getElementsByTagName('script')[0];
+			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+		
+			// called by youtube's iframe api
+			window.onYouTubeIframeAPIReady = function() {		
+				const videos = [...${exports.getAllTags(YOUTUBE_SELECTOR)}].filter(frame => frame.src.includes('youtube.com/embed'))
+					for (const video of videos) {
+						bindTrackingToVideo(video.id)
+					}
+			}
+		
+			function bindTrackingToVideo(videoId) {
+				const player = new YT.Player(videoId, {
+					events: {
+						'onReady': onPlayerReady,
+						'onStateChange': onPlayerStateChange
+					}
+				});
+		
+			}
+		
+			function getVideoInfo(player) {    
+				const videoInfo = player.getVideoData();
+				const videoProps = {
+					'video quality': player.getPlaybackQuality(),
+					'video length (sec)': player.getDuration(),
+					'video ellapsed (sec)': player.getCurrentTime(),
+					'video url': player.getVideoUrl(),
+					'video title': videoInfo.title,
+					'video id': videoInfo.video_id,
+					'video author': videoInfo.author		
+				}
+				return videoProps;
+			}
+		
+			function onPlayerReady(event) {     
+				const videoInfo = getVideoInfo(event.target);
+				mp.track('youtube player load', videoInfo);
+				mp.time_event('youtube video started');
+			}
+		
+		
+			function onPlayerStateChange(event) {
+				trackPlayerChanges(event.data, event.target);
+			}
+		
+			//player states: https://developers.google.com/youtube/iframe_api_reference#Playback_status
+			function trackPlayerChanges(playerStatus, player) {
+				const videoInfo = getVideoInfo(player);
+		
+				switch (playerStatus) {
+					case -1:
+						//mp.track('youtube video unstarted but ready', videoInfo);   
+					break;
+		
+					case 0:
+						mp.track('youtube video finish', videoInfo);
+					break;
+		
+					case 1:
+						mp.track('youtube video play', videoInfo);            
+						mp.time_event('youtube video finish');
+					break;
+		
+					case 2:
+						mp.track('youtube video pause', videoInfo);
+					break;
+		
+					case 3:
+						// mp.track('youtube video buffer', videoInfo);
+					break;
+		
+					case 5:
+						// mp.track('youtube video queued', videoInfo);
+					break;
+		
+					default:
+					break;
+				}
+			   
+			}
+		
+			const videos = [...${exports.getAllTags(YOUTUBE_SELECTOR)}].filter(frame => frame.src.includes('youtube.com/embed'))
+			
+			for (video of videos) {
+				if (!video.src.includes('enablejsapi')) {
+					const newSRC = new URL(video.src);
+					newSRC.searchParams.delete('enablejsapi')
+					newSRC.searchParams.append('enablejsapi', 1);
+					video.src = newSRC.toString()
+		
+				}
+		
+				if (!video.id) {
+					video.id = new URL(video.src).pathname.replace("/embed/", "");
+				}
+		
+			}
 }\n\n`;
 
 	} else {
@@ -237,8 +338,9 @@ exports.trackProfiles = function (params) {
 	if (params?.userProfiles) {
 		return `function ${funcTitle}(mp) {
 
-	mp.identify(mp.get_distinct_id())
-	mp.people.set({"last page viewed":window.location.href, "language": window.navigator.language, "$name": "anonymous"});
+	mp.identify(mp.get_distinct_id());
+	mp.people.set({"last page viewed":window.location.href, "language": window.navigator.language});
+	mp.people.set_once({ "$name": "anonymous"});
 	mp.people.increment("total # pages");
 	mp.people.set_once({"$Created": new Date().toISOString() });
 
