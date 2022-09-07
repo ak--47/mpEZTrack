@@ -33,7 +33,7 @@ exports.init = function (params = {}) {
             loaded: function (mp) {
 		mp.register({${params?.superProps ? standardProps : ""}});		
 		
-		${params?.debug ? "mp.ezselector = querySelectorShadowDom.querySelectorAllDeep" : ""}
+		${params?.debug ? "mp.ezselector = qs.querySelectorAllDeep" : ""}
 
 		try {
 			EZTrackViews(mp);
@@ -311,7 +311,7 @@ exports.getTypes = function coerceStringsToBool(value) {
 // try qsDeep; fallback on qsAll
 exports.getAllTags = function selectsAllElementsOnPage(selector) {
 	return `(() => {
-		try { return querySelectorShadowDom.querySelectorAllDeep('${selector}')}
+		try { return qs.querySelectorAllDeep('${selector}')}
 		catch (e) { return document.querySelectorAll('${selector}')}
 	  })()`;
 
