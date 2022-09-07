@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "scratch": "nodemon --inspect scratch.js --ignore ./node_modules/",
-    "watch": "npm-watch dev",
+    "local": "npm-watch dev",
     "dev": "npx functions-framework --target=start  --signature-type=http --port 420",
     "deploy": "gcloud functions deploy mp-ez-track --timeout=540 --runtime nodejs16 --trigger-http --allow-unauthenticated --entry-point=start --source=./",
     "test": "jest --watchAll"
