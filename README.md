@@ -51,22 +51,20 @@ in the example above, `keyA` is an _option_ and `valueForA` is the _value_ for _
 
 in the table below, you will find all the options provided by this module; if you wish to use a `default` value for any particular option, it does not need to be explicitly passed into the query string:
 
-| option         | required? | expected value    | default | notes                                                       |
-|----------------|-----------|-------------------|----------|-------------------------------------------------------------|
-| `token`        | ✅         | --                | --       | expects a 32 character string                               |
-| `superProps`   | ❌         | `true` or `false` | `true`   | adds information about the client device to all events      |
-| `pageViews`    | ❌         | `true` or `false` | `true`   | tracks all page views                                       |
-| `pageExits`    | ❌         | `true` or `false` | `false`  | attempts to track page exits with `duration` and `scroll %` |
-| `linkClicks`   | ❌         | `true` or `false` | `true`   | tracks all clicks on `<a>` elements                         |
-| `formSubmits`  | ❌         | `true` or `false` | `true`   | track all submissions on `<form>` elements                  |
-| `userProfiles` | ❌         | `true` or `false` | `true`   | creates (anon) user profiles for every unique device        |
-| `allClicks`    | ❌         | `true` or `false` | `false`  | tracks all clicks on any page elements                      |
-| `youtube`      | ❌         | `true` or `false` | `false`  | tracks interactions with embedded youtube videos            |
-| `debug`        | ❌         | `true` or `false` | `false`  | puts the `mixpanel` SDK in debug mode                       |
-| `minify`       | ❌         | `true` or `false` | `true`   | optimizes the bundle for speed                              |
-| `logErrors`    | ❌         | `true` or `false` | `false`  | logs tracking errors to the client console                  |
-
-
+| option                 | expected value    | default | notes                                                       |
+|------------------------|-------------------|----------|-------------------------------------------------------------|
+| `token` **(required)** | --                | --       | expects a 32 character string                               |
+| `superProps`           | `true` or `false` | `true`   | adds information about the client device to all events      |
+| `pageViews`            | `true` or `false` | `true`   | tracks all page views                                       |
+| `pageExits`            | `true` or `false` | `false`  | attempts to track page exits with `duration` and `scroll %` |
+| `linkClicks`           | `true` or `false` | `true`   | tracks all clicks on `<a>` elements                         |
+| `formSubmits`          | `true` or `false` | `true`   | track all submissions on `<form>` elements                  |
+| `userProfiles`         | `true` or `false` | `true`   | creates (anon) user profiles for every unique device        |
+| `allClicks`            | `true` or `false` | `false`  | tracks all clicks on any page elements                      |
+| `youtube`              | `true` or `false` | `false`  | tracks interactions with embedded youtube videos            |
+| `debug`                | `true` or `false` | `false`  | puts the `mixpanel` SDK in debug mode                       |
+| `minify`               | `true` or `false` | `true`   | optimizes the bundle for speed                              |
+| `logErrors`            | `true` or `false` | `false`  | logs tracking errors to the client console                  |
 
 ## recipes 🍳 <div  id="recipes"></div>
 
