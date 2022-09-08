@@ -26,7 +26,7 @@ exports.start = async (req, res) => {
 	} catch (e) {
 		console.error(e);
 		try {
-		mixpanel.track('snippet error', {...req.query, distinct_id: req.query?.token, ip: req.ip, base: req.baseUrl, url: req.baseUrl, error: e});
+		mixpanel.track('snippet error', {...req.query, distinct_id: req.query?.token, ip: req.ip, base: req.baseUrl, url: req.baseUrl, error: e.message});
 		} catch(e) {}
 		
 		const clientError = `console.error(\`EZTrack: Bad Token!\n\ngot: "${req.query?.token || "null"}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token\`)`;

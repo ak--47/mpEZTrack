@@ -16,7 +16,7 @@ const SUPER_PROPS = String.raw`
 		connection: window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
 		memory: window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
 		platform : window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
-		mobile : window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown"
+		mobile : window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
 		$source: "ezTrack"`;
 
 const STANDARD_FIELDS = String.raw`
