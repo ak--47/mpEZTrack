@@ -108,10 +108,9 @@ exports.trackExits = function (params) {
 	if (params?.pageExits) {
 		// https://stackoverflow.com/a/2387222
 		return `function ${funcTitle}(mp) {	
-	window.addEventListener('beforeunload', () => { 
-		mp.set_config({api_transport: 'sendBeacon', batch_flush_interval_ms: 0});
-		mp.track('page exit', {'scroll %': ((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100)}) 
-	}, false);
+	window.addEventListener('beforeunload', () => { 		
+		mp.track('page exit', {'scroll %': ((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100)}, {transport: 'sendBeacon', send_immediately : true}) 
+	});
 }\n\n`;
 
 	} else {
