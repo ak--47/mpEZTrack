@@ -1,9 +1,14 @@
 const { SNIPPET,
 	SHADOW_DOM,
-	SUPER_PROPS, 
-	BUTTON_SELECTORS, 
-	LINK_SELECTORS, 
+	SUPER_PROPS,
+	STANDARD_FIELDS, 
+	BUTTON_SELECTORS,
+	BUTTON_FIELDS, 
+	LINK_SELECTORS,
+	LINK_FIELDS, 
 	FORM_SELECTORS,
+	FORM_FIELDS,
+	ANY_TAG_FIELDS,
 	YOUTUBE_SELECTOR,
 	ALL_SELECTOR } = require('./magicStrings');
 
@@ -108,8 +113,9 @@ exports.trackExits = function (params) {
 	if (params?.pageExits) {
 		// https://stackoverflow.com/a/2387222
 		return `function ${funcTitle}(mp) {	
-	window.addEventListener('beforeunload', () => { 		
-		mp.track('page exit', {'scroll %': ((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100)}, {transport: 'sendBeacon', send_immediately : true}) 
+	window.addEventListener('beforeunload', () => {
+		const scrollPercent = ((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100) 		
+		mp.track('page exit', {'scroll %': scrollPercent}, {transport: 'sendBeacon', send_immediately : true}) 
 	});
 }\n\n`;
 
@@ -219,7 +225,7 @@ exports.trackClicks = function (params) {
 	}
 };
 
-// todo: https://developers.google.com/youtube/iframe_api_reference
+// https://developers.google.com/youtube/iframe_api_reference
 exports.trackYoutube = function (params) {
 	const funcTitle = "EZTrackYoutube";
 	if (params?.youtube) {
@@ -338,7 +344,7 @@ exports.trackProfiles = function (params) {
 		return `function ${funcTitle}(mp) {
 
 	mp.identify(mp.get_distinct_id());
-	mp.people.set({"last page viewed":window.location.href, "language": window.navigator.language});
+	mp.people.set({"last page viewed": window.location.href, "language": window.navigator.language});
 	mp.people.set_once({ "$name": "anonymous"});
 	mp.people.increment("total # pages");
 	mp.people.set_once({"$Created": new Date().toISOString() });
@@ -421,42 +427,25 @@ exports.getAllTags = function selectsAllElementsOnPage(selector) {
 
 // https://developer.mozilla.org/en-US/docs/Web/API/Element
 exports.mapAttrs = function mapStandardAttributesFromElements(elementType) {
-	const standardElementFields = `
-				classes : e.target.className.split(" ").filter(a => a),
-				id: e.target.id`;
+	const standardElementFields = STANDARD_FIELDS;
 
 	let additionalFields = ``;
 
 	switch (elementType) {
 		case `link`:
-			additionalFields += `
-			url: e.target.href,
-				text: e.target.innerHTML,`;
+			additionalFields += LINK_FIELDS;
 			break;
 
 		case `button`:
-			additionalFields += `
-			disabled: e.target.disabled,
-				text: e.target.innerText,
-				buttonName: e.target.name,`;
+			additionalFields += BUTTON_FIELDS;
 			break;
 
 		case `form`:
-			additionalFields += `
-			numOfInputs: e.target.length,
-				formName: e.target.name,
-				formId: e.target.id,
-				formMethod: e.target.method,
-				formAction: e.target.action,
-				formEncoding: e.target.encoding,			
-			`;
+			additionalFields += FORM_FIELDS;
 			break;
 
 		default:
-			additionalFields += `
-			tagName: "".concat('<', e.target.tagName ,'>'),
-				text: e.target.innerText || e.target.value,			
-			`;
+			additionalFields += ANY_TAG_FIELDS;
 			break;
 	}
 

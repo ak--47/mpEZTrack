@@ -18,19 +18,49 @@ const SUPER_PROPS = String.raw`
 		platform : window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
 		mobile : window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown"`;
 
-const LINK_SELECTORS = String.raw`a`
-const BUTTON_SELECTORS = String.raw`button, .button, .btn`
-const FORM_SELECTORS = String.raw`form`
-const ALL_SELECTOR = String.raw`*`
-const YOUTUBE_SELECTOR = String.raw`iframe`
+const STANDARD_FIELDS = String.raw`
+				classes : e.target.className.split(" ").filter(a => a),
+				id: e.target.id`;
+
+const LINK_SELECTORS = String.raw`a`;
+const LINK_FIELDS = String.raw`
+			url: e.target.href,
+				text: e.target.innerHTML,`;
+
+const BUTTON_SELECTORS = String.raw`button, .button, .btn`;
+const BUTTON_FIELDS = String.raw`
+			disabled: e.target.disabled,
+				text: e.target.innerText,
+				buttonName: e.target.name,`;
+
+const FORM_SELECTORS = String.raw`form`;
+const FORM_FIELDS = String.raw`
+			numOfInputs: e.target.length,
+				formName: e.target.name,
+				formId: e.target.id,
+				formMethod: e.target.method,
+				formAction: e.target.action,
+				formEncoding: e.target.encoding,`;
+
+const ALL_SELECTOR = String.raw`*`;
+const ANY_TAG_FIELDS = String.raw`
+			tagName: "".concat('<', e.target.tagName ,'>'),
+				text: e.target.innerText || e.target.value,`;
+
+const YOUTUBE_SELECTOR = String.raw`iframe`;
 
 module.exports = {
 	SNIPPET,
 	SHADOW_DOM,
 	SUPER_PROPS,
+	STANDARD_FIELDS,
 	LINK_SELECTORS,
+	LINK_FIELDS,
 	BUTTON_SELECTORS,
+	BUTTON_FIELDS,
 	FORM_SELECTORS,
+	FORM_FIELDS,
 	ALL_SELECTOR,
+	ANY_TAG_FIELDS,
 	YOUTUBE_SELECTOR
-}
+};
