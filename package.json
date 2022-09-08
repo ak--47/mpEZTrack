@@ -17,6 +17,8 @@
   "author": "AK",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^16.0.2",
+    "mixpanel": "^0.17.0",
     "uglify-js": "^3.17.0"
   },
   "devDependencies": {

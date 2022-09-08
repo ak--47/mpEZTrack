@@ -4,3 +4,4 @@ scratch.js
 tmp/*
 !tmp/.gitkeep
 node_modules
+notes.txt

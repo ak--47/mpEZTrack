@@ -5,17 +5,30 @@
 
 const u = require('./utils');
 const { minify } = require("uglify-js"); // https://github.com/mishoo/UglifyJS
+require('dotenv').config(); //https://github.com/motdotla/dotenv
+
+const Mixpanel = require('mixpanel'); //https://github.com/mixpanel/mixpanel-node
+const mixpanel = Mixpanel.init(process.env.MP_TOKEN || "0");
+
 const contentType = `text/javascript;charset=UTF-8`;
 const cacheStrategy = `public, max-age=604800` //cache for one week
 
 //exposed API
 exports.start = async (req, res) => {
 	try {
-		const params = u.parseParams(req.query); //user given url params
+		const params = u.parseParams(req.query); //user given url params		
 		const script = exports.main(params);
+		try {		
+		mixpanel.track('snippet sent', {...params, distinct_id: params.token, ip: req.ip, base: req.baseUrl, url: req.baseUrl });		
+		} catch(e) {}
+		
 		res.set('Content-Type', contentType).set('Cache-Control', cacheStrategy).status(200).send(script);
 	} catch (e) {
 		console.error(e);
+		try {
+		mixpanel.track('snippet error', {...req.query, distinct_id: req.query?.token, ip: req.ip, base: req.baseUrl, url: req.baseUrl, error: e.message});
+		} catch(e) {}
+		
 		const clientError = `console.error(\`EZTrack: Bad Token!\n\ngot: "${req.query?.token || "null"}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token\`)`;
 		res.set('Content-Type', contentType).status(200).send(clientError);
 	}
