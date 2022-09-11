@@ -1,32 +1,40 @@
 {
-  "name": "mp-ez-track",
-  "description": "a very light 'codeless' implementation of mixpanel-browser",
+  "name": "mpeztrack",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "a codeless implementation of mixpanel-browser",
+  "main": "./src/index.js",
   "scripts": {
-    "scratch": "nodemon --inspect scratch.js --ignore ./node_modules/",
-    "local": "npm-watch dev",
-    "dev": "npx functions-framework --target=start  --signature-type=http --port 420",
-    "deploy": "gcloud functions deploy mp-ez-track --timeout=540 --runtime nodejs16 --trigger-http --allow-unauthenticated --entry-point=start --source=./",
-    "test": "jest --watchAll"
+    "test": "test",
+    "watch": "npm-watch build",
+    "server": "./node_modules/.bin/serve ./dist",
+    "build": "npm run min && npm run max",
+    "min": "./node_modules/.bin/esbuild ./src/index.js --bundle --minify --tree-shaking=true --outfile=./dist/eztrack.min.js",
+    "max": "./node_modules/.bin/esbuild ./src/index.js --bundle --outfile=./dist/eztrack.js"
   },
   "watch": {
-    "dev": "*.js"
+    "build": "./src/*.js"
   },
-  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ak--47/mpEZTrack.git"
+  },
   "author": "AK",
   "license": "ISC",
-  "dependencies": {
-    "dotenv": "^16.0.2",
-    "mixpanel": "^0.17.0",
-    "uglify-js": "^3.17.0"
+  "bugs": {
+    "url": "https://github.com/ak--47/mpEZTrack/issues"
   },
+  "homepage": "https://github.com/ak--47/mpEZTrack#readme",
   "devDependencies": {
-    "@google-cloud/functions-framework": "^3.1.2",
+    "esbuild": "^0.15.7",
     "eslint": "^8.23.0",
     "esprima": "^4.0.1",
-    "jest": "^27.5.1",
-    "nodemon": "^2.0.15",
-    "npm-watch": "^0.11.0"
+    "jest": "^29.0.3",
+    "nodemon": "^2.0.19",
+    "npm-watch": "^0.11.0",
+    "serve": "^14.0.1"
+  },
+  "dependencies": {
+    "mixpanel-browser": "^2.45.0",
+    "query-selector-shadow-dom": "^1.0.0"
   }
 }
