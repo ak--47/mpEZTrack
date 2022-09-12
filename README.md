@@ -41,7 +41,6 @@ in the table below, you will find all the options exposed by this module; if you
 
 | option                 | expected type    | default | notes                                                       |
 |------------------------|-------------------|----------|-------------------------------------------------------------|
-| `token` **(required)** | `string`                | --       | expects a 32 character string |
 |`debug`	| `boolean` 	| `false`	| puts the `mixpanel` SDK in debug mode                          
 |`extend`	| `boolean` 	|`false`	| exposes the `mixpanel` object as a global and `EZTrack` as `mixpanel.ez`                              |
 |`refresh`	| `integer` 	| `5000`	| the frequency (ms) in which the `.track()` queue will be flushed                             |
