@@ -97,7 +97,7 @@ an example implementation of custom identity management might look like this:
 ```javascript
 mpEZTrack.init('token', { extend: true});	// expose the mixpanel object
 mixpanel.ez.identify(currentUser.id); 		// tell mp who the user is
-mixpanel.ez.track('log in');				// precision-track any events
+mixpanel.ez.track('log in');			// precision-track any events
 
 //set any other props on the user
 mixpanel.ez.people.set({$name: currentUser.name, $email: currentUser.name, plan: currentUser.planType})
