@@ -7,7 +7,7 @@
     s.type = 'text/javascript';
     s.async = true;
 	s.defer = true;	
-    s.src = 'http://localhost:3000/eztrack.min.js';
+    s.src = `https://storage.googleapis.com/ez-track/v0.1b/eztrack.min.js`;
     var x = document.getElementsByTagName('script')[0];
     x.parentNode.insertBefore(s, x);
   })();

@@ -36,17 +36,20 @@ const ezTrack = {
 	clicks: trackAllClicks,
 	youtube: trackYoutubeVideos,
 	profiles: createUserProfiles,
+	
 	//todo?
 	spa: beSpaAware,
+	
+	// DEFAULTS!
 	defaultOpts: function getDefaultOptions() {
 		return {
 			//meta
-			debug: true,
-			extend: true, //false
+			debug: false,
+			extend: false, 
 			refresh: 5000,
 			location: true,
 			
-			//modules
+			//default on
 			superProps: true,
 			pageView: true,
 			pageExit: true,
@@ -54,8 +57,10 @@ const ezTrack = {
 			buttons: true,
 			forms: true,
 			profiles: true,
-			clicks: true, //false
-			youtube: true, //false
+
+			//default off
+			clicks: false, 
+			youtube: false, 
 			
 			//wip
 			spa: false,
@@ -66,7 +71,7 @@ const ezTrack = {
 };
 
 
-function bootStrapModule(token = ``, userSuppliedOptions = {}) {
+export function bootStrapModule(token = ``, userSuppliedOptions = {}) {
 	// validate token as 32 char string
 	if (!token || token?.length !== 32) {
 		console.error(`EZTrack: Bad Token!\n\ngot: "${token}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token`);
@@ -99,19 +104,19 @@ function bootStrapModule(token = ``, userSuppliedOptions = {}) {
 
 }
 
-function trackPageViews(mp, opts) {
+export function trackPageViews(mp, opts) {
 	mp.track('page view');
 	if (opts.pageExit) mp.time_event('page exit');
 }
 
-function trackPageExits(mp, opts) {
+export function trackPageExits(mp, opts) {
 	window.addEventListener('beforeunload', () => {
 		const scrollPercent = ((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100);
 		mp.track('page exit', { 'scroll %': scrollPercent }, { transport: 'sendBeacon', send_immediately: true });
 	});
 }
 
-function trackButtonClicks(mp, opts) {
+export function trackButtonClicks(mp, opts) {
 	const buttons = this.query(BUTTON_SELECTORS);
 	for (const button of buttons) {
 		button.addEventListener('click', (e) => {
@@ -123,11 +128,10 @@ function trackButtonClicks(mp, opts) {
 					console.log(e);
 			}
 		}, LISTENER_OPTIONS);
-
 	}
 }
 
-function trackLinkClicks(mp, opts) {
+export function trackLinkClicks(mp, opts) {
 	const links = this.query(LINK_SELECTORS);
 	for (const link of links) {
 		link.addEventListener('click', (e) => {
@@ -139,11 +143,10 @@ function trackLinkClicks(mp, opts) {
 					console.log(e);
 			}
 		}, LISTENER_OPTIONS);
-
 	}
 }
 
-function trackFormSubmits(mp, opts) {
+export function trackFormSubmits(mp, opts) {
 	const forms = this.query(FORM_SELECTORS);
 	for (const form of forms) {
 		form.addEventListener('submit', (e) => {
@@ -155,12 +158,10 @@ function trackFormSubmits(mp, opts) {
 					console.log(e);
 			}
 		}, LISTENER_OPTIONS);
-
 	}
-
 }
 
-function trackAllClicks(mp, opts) {
+export function trackAllClicks(mp, opts) {
 	let allThings = this.query(ALL_SELECTOR).filter(node => node.children.length === 0);
 
 	if (opts.buttons) {
@@ -191,7 +192,7 @@ function trackAllClicks(mp, opts) {
 	}
 }
 
-function trackYoutubeVideos(mp, opts) {
+export function trackYoutubeVideos(mp, opts) {
 	const tag = document.createElement('script');
 			tag.id = 'mixpanel-iframe-tracker';
 			tag.src = 'https://www.youtube.com/iframe_api';
@@ -199,7 +200,7 @@ function trackYoutubeVideos(mp, opts) {
 			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 		
 			// called by youtube's iframe api
-			//todo... how to bind this?
+			//todo... how to bind THIS ?
 			window.onYouTubeIframeAPIReady = function() {		
 				const videos = ezTrack.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'))
 					for (const video of videos) {
@@ -274,13 +275,13 @@ function trackYoutubeVideos(mp, opts) {
 		
 					default:
 					break;
-				}
-			   
+				}			   
 			}
 			
-			//todo... how to bind this?
+			//todo... how to bind THIS?
 			const videos = ezTrack.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'))
 			
+			// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
 			for (video of videos) {
 				if (!video.src.includes('enablejsapi')) {
 					const newSRC = new URL(video.src);
@@ -293,12 +294,11 @@ function trackYoutubeVideos(mp, opts) {
 				if (!video.id) {
 					video.id = new URL(video.src).pathname.replace("/embed/", "");
 				}
-		
 			}
 
 }
 
-function createUserProfiles(mp, opts) {
+export function createUserProfiles(mp, opts) {
 	mp.identify(mp.get_distinct_id());
 	mp.people.set({"last page viewed": window.location.href, "language": window.navigator.language});
 	mp.people.set_once({ "$name": "anonymous"});
@@ -306,7 +306,7 @@ function createUserProfiles(mp, opts) {
 	mp.people.set_once({"$Created": new Date().toISOString() });
 }
 
-function beSpaAware(typeOfSpa) {
+export function beSpaAware(typeOfSpa) {
 	switch (typeOfSpa?.toLowerCase()) {
 		case `react`:
 
@@ -338,5 +338,5 @@ function beSpaAware(typeOfSpa) {
 	}
 }
 
-//put it in global namespace
+//put it in global namespace 🤠
 window.mpEZTrack = ezTrack;

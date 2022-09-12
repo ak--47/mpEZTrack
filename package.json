@@ -1,19 +1,20 @@
 {
   "name": "mpeztrack",
-  "version": "1.0.0",
+  "version": "0.1b",
   "description": "a codeless implementation of mixpanel-browser",
-  "main": "./src/index.js",
+  "main": "./src/eztrack.js",
   "scripts": {
-    "test": "test",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --watchAll",
     "watch": "npm-watch build",
-    "server": "./node_modules/.bin/serve ./dist",
-    "build": "npm run min && npm run max",
-    "min": "./node_modules/.bin/esbuild ./src/index.js --bundle --minify --tree-shaking=true --outfile=./dist/eztrack.min.js",
-    "max": "./node_modules/.bin/esbuild ./src/index.js --bundle --outfile=./dist/eztrack.js"
+    "serve": "./node_modules/.bin/serve ./src",
+	"serveProd": "./node_modules/.bin/serve ./dist",
+	"build": "npm run minBundle",	
+    "minBundle": "./node_modules/.bin/esbuild ./src/eztrack.js ./src/snippet.js --bundle --minify --tree-shaking=true --outdir=./dist/ --out-extension:.js=.min.js"
   },
   "watch": {
     "build": "./src/*.js"
   },
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ak--47/mpEZTrack.git"
