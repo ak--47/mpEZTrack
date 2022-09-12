@@ -15,7 +15,7 @@ import {
 	LISTENER_OPTIONS
 } from './attributes';
 
-const ezTrack = {
+export const ezTrack = {
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
 	init: bootStrapModule,
 	bind: function bindTrackers(mp, opts) {

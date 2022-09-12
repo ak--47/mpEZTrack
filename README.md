@@ -20,8 +20,8 @@ finally, feel free to read my thoughts on [why this tool exists](#motivation), a
 
 include the following two `<script>` tags on any page to use `mpEZTrack`; customize the second one: 
 ```html
-<script src="https://storage.googleapis.com/ez-track/v0.1b/eztrack.min.js"></script>
-<script defer>
+<script src="https://storage.googleapis.com/ez-track/v0.1b/eztrack.min.js" type="text/javascript"></script>
+<script>
 mpEZTrack.init("YOUR-PROJECT-TOKEN") //change me 🤗
 </script>
 ```
