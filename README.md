@@ -27,7 +27,8 @@ mpEZTrack.init("YOUR-PROJECT-TOKEN") //change me 🤗
 ```
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ⚠️ **important** ⚠️ 
- change the value of `YOUR-PROJECT-TOKEN` in the above snippet to your **[mixpanel project's token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-)** in the above snippet.
+
+change the value of `YOUR-PROJECT-TOKEN` in the above snippet to your **[mixpanel project's token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-)** in the above snippet.
 
 one deployed on your website, look in your mixpanel project; you are now collecting many useful events:
 
@@ -38,22 +39,22 @@ you can choose to add a second `options` object to `.init()` to customize your i
 
 in the table below, you will find all the options exposed by this module; if you wish to use a `default` value for any particular option, it does not need to be explicitly passed:
 
-| option                 | expected value    | default | notes                                                       |
+| option                 | expected type    | default | notes                                                       |
 |------------------------|-------------------|----------|-------------------------------------------------------------|
-| `token` **(required)** | --                | --       | expects a 32 character string |
-|`debug`	| `true` or `false` 	| `false`	| puts the `mixpanel` SDK in debug mode                          
-|`extend`	| `true` or `false` 	|`false`	| exposes the `mixpanel` object as a global and `EZTrack` as `mixpanel.ez`                              |
+| `token` **(required)** | `string`                | --       | expects a 32 character string |
+|`debug`	| `boolean` 	| `false`	| puts the `mixpanel` SDK in debug mode                          
+|`extend`	| `boolean` 	|`false`	| exposes the `mixpanel` object as a global and `EZTrack` as `mixpanel.ez`                              |
 |`refresh`	| `integer` 	| `5000`	| the frequency (ms) in which the `.track()` queue will be flushed                             |
-|`location`	|	 `true` or `false` | `true`	| use mixpanel to resolve geo-location                              |
-| `superProps`           | `true` or `false` | `true`   | adds information about the client device to all events      |
-| `pageView`            | `true` or `false` | `true`   | tracks all page views                                       |
-| `pageExit`            | `true` or `false` | `false`  | attempts to track page exits with `duration` and `scroll %` |
-| `links`           | `true` or `false` | `true`   | tracks all clicks on `<a>` elements                         
-| `buttons`           | `true` or `false` | `true`   | tracks all clicks on `<a>` elements                         
-| `forms`          | `true` or `false` | `true`   | track all submissions on `<form>` elements                  |
-| `profiles`         | `true` or `false` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
-| `clicks`            | `true` or `false` | `false`  | tracks all clicks on any page elements                      |
-| `youtube`              | `true` or `false` | `false`  | tracks interactions with embedded youtube videos            |
+|`location`	|	 `boolean` | `true`	| use mixpanel to resolve geo-location                              |
+| `superProps`           | `boolean` | `true`   | adds information about the client device to all events      |
+| `pageView`            | `boolean` | `true`   | tracks all page views                                       |
+| `pageExit`            | `boolean` | `false`  | attempts to track page exits with `duration` and `scroll %` |
+| `links`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
+| `buttons`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
+| `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements                  |
+| `profiles`         | `boolean` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
+| `clicks`            | `boolean` | `false`  | tracks all clicks on any page elements                      |
+| `youtube`              | `boolean` | `false`  | tracks interactions with embedded youtube videos            |
 
 
 ## `init()` recipes 🍳 <div  id="recipes"></div>
@@ -85,6 +86,7 @@ mpEZTrack.init('YOUR-PROJECT-TOKEN', { debug: false, extend: false,  refresh: 50
 one of the biggest drawbacks to purely codeless analytics SDKs, is that they lose the ability to properly resolve the end-user's identity. while `mpEZTrack` will happily persist a user's identity across sessions on a single device, without a run-time signal from your app, it is not possible to identify the same user across multiple devices.
 
 if you are using the `{ profiles : true }`  option (or the defaults), you may notice that all of your user profiles show users as `anonymous`:
+
 ![eztrack user profile](https://aktunes.neocities.org/anon.png)
 
 this is expected behavior.
@@ -93,9 +95,9 @@ if your application can supply a **canonical unique user identifier** you can `e
 
 an example implementation of custom identity management might look like this:
 ```javascript
-mpEZTrack.init('YOUR-PROJECT-TOKEN', { extend: true});	// expose the mixpanel object
-mixpanel.ez.identify(currentUser.id) 					// tell mp who the user is
-mixpanel.ez.track('log in')								// precision-track any events
+mpEZTrack.init('token', { extend: true});	// expose the mixpanel object
+mixpanel.ez.identify(currentUser.id); 		// tell mp who the user is
+mixpanel.ez.track('log in');				// precision-track any events
 
 //set any other props on the user
 mixpanel.ez.people.set({$name: currentUser.name, $email: currentUser.name, plan: currentUser.planType})
@@ -103,7 +105,7 @@ mixpanel.ez.people.set({$name: currentUser.name, $email: currentUser.name, plan:
 
 where `currentUser` has the following shape:
 
-```
+```javascript
 { 
 	id: "3cd1e0f8-2366-42d7-b302-3c70f827fd51",
 	name: "AK",
