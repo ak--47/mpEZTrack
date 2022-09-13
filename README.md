@@ -28,11 +28,11 @@ mpEZTrack.init("YOUR-PROJECT-TOKEN") //change me 🤗
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ⚠️ **important** ⚠️ 
 
-change the value of `YOUR-PROJECT-TOKEN` in the above snippet to your **[mixpanel project's token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-)** in the above snippet.
+change the value of `YOUR-PROJECT-TOKEN` in the above snippet to your **[mixpanel project's token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-)**
 
 one deployed on your website, look in your mixpanel project; you are now collecting many useful events:
 
-![useful events!](https://aktunes.neocities.org/manyUsefulEvents.png)
+<img src="https://aktunes.neocities.org/manyUsefulEvents.png" alt="many useful events" width=700/>
 
 ## options 🎛 <div  id="options"></div> 
 you can choose to add a second `options` object to `.init()` to customize your implementation
@@ -86,7 +86,7 @@ one of the biggest drawbacks to purely codeless analytics SDKs, is that they los
 
 if you are using the `{ profiles : true }`  option (or the defaults), you may notice that all of your user profiles show users as `anonymous`:
 
-![eztrack user profile](https://aktunes.neocities.org/anon.png)
+<img src="https://aktunes.neocities.org/anon.png" alt="ez track user profile" width=150/>
 
 this is expected behavior.
 
