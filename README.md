@@ -32,7 +32,7 @@ change the value of `YOUR-PROJECT-TOKEN` in the above snippet to your **[mixpane
 
 one deployed on your website, look in your mixpanel project; you are now collecting many useful events:
 
-<img src="https://aktunes.neocities.org/manyUsefulEvents.png" alt="many useful events" width=700/>
+<img src="https://aktunes.neocities.org/manyUsefulEvents.png" alt="many useful events" width=500/>
 
 ## options 🎛 <div  id="options"></div> 
 you can choose to add a second `options` object to `.init()` to customize your implementation
