@@ -18,6 +18,7 @@ import {
 export const ezTrack = {
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
 	init: bootStrapModule,
+	forceDebug: ()=> { mixpanel.ez.set_config({debug: true}) }, //currently undocumented
 	bind: function bindTrackers(mp, opts) {
 		if (opts.pageView) this.pageView(mp, opts);
 		if (opts.pageExit) this.pageExit(mp, opts);
