@@ -1,54 +1,88 @@
 export const SUPER_PROPS = {
-	path: window.location.pathname,
-	pixelRatio: window.devicePixelRatio,
-	pageHeight: window.innerHeight,
-	pageWidth: window.innerWidth,
-	pageNum: window.history.length,
-	language: window.navigator.language,
-	pageTitle: document.title,
-	connection: window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
-	memory: window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
-	platform: window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
-	mobile: window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
-	$source: "ezTrack"
+	"PAGE → url (/)": window.location.pathname,
+	"PAGE → hash (#)": window.location.hash,
+	"PAGE → params (?)": qsToObj(),	
+	"PAGE → height": window.innerHeight,
+	"PAGE → width": window.innerWidth,
+	"PAGE → title": document.title,	
+	"SESSION → # page": window.history.length,
+	"DEVICE → language": window.navigator.language,	
+	"DEVICE → pixel ratio": window.devicePixelRatio,
+	"DEVICE → bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
+	"DEVICE → memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
+	"DEVICE → platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
+	"DEVICE → is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
+	"$source": "mpEZTrack"
 };
 
 export const LISTENER_OPTIONS = {
 	"passive": true
-}
+};
 
 export const STANDARD_FIELDS = (ev) => ({
-	classes: ev.target.className.split(" ").filter(a => a),
-	id: ev.target.id
+	"ELEM → classes": ev.target.className.split(" ").filter(a => a),
+	"ELEM → id": ev.target.id,
+	"ELEM → height": ev.target.offsetHeight,
+	"ELEM → width": ev.target.offsetWidth
 });
 
 export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (ev) => ({
-	url: ev.target.href,
-	text: ev.target.innerHTML
+	"LINK → url": ev.target.href,
+	"LINK → text": ev.target.innerText,
+	"LINK → target": ev.target.target,
+	"LINK → name": ev.target.name,
+	"LINK → child": ev.target.innerHTML
 });
 
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn`;
 export const BUTTON_FIELDS = (ev) => ({
-	disabled: ev.target.disabled,
-	text: ev.target.innerText,
-	buttonName: ev.target.name
+	"BUTTON → disabled": ev.target.disabled,
+	"BUTTON → text": ev.target.innerText,
+	"BUTTON → name": ev.target.name
 });
 
 export const FORM_SELECTORS = String.raw`form`;
 export const FORM_FIELDS = (ev) => ({
-	numOfInputs: ev.target.length,
-	formName: ev.target.name,
-	formId: ev.target.id,
-	formMethod: ev.target.method,
-	formAction: ev.target.action,
-	formEncoding: ev.target.encoding
+	"FORM → # inputs": ev.target.length,
+	"FORM → name": ev.target.name,
+	"FORM → id": ev.target.id,
+	"FORM → method": ev.target.method,
+	"FORM → action": ev.target.action,
+	"FORM → encoding": ev.target.encoding
 });
 
 export const ALL_SELECTOR = String.raw`*`;
 export const ANY_TAG_FIELDS = (ev) => ({
-	tagName: "".concat('<', ev.target.tagName, '>'),
-	text: ev.target.innerText || ev.target.value
+	"ELEM → tag (< >)": "".concat('<', ev.target.tagName, '>'),
+	"ELEM → text": ev.target.innerText || ev.target.value,
+	"ELEM → is editable?": ev.target.isContentEditable
 });
 
 export const YOUTUBE_SELECTOR = String.raw`iframe`;
+
+
+// try to parse query params
+function qsToObj() {
+	try {
+		const parsedQs = new URLSearchParams(window.location.search);
+		const params = Object.fromEntries(urlParams);
+		return params
+	}
+
+	catch (e)  {
+		return {}
+	}
+}
+
+//try to get internal tag data?
+// https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/dataset
+function parseDataset(dataset) {
+	try {
+		return {...dataset}
+	}
+
+	catch (e) {
+		return {}
+	}
+}

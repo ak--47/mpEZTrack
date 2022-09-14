@@ -18,7 +18,7 @@ finally, feel free to read my thoughts on [why this tool exists](#motivation), a
 
 ## tldr;  📦<div  id="tldr"></div>
 
-include the following two `<script>` tags on any page to use `mpEZTrack`; customize the second one: 
+include the following two `<script>` tags within the `<body></body>` HTML tags on any page to use `mpEZTrack`; customize the second one to add your [mixpanel token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-): 
 ```html
 <script src="https://storage.googleapis.com/ez-track/v0.1b/eztrack.min.js" type="text/javascript"></script>
 <script>
@@ -47,7 +47,7 @@ in the table below, you will find all the options exposed by this module; if you
 |`location`	|	 `boolean` | `true`	| use mixpanel to resolve geo-location                              |
 | `superProps`           | `boolean` | `true`   | adds information about the client device to all events      |
 | `pageView`            | `boolean` | `true`   | tracks all page views                                       |
-| `pageExit`            | `boolean` | `false`  | attempts to track page exits with `duration` and `scroll %` |
+| `pageExit`            | `boolean` | `true`  | attempts to track page exits with `duration` and `scroll %` |
 | `links`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
 | `buttons`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements                  |
