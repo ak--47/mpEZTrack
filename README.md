@@ -18,7 +18,7 @@ finally, feel free to read my thoughts on [why this tool exists](#motivation), a
 
 ## tldr;  📦<div  id="tldr"></div>
 
-include the following two `<script>` tags within the `<body></body>` HTML tags on any page to use `mpEZTrack`; customize the second one to add your [mixpanel token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-): 
+include the following two `<script>` tags before the **closing** `</body>` HTML tag on any page to use `mpEZTrack`; customize the second one to add your [mixpanel token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-): 
 ```html
 <script src="https://storage.googleapis.com/ez-track/v0.1b/eztrack.min.js" type="text/javascript"></script>
 <script>
