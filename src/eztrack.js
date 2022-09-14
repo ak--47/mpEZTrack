@@ -28,6 +28,9 @@ export const ezTrack = {
 		if (opts.clicks) this.clicks(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
+		if (opts.window) this.window(mp, opts);
+		if (opts.spa) this.spa(mp, opts);
+		
 	},
 	pageView: trackPageViews,
 	pageExit: trackPageExits,
@@ -39,7 +42,9 @@ export const ezTrack = {
 	profiles: createUserProfiles,
 	
 	//todo?
+	window: detectGlobalEvents,
 	spa: beSpaAware,
+	
 	
 	// DEFAULTS!
 	defaultOpts: function getDefaultOptions() {
@@ -65,6 +70,7 @@ export const ezTrack = {
 			
 			//wip
 			spa: false,
+			window: false
 
 		};
 	}
@@ -222,13 +228,14 @@ export function trackYoutubeVideos(mp, opts) {
 			function getVideoInfo(player) {    
 				const videoInfo = player.getVideoData();
 				const videoProps = {
-					'video quality': player.getPlaybackQuality(),
-					'video length (sec)': player.getDuration(),
-					'video ellapsed (sec)': player.getCurrentTime(),
-					'video url': player.getVideoUrl(),
-					'video title': videoInfo.title,
-					'video id': videoInfo.video_id,
-					'video author': videoInfo.author		
+					'VIDEO → quality' : player.getPlaybackQuality(),
+					'VIDEO → length (sec)' : player.getDuration(),
+					'VIDEO → ellapsed (sec)' : player.getCurrentTime(),
+					'VIDEO → url' : player.getVideoUrl(),
+					'VIDEO → title' : videoInfo.title,
+					'VIDEO → id' : videoInfo.video_id,
+					'VIDEO → author' : videoInfo.author,
+					"VIDEO → fullscreen": !(document.fullscreenElement === null)		
 				}
 				return videoProps;
 			}
@@ -305,6 +312,14 @@ export function createUserProfiles(mp, opts) {
 	mp.people.set_once({ "$name": "anonymous"});
 	mp.people.increment("total # pages");
 	mp.people.set_once({"$Created": new Date().toISOString() });
+}
+
+//TODOs
+
+
+// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
+export function detectGlobalEvents(mp, opts) {
+
 }
 
 export function beSpaAware(typeOfSpa) {

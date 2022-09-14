@@ -1,0 +1,21 @@
+{
+  "name": "mpEZTrack",
+  "version": "0.0.1",
+  "manifest_version": 2,
+  "description": "inject mpEZTrack into any page",
+  "homepage_url": "https://aktunes.com",
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_title": "mpEZTrack!"
+  },
+  "permissions": [
+    "https://*/*",
+    "http://*/*",
+    "tabs"
+  ]
+}

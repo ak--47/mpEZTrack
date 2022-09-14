@@ -47,7 +47,7 @@ in the table below, you will find all the options exposed by this module; if you
 |`location`	|	 `boolean` | `true`	| use mixpanel to resolve geo-location                              |
 | `superProps`           | `boolean` | `true`   | adds information about the client device to all events      |
 | `pageView`            | `boolean` | `true`   | tracks all page views                                       |
-| `pageExit`            | `boolean` | `false`  | attempts to track page exits with `duration` and `scroll %` |
+| `pageExit`            | `boolean` | `true`  | attempts to track page exits with `duration` and `scroll %` |
 | `links`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
 | `buttons`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements                  |
