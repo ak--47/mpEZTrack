@@ -3,7 +3,7 @@
 (function () {
 
 	var s = document.createElement('script');
-	s.src = `https://storage.googleapis.com/ez-track/v0.1b/eztrack.min.js`;
+	s.src = `https://storage.googleapis.com/ez-track/v0.1b/eztrack.js`;
 	(document.head || document.documentElement).appendChild(s);
 	
 	
