@@ -15,7 +15,7 @@ import {
 	LISTENER_OPTIONS
 } from './attributes';
 
-export const ezTrack = {	
+export const ezTrack = {
 	init: bootStrapModule,
 	loadTime: Date.now(),
 	numActions: 0,
@@ -31,9 +31,9 @@ export const ezTrack = {
 	youtube: trackYoutubeVideos,
 	profiles: createUserProfiles,
 	forceDebug: () => { mixpanel.ez.set_config({ debug: true }); }, //currently undocumented
-
+	window: trackWindoEvents,
+	
 	//todo?
-	window: detectGlobalEvents,
 	spa: beSpaAware,
 
 
@@ -58,12 +58,12 @@ export const ezTrack = {
 			//default off
 			clicks: false,
 			youtube: false,
+			window: false,
 
 			//wip
-			spa: 'none',
-			window: false,
+			spa: 'none',			
 			select: false, //select tags, input radios, datalists, and optgroups: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
-			typing: false, //textareas + inputs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
+			typing: false //textareas + inputs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
 
 
 
@@ -139,21 +139,21 @@ export function bindTrackers(mp, opts) {
 }
 
 export function statefulProps() {
-	ezTrack.numActions += 1
+	ezTrack.numActions += 1;
 	return {
-		"SESSION → time on page (sec)" : (Date.now() - ezTrack.loadTime)/1000,
-		"SESSION → # actions" : ezTrack.numActions,
-		"PAGE → scroll (%)" : Number((((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100) || 0).toFixed(2))
-	}
+		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTime) / 1000,
+		"SESSION → # actions": ezTrack.numActions,
+		"PAGE → scroll (%)": Number((((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100) || 0).toFixed(2))
+	};
 }
 
 export function trackPageViews(mp, opts) {
-	mp.track('page enter', {...statefulProps()});
+	mp.track('page enter', { ...statefulProps() });
 	// if (opts.pageExit) mp.time_event('page exit');
 }
 
 export function trackPageExits(mp, opts) {
-	window.addEventListener('beforeunload', () => {		
+	window.addEventListener('beforeunload', () => {
 		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
 	});
 }
@@ -206,11 +206,12 @@ export function trackFormSubmits(mp, opts) {
 	}
 }
 
+//todo guard against passwords
 export function trackAllClicks(mp, opts) {
 	let allThings = this.query(ALL_SELECTOR)
 		.filter(node => node.children.length === 0)
 		.filter(node => !this.domElements.some(el => el === node))
-		.filter(node => !this.domElements.some(el => el.contains(node)))
+		.filter(node => !this.domElements.some(el => el.contains(node)));
 
 	for (const thing of allThings) {
 		this.domElements.push(thing);
@@ -239,16 +240,15 @@ export function trackYoutubeVideos(mp, opts) {
 	// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
 	for (video of videos) {
 		this.domElements.push(video);
+		if (!video.id) {
+			video.id = new URL(video.src).pathname.replace("/embed/", "");
+		}
+
 		if (!video.src.includes('enablejsapi')) {
 			const newSRC = new URL(video.src);
 			newSRC.searchParams.delete('enablejsapi');
 			newSRC.searchParams.append('enablejsapi', 1);
 			video.src = newSRC.toString();
-
-		}
-
-		if (!video.id) {
-			video.id = new URL(video.src).pathname.replace("/embed/", "");
 		}
 	}
 
@@ -307,16 +307,16 @@ export function trackYoutubeVideos(mp, opts) {
 				break;
 
 			case 0:
-				mp.track('youtube video finish', {...videoInfo, ...statefulProps()});
+				mp.track('youtube video finish', { ...videoInfo, ...statefulProps() });
 				break;
 
 			case 1:
-				mp.track('youtube video play', {...videoInfo, ...statefulProps()});
+				mp.track('youtube video play', { ...videoInfo, ...statefulProps() });
 				mp.time_event('youtube video finish');
 				break;
 
 			case 2:
-				mp.track('youtube video pause', {...videoInfo, ...statefulProps()});
+				mp.track('youtube video pause', { ...videoInfo, ...statefulProps() });
 				break;
 
 			case 3:
@@ -352,7 +352,53 @@ export function createUserProfiles(mp, opts) {
 
 
 // https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-export function detectGlobalEvents(mp, opts) {
+export function trackWindoEvents(mp, opts) {
+	window.addEventListener('error', (errEv) => {
+		mp.track('page error', {
+			"ERROR → type": errEv.type,
+			"ERROR → message": errEv.message,
+			...statefulProps()
+		});
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('resize', (resizeEv) => {
+		mp.track('page resize', {
+			"PAGE → height": window.innerHeight,
+			"PAGE → width": window.innerWidth,
+			...statefulProps()
+		});
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('cut', (clipEv) => {
+		mp.track('cut', {
+			...statefulProps(),
+			...STANDARD_FIELDS(clipEv),
+			...ANY_TAG_FIELDS(clipEv)
+		});
+	});
+
+	window.addEventListener('copy', (clipEv) => {
+		mp.track('copy', {
+			...statefulProps(),
+			...STANDARD_FIELDS(clipEv),
+			...ANY_TAG_FIELDS(clipEv)
+		});
+	});
+	//todo guard against passwords
+	window.addEventListener('paste', (clipEv) => {
+		mp.track('paste', {
+			...statefulProps(),
+			...STANDARD_FIELDS(clipEv),
+			...ANY_TAG_FIELDS(clipEv)
+		});
+	});
+
+	window.addEventListener('beforeprint', (printEv) => {
+		mp.track('print', {
+			...statefulProps()
+		})
+	 });
+
 
 }
 

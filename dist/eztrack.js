@@ -4094,7 +4094,7 @@
     forceDebug: () => {
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
-    window: detectGlobalEvents,
+    window: trackWindoEvents,
     spa: beSpaAware,
     defaultOpts: function getDefaultOptions() {
       return {
@@ -4111,8 +4111,8 @@
         profiles: true,
         clicks: false,
         youtube: false,
-        spa: "none",
         window: false,
+        spa: "none",
         select: false,
         typing: false
       };
@@ -4270,14 +4270,14 @@ https://developer.mixpanel.com/reference/project-token`);
     const videos = this.query(YOUTUBE_SELECTOR).filter((frame) => frame.src.includes("youtube.com/embed"));
     for (video of videos) {
       this.domElements.push(video);
+      if (!video.id) {
+        video.id = new URL(video.src).pathname.replace("/embed/", "");
+      }
       if (!video.src.includes("enablejsapi")) {
         const newSRC = new URL(video.src);
         newSRC.searchParams.delete("enablejsapi");
         newSRC.searchParams.append("enablejsapi", 1);
         video.src = newSRC.toString();
-      }
-      if (!video.id) {
-        video.id = new URL(video.src).pathname.replace("/embed/", "");
       }
     }
     window.onYouTubeIframeAPIReady = function() {
@@ -4352,7 +4352,47 @@ https://developer.mixpanel.com/reference/project-token`);
         console.log(e);
     }
   }
-  function detectGlobalEvents(mp, opts) {
+  function trackWindoEvents(mp, opts) {
+    window.addEventListener("error", (errEv) => {
+      mp.track("page error", {
+        "ERROR \u2192 type": errEv.type,
+        "ERROR \u2192 message": errEv.message,
+        ...statefulProps()
+      });
+    }, LISTENER_OPTIONS);
+    window.addEventListener("resize", (resizeEv) => {
+      mp.track("page resize", {
+        "PAGE \u2192 height": window.innerHeight,
+        "PAGE \u2192 width": window.innerWidth,
+        ...statefulProps()
+      });
+    }, LISTENER_OPTIONS);
+    window.addEventListener("cut", (clipEv) => {
+      mp.track("cut", {
+        ...statefulProps(),
+        ...STANDARD_FIELDS(clipEv),
+        ...ANY_TAG_FIELDS(clipEv)
+      });
+    });
+    window.addEventListener("copy", (clipEv) => {
+      mp.track("copy", {
+        ...statefulProps(),
+        ...STANDARD_FIELDS(clipEv),
+        ...ANY_TAG_FIELDS(clipEv)
+      });
+    });
+    window.addEventListener("paste", (clipEv) => {
+      mp.track("paste", {
+        ...statefulProps(),
+        ...STANDARD_FIELDS(clipEv),
+        ...ANY_TAG_FIELDS(clipEv)
+      });
+    });
+    window.addEventListener("beforeprint", (printEv) => {
+      mp.track("print", {
+        ...statefulProps()
+      });
+    });
   }
   function beSpaAware(typeOfSpa = "none", mp, opts) {
     switch (typeOfSpa.toLowerCase()) {
