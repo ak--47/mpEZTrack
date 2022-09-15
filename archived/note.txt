@@ -1,1 +1,0 @@
-this was originally going to run as a cloud function... but that was a bad idea... old code preserved for context
