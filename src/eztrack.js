@@ -15,12 +15,13 @@ import {
 	LISTENER_OPTIONS
 } from './attributes';
 
-export const ezTrack = {
-	query: querySelectorAllDeep, //this guy can pierce the shadow dom
+export const ezTrack = {	
 	init: bootStrapModule,
-	forceDebug: () => { mixpanel.ez.set_config({ debug: true }); }, //currently undocumented
+	loadTime: Date.now(),
+	numActions: 0,
 	domElements: [],
 	bind: bindTrackers,
+	query: querySelectorAllDeep, //this guy can pierce the shadow dom
 	pageView: trackPageViews,
 	pageExit: trackPageExits,
 	buttons: trackButtonClicks,
@@ -29,6 +30,7 @@ export const ezTrack = {
 	clicks: trackAllClicks,
 	youtube: trackYoutubeVideos,
 	profiles: createUserProfiles,
+	forceDebug: () => { mixpanel.ez.set_config({ debug: true }); }, //currently undocumented
 
 	//todo?
 	window: detectGlobalEvents,
@@ -58,8 +60,12 @@ export const ezTrack = {
 			youtube: false,
 
 			//wip
-			spa: false,
-			window: false
+			spa: 'none',
+			window: false,
+			select: false, //select tags, input radios, datalists, and optgroups: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
+			typing: false, //textareas + inputs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
+
+
 
 		};
 	}
@@ -67,9 +73,9 @@ export const ezTrack = {
 };
 
 
-export function bootStrapModule(token = ``, userSuppliedOptions = {}) {
+export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue = false) {
 	// validate token as 32 char string
-	if (!token || token?.length !== 32) {
+	if (!token || token.length !== 32) {
 		console.error(`EZTrack: Bad Token!\n\ngot: "${token}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token`);
 		throw new Error(`BAD TOKEN! TRY AGAIN`);
 	}
@@ -77,6 +83,12 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}) {
 	//gather options
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
+	if (forceTrue) {
+		for (let key in opts) {
+			if (typeof opts[key] === 'boolean') opts[key] = true;
+			if (typeof opts[key] === 'number') opts[key] = 0;
+		}
+	}
 	try {
 		//setup mp
 		mixpanel.init(token, {
@@ -107,7 +119,7 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}) {
 }
 
 export function bindTrackers(mp, opts) {
-	try {		
+	try {
 		if (opts.pageView) this.pageView(mp, opts);
 		if (opts.pageExit) this.pageExit(mp, opts);
 		if (opts.links) this.links(mp, opts);
@@ -117,7 +129,7 @@ export function bindTrackers(mp, opts) {
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
-		if (opts.spa) this.spa(mp, opts);
+		if (opts.spa) this.spa(opts.spa, mp, opts);
 	}
 	catch (e) {
 		if (opts.debug)
@@ -126,15 +138,23 @@ export function bindTrackers(mp, opts) {
 
 }
 
+export function statefulProps() {
+	ezTrack.numActions += 1
+	return {
+		"SESSION → time on page (sec)" : (Date.now() - ezTrack.loadTime)/1000,
+		"SESSION → # actions" : ezTrack.numActions,
+		"PAGE → scroll (%)" : Number((((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100) || 0).toFixed(2))
+	}
+}
+
 export function trackPageViews(mp, opts) {
-	mp.track('page view');
-	if (opts.pageExit) mp.time_event('page exit');
+	mp.track('page enter', {...statefulProps()});
+	// if (opts.pageExit) mp.time_event('page exit');
 }
 
 export function trackPageExits(mp, opts) {
-	window.addEventListener('beforeunload', () => {
-		const scrollPercent = ((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100);
-		mp.track('page exit', { 'scroll %': scrollPercent }, { transport: 'sendBeacon', send_immediately: true });
+	window.addEventListener('beforeunload', () => {		
+		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
 	});
 }
 
@@ -144,7 +164,7 @@ export function trackButtonClicks(mp, opts) {
 		this.domElements.push(button);
 		button.addEventListener('click', (e) => {
 			try {
-				mp.track('button click', { ...STANDARD_FIELDS(e), ...BUTTON_FIELDS(e) });
+				mp.track('button click', { ...STANDARD_FIELDS(e), ...BUTTON_FIELDS(e), ...statefulProps() });
 			}
 			catch (e) {
 				if (opts.debug)
@@ -160,7 +180,7 @@ export function trackLinkClicks(mp, opts) {
 		this.domElements.push(link);
 		link.addEventListener('click', (e) => {
 			try {
-				mp.track('link click', { ...STANDARD_FIELDS(e), ...LINK_FIELDS(e) });
+				mp.track('link click', { ...STANDARD_FIELDS(e), ...LINK_FIELDS(e), ...statefulProps() });
 			}
 			catch (e) {
 				if (opts.debug)
@@ -176,7 +196,7 @@ export function trackFormSubmits(mp, opts) {
 		this.domElements.push(form);
 		form.addEventListener('submit', (e) => {
 			try {
-				mp.track('form submit', { ...STANDARD_FIELDS(e), ...FORM_FIELDS(e) });
+				mp.track('form submit', { ...STANDARD_FIELDS(e), ...FORM_FIELDS(e), ...statefulProps() });
 			}
 			catch (e) {
 				if (opts.debug)
@@ -189,28 +209,14 @@ export function trackFormSubmits(mp, opts) {
 export function trackAllClicks(mp, opts) {
 	let allThings = this.query(ALL_SELECTOR)
 		.filter(node => node.children.length === 0)
-		.filter(node => !this.domElements.some(el => el === node));
-
-	// if (opts.buttons) {
-	// 	allThings = allThings
-	// 		.filter(e => e.tagName !== 'BUTTON')
-	// 		.filter((e) => {
-	// 			return ![...e.classList]
-	// 				.some((className) => {
-	// 					return className.includes(BUTTON_SELECTORS.replace(/\./g, "").split(" "));
-	// 				});
-	// 		});
-	// }
-
-	// if (opts.links) allThings = allThings.filter(e => e.tagName !== 'A');
-	// if (opts.forms) allThings = allThings.filter(e => e.tagName !== 'FORM');
-
+		.filter(node => !this.domElements.some(el => el === node))
+		.filter(node => !this.domElements.some(el => el.contains(node)))
 
 	for (const thing of allThings) {
 		this.domElements.push(thing);
 		thing.addEventListener('click', (e) => {
 			try {
-				mp.track('page click', { ...STANDARD_FIELDS(e), ...ANY_TAG_FIELDS(e) });
+				mp.track('page click', { ...STANDARD_FIELDS(e), ...ANY_TAG_FIELDS(e), ...statefulProps() });
 			}
 			catch (e) {
 				if (opts.debug)
@@ -301,16 +307,16 @@ export function trackYoutubeVideos(mp, opts) {
 				break;
 
 			case 0:
-				mp.track('youtube video finish', videoInfo);
+				mp.track('youtube video finish', {...videoInfo, ...statefulProps()});
 				break;
 
 			case 1:
-				mp.track('youtube video play', videoInfo);
+				mp.track('youtube video play', {...videoInfo, ...statefulProps()});
 				mp.time_event('youtube video finish');
 				break;
 
 			case 2:
-				mp.track('youtube video pause', videoInfo);
+				mp.track('youtube video pause', {...videoInfo, ...statefulProps()});
 				break;
 
 			case 3:
@@ -350,8 +356,8 @@ export function detectGlobalEvents(mp, opts) {
 
 }
 
-export function beSpaAware(typeOfSpa) {
-	switch (typeOfSpa?.toLowerCase()) {
+export function beSpaAware(typeOfSpa = 'none', mp, opts) {
+	switch (typeOfSpa.toLowerCase()) {
 		case `react`:
 
 			break;

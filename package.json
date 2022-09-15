@@ -6,11 +6,11 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --watchAll",
     "watch": "npm-watch build",
-    "serve": "./node_modules/.bin/serve ./src",
-	"serveProd": "./node_modules/.bin/serve ./dist",
-	"build": "npm run buildMin && npm run buildMax",
-	"buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --outdir=./dist/ --out-extension:.js=.min.js",
-	"buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/"
+    "serve": "./node_modules/.bin/serve ./examples",
+	"build": "npm run buildMin && npm run buildMax && npm run buildEx",
+	"buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --target=es6 --outdir=./dist/ --out-extension:.js=.min.js",
+	"buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/",
+	"buildEx": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/"
     
   },
   "watch": {

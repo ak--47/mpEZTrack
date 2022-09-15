@@ -1,5 +1,5 @@
 export const SUPER_PROPS = {
-	"PAGE → url (/)": window.location.pathname,
+	"PAGE → url (/)": decodeURIComponent(window.location.pathname),
 	"PAGE → hash (#)": window.location.hash,
 	"PAGE → params (?)": qsToObj(),	
 	"PAGE → height": window.innerHeight,
@@ -20,7 +20,7 @@ export const LISTENER_OPTIONS = {
 };
 
 export const STANDARD_FIELDS = (ev) => ({
-	"ELEM → classes": ev.target.className.split(" ").filter(a => a),
+	"ELEM → classes": [...ev.target.classList],
 	"ELEM → id": ev.target.id,
 	"ELEM → height": ev.target.offsetHeight,
 	"ELEM → width": ev.target.offsetWidth
@@ -54,7 +54,7 @@ export const FORM_FIELDS = (ev) => ({
 
 export const ALL_SELECTOR = String.raw`*`;
 export const ANY_TAG_FIELDS = (ev) => ({
-	"ELEM → tag (< >)": "".concat('<', ev.target.tagName, '>'),
+	"ELEM → tag (<>)": "".concat('<', ev.target.tagName, '>'),
 	"ELEM → text": ev.target.innerText || ev.target.value,
 	"ELEM → is editable?": ev.target.isContentEditable
 });

@@ -4378,3 +4378,4 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   window.mpEZTrack = ezTrack;
 })();
+//# sourceMappingURL=eztrack.js.map

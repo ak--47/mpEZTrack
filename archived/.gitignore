@@ -1,7 +1,0 @@
-.DS_store
-scratch.js
-.env
-tmp/*
-!tmp/.gitkeep
-node_modules
-notes.txt
