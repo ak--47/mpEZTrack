@@ -35,7 +35,6 @@ export const ezTrack = {
 	//todo?
 	spa: beSpaAware,
 
-
 	// DEFAULTS!
 	defaultOpts: function getDefaultOptions() {
 		return {
@@ -65,11 +64,8 @@ export const ezTrack = {
 			spa: 'none',
 			typing: false //textareas + inputs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
 
-
-
 		};
 	}
-
 };
 
 
@@ -130,7 +126,6 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 	catch (e) {
 		if (opts.debug) console.log(e);
 	}
-
 }
 
 export function bindTrackers(mp, opts) {
@@ -156,11 +151,17 @@ export function bindTrackers(mp, opts) {
 
 export function statefulProps() {
 	this.numActions += 1;
+	const scrollPercent =
+		(
+			(document.documentElement.scrollTop + document.body.scrollTop) /
+			(document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100
+		)
+		|| 0;
 
 	return {
 		"SESSION → time on page (sec)": (Date.now() - this.loadTime) / 1000,
 		"PAGE → # actions": this.numActions,
-		"PAGE → scroll (%)": Number((((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100) || 0).toFixed(2))
+		"PAGE → scroll (%)": Number(scrollPercent.toFixed(2))
 	};
 }
 
