@@ -1,16 +1,12 @@
 import mixpanel from 'mixpanel-browser';
 import { querySelectorAllDeep } from 'query-selector-shadow-dom';
 import {
-	SUPER_PROPS,
-	STANDARD_FIELDS,
-	LINK_SELECTORS,
-	LINK_FIELDS,
-	BUTTON_SELECTORS,
-	BUTTON_FIELDS,
-	FORM_SELECTORS,
-	FORM_FIELDS,
-	ALL_SELECTOR,
-	ANY_TAG_FIELDS,
+	SUPER_PROPS, STANDARD_FIELDS,
+	LINK_SELECTORS, LINK_FIELDS,
+	BUTTON_SELECTORS, BUTTON_FIELDS,
+	FORM_SELECTORS, FORM_FIELDS,
+	DROPDOWN_SELECTOR, DROPDOWN_FIELDS,
+	ALL_SELECTOR, ANY_TAG_FIELDS,
 	YOUTUBE_SELECTOR,
 	LISTENER_OPTIONS
 } from './attributes';
@@ -20,6 +16,7 @@ export const ezTrack = {
 	loadTime: Date.now(),
 	numActions: 0,
 	domElements: [],
+	isFirstVisit: true,
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
 	pageView: trackPageViews,
@@ -27,12 +24,14 @@ export const ezTrack = {
 	buttons: trackButtonClicks,
 	links: trackLinkClicks,
 	forms: trackFormSubmits,
-	clicks: trackAllClicks,
+	selectors: trackDropDowns,
+	clicks: trackClicks,
 	youtube: trackYoutubeVideos,
+	window: trackWindowStuff,
+	clipboard: trackClipboard,
 	profiles: createUserProfiles,
 	forceDebug: () => { mixpanel.ez.set_config({ debug: true }); }, //currently undocumented
-	window: trackWindoEvents,
-	
+
 	//todo?
 	spa: beSpaAware,
 
@@ -54,15 +53,16 @@ export const ezTrack = {
 			buttons: true,
 			forms: true,
 			profiles: true,
+			selectors: true,
 
 			//default off
 			clicks: false,
 			youtube: false,
 			window: false,
+			clipboard: false,
 
 			//wip
-			spa: 'none',			
-			select: false, //select tags, input radios, datalists, and optgroups: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
+			spa: 'none',
 			typing: false //textareas + inputs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
 
 
@@ -83,14 +83,17 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 	//gather options
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
+
 	if (forceTrue) {
 		for (let key in opts) {
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
 	}
+
+	this.opts = Object.freeze(opts);
+
 	try {
-		//setup mp
 		mixpanel.init(token, {
 			debug: opts.debug,
 			cross_subdomain_cookie: true,
@@ -102,7 +105,20 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 			loaded: (mp) => {
 				if (opts.superProps) {
 					mp.register(SUPER_PROPS, { persistent: false });
+
+					//first visit checker
+					const isFirstVisit = localStorage.getItem('MPEZTrack_First_Visit');
+					if (isFirstVisit === null) {
+						mp.register({ "SESSION → is first visit?": true }, { persistent: false });
+						localStorage.setItem('MPEZTrack_First_Visit', false);
+						this.isFirstVisit = false;
+					}
+
+					else {
+						mp.register({ "SESSION → is first visit?": false }, { persistent: false });
+					}
 				}
+
 				this.bind(mp, opts);
 			}
 		}, "ez");
@@ -112,8 +128,7 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 	}
 
 	catch (e) {
-		if (opts.debug)
-			console.log(e);
+		if (opts.debug) console.log(e);
 	}
 
 }
@@ -125,24 +140,26 @@ export function bindTrackers(mp, opts) {
 		if (opts.links) this.links(mp, opts);
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
+		if (opts.selectors) this.selectors(mp, opts);
 		if (opts.clicks) this.clicks(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
+		if (opts.clipboard) this.clipboard(mp, opts);
 		if (opts.spa) this.spa(opts.spa, mp, opts);
 	}
 	catch (e) {
-		if (opts.debug)
-			console.log(e);
+		if (opts.debug) console.log(e);
 	}
 
 }
 
 export function statefulProps() {
-	ezTrack.numActions += 1;
+	this.numActions += 1;
+
 	return {
-		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTime) / 1000,
-		"SESSION → # actions": ezTrack.numActions,
+		"SESSION → time on page (sec)": (Date.now() - this.loadTime) / 1000,
+		"PAGE → # actions": this.numActions,
 		"PAGE → scroll (%)": Number((((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100) || 0).toFixed(2))
 	};
 }
@@ -164,11 +181,14 @@ export function trackButtonClicks(mp, opts) {
 		this.domElements.push(button);
 		button.addEventListener('click', (e) => {
 			try {
-				mp.track('button click', { ...STANDARD_FIELDS(e), ...BUTTON_FIELDS(e), ...statefulProps() });
+				mp.track('button click', {
+					...STANDARD_FIELDS(e),
+					...BUTTON_FIELDS(e),
+					...statefulProps()
+				});
 			}
 			catch (e) {
-				if (opts.debug)
-					console.log(e);
+				if (opts.debug) console.log(e);
 			}
 		}, LISTENER_OPTIONS);
 	}
@@ -180,11 +200,14 @@ export function trackLinkClicks(mp, opts) {
 		this.domElements.push(link);
 		link.addEventListener('click', (e) => {
 			try {
-				mp.track('link click', { ...STANDARD_FIELDS(e), ...LINK_FIELDS(e), ...statefulProps() });
+				mp.track('link click', {
+					...STANDARD_FIELDS(e),
+					...LINK_FIELDS(e),
+					...statefulProps()
+				});
 			}
 			catch (e) {
-				if (opts.debug)
-					console.log(e);
+				if (opts.debug) console.log(e);
 			}
 		}, LISTENER_OPTIONS);
 	}
@@ -196,45 +219,74 @@ export function trackFormSubmits(mp, opts) {
 		this.domElements.push(form);
 		form.addEventListener('submit', (e) => {
 			try {
-				mp.track('form submit', { ...STANDARD_FIELDS(e), ...FORM_FIELDS(e), ...statefulProps() });
+				mp.track('form submit', {
+					...STANDARD_FIELDS(e),
+					...FORM_FIELDS(e),
+					...statefulProps()
+				});
 			}
 			catch (e) {
-				if (opts.debug)
-					console.log(e);
+				if (opts.debug) console.log(e);
 			}
 		}, LISTENER_OPTIONS);
 	}
 }
 
-//todo guard against passwords
-export function trackAllClicks(mp, opts) {
+//select tags, input radios, datalists, and optgroups: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
+export function trackDropDowns(mp, opts) {
+	let allDropdowns = this.query(DROPDOWN_SELECTOR);
+
+	for (const dropdown of allDropdowns) {
+		this.domElements.push(dropdown);
+		dropdown.addEventListener('change', (e) => {
+			try {
+				mp.track('page click', {
+					...STANDARD_FIELDS(e),
+					...DROPDOWN_FIELDS(e),
+					...statefulProps()
+				});
+			}
+			catch (e) {
+				if (opts.debug) console.log(e);
+			}
+		}, LISTENER_OPTIONS);
+	}
+}
+
+
+// 🚨 guard against password fields 🚨
+export function trackClicks(mp, opts) {
 	let allThings = this.query(ALL_SELECTOR)
-		.filter(node => node.children.length === 0)
-		.filter(node => !this.domElements.some(el => el === node))
-		.filter(node => !this.domElements.some(el => el.contains(node)));
+		.filter(node => node.children.length === 0) //most specific
+		.filter(node => !this.domElements.some(el => el === node)) //not already tracked
+		.filter(node => !this.domElements.some(el => el.contains(node))) //not a child of already tracked
+		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password
 
 	for (const thing of allThings) {
 		this.domElements.push(thing);
 		thing.addEventListener('click', (e) => {
 			try {
-				mp.track('page click', { ...STANDARD_FIELDS(e), ...ANY_TAG_FIELDS(e), ...statefulProps() });
+				mp.track('page click', {
+					...STANDARD_FIELDS(e),
+					...ANY_TAG_FIELDS(e, true),
+					...statefulProps()
+				});
 			}
 			catch (e) {
-				if (opts.debug)
-					console.log(e);
+				if (opts.debug) console.log(e);
 			}
 		}, LISTENER_OPTIONS);
 	}
 }
 
 export function trackYoutubeVideos(mp, opts) {
+	// enable youtube iframe API; callback to onYouTubeIframeAPIReady
 	const tag = document.createElement('script');
 	tag.id = 'mixpanel-iframe-tracker';
 	tag.src = 'https://www.youtube.com/iframe_api';
 	const firstScriptTag = document.getElementsByTagName('script')[0] || document.getElementsByTagName('body')[0].children[0];
 	firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-	//todo... how to bind THIS?
 	const videos = this.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
 
 	// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
@@ -252,8 +304,8 @@ export function trackYoutubeVideos(mp, opts) {
 		}
 	}
 
-	// called by youtube's iframe api
-	//todo... how to bind THIS ?
+	// this called by youtube's iframe api and needs to be named as such
+	//todo... how to bind THIS inside the callback ?
 	window.onYouTubeIframeAPIReady = function () {
 		const videos = ezTrack.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
 		for (const video of videos) {
@@ -291,7 +343,6 @@ export function trackYoutubeVideos(mp, opts) {
 		mp.track('youtube player load', videoInfo);
 		mp.time_event('youtube video started');
 	}
-
 
 	function onPlayerStateChange(event) {
 		trackPlayerChanges(event.data, event.target);
@@ -337,29 +388,28 @@ export function trackYoutubeVideos(mp, opts) {
 export function createUserProfiles(mp, opts) {
 	try {
 		mp.identify(mp.get_distinct_id());
-		mp.people.set({ "last page viewed": window.location.href, "language": window.navigator.language });
-		mp.people.set_once({ "$name": "anonymous" });
+		mp.people.set({
+			"USER → last page viewed": window.location.href,
+			"USER → language": window.navigator.language
+		});
 		mp.people.increment("total # pages");
-		mp.people.set_once({ "$Created": new Date().toISOString() });
+		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
 	}
 	catch (e) {
-		if (opts.debug)
-			console.log(e);
+		if (opts.debug) console.log(e);
 	}
 }
 
-//TODOs
-
-
 // https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-export function trackWindoEvents(mp, opts) {
-	window.addEventListener('error', (errEv) => {
+export function trackWindowStuff(mp, opts) {
+
+	window.addEventListener('error', (errEv => {
 		mp.track('page error', {
 			"ERROR → type": errEv.type,
 			"ERROR → message": errEv.message,
 			...statefulProps()
 		});
-	}, LISTENER_OPTIONS);
+	}, LISTENER_OPTIONS));
 
 	window.addEventListener('resize', (resizeEv) => {
 		mp.track('page resize', {
@@ -369,11 +419,21 @@ export function trackWindoEvents(mp, opts) {
 		});
 	}, LISTENER_OPTIONS);
 
+	window.addEventListener('beforeprint', (printEv) => {
+		mp.track('print', {
+			...statefulProps()
+		});
+	});
+}
+
+// 🚨 guard against clipboard passwords 🚨
+export function trackClipboard(mp, opts) {
+
 	window.addEventListener('cut', (clipEv) => {
 		mp.track('cut', {
 			...statefulProps(),
 			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv)
+			...ANY_TAG_FIELDS(clipEv, true)
 		});
 	});
 
@@ -381,24 +441,17 @@ export function trackWindoEvents(mp, opts) {
 		mp.track('copy', {
 			...statefulProps(),
 			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv)
+			...ANY_TAG_FIELDS(clipEv, true)
 		});
 	});
-	//todo guard against passwords
+
 	window.addEventListener('paste', (clipEv) => {
 		mp.track('paste', {
 			...statefulProps(),
 			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv)
+			...ANY_TAG_FIELDS(clipEv, true)
 		});
 	});
-
-	window.addEventListener('beforeprint', (printEv) => {
-		mp.track('print', {
-			...statefulProps()
-		})
-	 });
-
 
 }
 

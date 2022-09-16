@@ -1,7 +1,7 @@
 export const SUPER_PROPS = {
 	"PAGE → url (/)": decodeURIComponent(window.location.pathname),
 	"PAGE → hash (#)": window.location.hash,
-	"PAGE → params (?)": qsToObj(),	
+	"PAGE → params (?)": qsToObj(window.location.search),	
 	"PAGE → height": window.innerHeight,
 	"PAGE → width": window.innerWidth,
 	"PAGE → title": document.title,	
@@ -52,10 +52,21 @@ export const FORM_FIELDS = (ev) => ({
 	"FORM → encoding": ev.target.encoding
 });
 
+export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"]`
+export const DROPDOWN_FIELDS = (ev) => ({
+	"OPTION → name" : ev.target.name,
+	"OPTION → id": ev.target.id,
+	"OPTION → value" : ev.target.value,
+	"OPTION → text" : ev.target.innerText
+
+})
+
 export const ALL_SELECTOR = String.raw`*`;
-export const ANY_TAG_FIELDS = (ev) => ({
+
+//todo guard against passwords
+export const ANY_TAG_FIELDS = (ev, guard = false) => ({
 	"ELEM → tag (<>)": "".concat('<', ev.target.tagName, '>'),
-	"ELEM → text": ev.target.innerText || ev.target.value,
+	"ELEM → text": guard ? "******" : ev.target.innerText || ev.target.value,
 	"ELEM → is editable?": ev.target.isContentEditable
 });
 
@@ -63,9 +74,9 @@ export const YOUTUBE_SELECTOR = String.raw`iframe`;
 
 
 // try to parse query params
-function qsToObj() {
+function qsToObj(queryString) {
 	try {
-		const parsedQs = new URLSearchParams(window.location.search);
+		const parsedQs = new URLSearchParams(queryString);
 		const params = Object.fromEntries(urlParams);
 		return params
 	}

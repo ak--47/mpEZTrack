@@ -4013,7 +4013,7 @@
   var SUPER_PROPS = {
     "PAGE \u2192 url (/)": decodeURIComponent(window.location.pathname),
     "PAGE \u2192 hash (#)": window.location.hash,
-    "PAGE \u2192 params (?)": qsToObj(),
+    "PAGE \u2192 params (?)": qsToObj(window.location.search),
     "PAGE \u2192 height": window.innerHeight,
     "PAGE \u2192 width": window.innerWidth,
     "PAGE \u2192 title": document.title,
@@ -4058,16 +4058,23 @@
     "FORM \u2192 action": ev.target.action,
     "FORM \u2192 encoding": ev.target.encoding
   });
+  var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"]`;
+  var DROPDOWN_FIELDS = (ev) => ({
+    "OPTION \u2192 name": ev.target.name,
+    "OPTION \u2192 id": ev.target.id,
+    "OPTION \u2192 value": ev.target.value,
+    "OPTION \u2192 text": ev.target.innerText
+  });
   var ALL_SELECTOR = String.raw`*`;
-  var ANY_TAG_FIELDS = (ev) => ({
+  var ANY_TAG_FIELDS = (ev, guard = false) => ({
     "ELEM \u2192 tag (<>)": "".concat("<", ev.target.tagName, ">"),
-    "ELEM \u2192 text": ev.target.innerText || ev.target.value,
+    "ELEM \u2192 text": guard ? "******" : ev.target.innerText || ev.target.value,
     "ELEM \u2192 is editable?": ev.target.isContentEditable
   });
   var YOUTUBE_SELECTOR = String.raw`iframe`;
-  function qsToObj() {
+  function qsToObj(queryString) {
     try {
-      const parsedQs = new URLSearchParams(window.location.search);
+      const parsedQs = new URLSearchParams(queryString);
       const params = Object.fromEntries(urlParams);
       return params;
     } catch (e) {
@@ -4081,6 +4088,7 @@
     loadTime: Date.now(),
     numActions: 0,
     domElements: [],
+    isFirstVisit: true,
     bind: bindTrackers,
     query: querySelectorAllDeep,
     pageView: trackPageViews,
@@ -4088,13 +4096,15 @@
     buttons: trackButtonClicks,
     links: trackLinkClicks,
     forms: trackFormSubmits,
-    clicks: trackAllClicks,
+    selectors: trackDropDowns,
+    clicks: trackClicks,
     youtube: trackYoutubeVideos,
+    window: trackWindowStuff,
+    clipboard: trackClipboard,
     profiles: createUserProfiles,
     forceDebug: () => {
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
-    window: trackWindoEvents,
     spa: beSpaAware,
     defaultOpts: function getDefaultOptions() {
       return {
@@ -4109,11 +4119,12 @@
         buttons: true,
         forms: true,
         profiles: true,
+        selectors: true,
         clicks: false,
         youtube: false,
         window: false,
+        clipboard: false,
         spa: "none",
-        select: false,
         typing: false
       };
     }
@@ -4139,6 +4150,7 @@ https://developer.mixpanel.com/reference/project-token`);
           opts[key] = 0;
       }
     }
+    this.opts = Object.freeze(opts);
     try {
       import_mixpanel_browser.default.init(token, {
         debug: opts.debug,
@@ -4151,6 +4163,14 @@ https://developer.mixpanel.com/reference/project-token`);
         loaded: (mp) => {
           if (opts.superProps) {
             mp.register(SUPER_PROPS, { persistent: false });
+            const isFirstVisit = localStorage.getItem("MPEZTrack_First_Visit");
+            if (isFirstVisit === null) {
+              mp.register({ "SESSION \u2192 is first visit?": true }, { persistent: false });
+              localStorage.setItem("MPEZTrack_First_Visit", false);
+              this.isFirstVisit = false;
+            } else {
+              mp.register({ "SESSION \u2192 is first visit?": false }, { persistent: false });
+            }
           }
           this.bind(mp, opts);
         }
@@ -4174,6 +4194,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.buttons(mp, opts);
       if (opts.forms)
         this.forms(mp, opts);
+      if (opts.selectors)
+        this.selectors(mp, opts);
       if (opts.clicks)
         this.clicks(mp, opts);
       if (opts.profiles)
@@ -4182,6 +4204,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.youtube(mp, opts);
       if (opts.window)
         this.window(mp, opts);
+      if (opts.clipboard)
+        this.clipboard(mp, opts);
       if (opts.spa)
         this.spa(opts.spa, mp, opts);
     } catch (e) {
@@ -4190,10 +4214,10 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function statefulProps() {
-    ezTrack.numActions += 1;
+    this.numActions += 1;
     return {
-      "SESSION \u2192 time on page (sec)": (Date.now() - ezTrack.loadTime) / 1e3,
-      "SESSION \u2192 # actions": ezTrack.numActions,
+      "SESSION \u2192 time on page (sec)": (Date.now() - this.loadTime) / 1e3,
+      "PAGE \u2192 # actions": this.numActions,
       "PAGE \u2192 scroll (%)": Number(((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100 || 0).toFixed(2))
     };
   }
@@ -4211,7 +4235,11 @@ https://developer.mixpanel.com/reference/project-token`);
       this.domElements.push(button);
       button.addEventListener("click", (e) => {
         try {
-          mp.track("button click", { ...STANDARD_FIELDS(e), ...BUTTON_FIELDS(e), ...statefulProps() });
+          mp.track("button click", {
+            ...STANDARD_FIELDS(e),
+            ...BUTTON_FIELDS(e),
+            ...statefulProps()
+          });
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4225,7 +4253,11 @@ https://developer.mixpanel.com/reference/project-token`);
       this.domElements.push(link);
       link.addEventListener("click", (e) => {
         try {
-          mp.track("link click", { ...STANDARD_FIELDS(e), ...LINK_FIELDS(e), ...statefulProps() });
+          mp.track("link click", {
+            ...STANDARD_FIELDS(e),
+            ...LINK_FIELDS(e),
+            ...statefulProps()
+          });
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4239,7 +4271,11 @@ https://developer.mixpanel.com/reference/project-token`);
       this.domElements.push(form);
       form.addEventListener("submit", (e) => {
         try {
-          mp.track("form submit", { ...STANDARD_FIELDS(e), ...FORM_FIELDS(e), ...statefulProps() });
+          mp.track("form submit", {
+            ...STANDARD_FIELDS(e),
+            ...FORM_FIELDS(e),
+            ...statefulProps()
+          });
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4247,13 +4283,35 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackAllClicks(mp, opts) {
-    let allThings = this.query(ALL_SELECTOR).filter((node) => node.children.length === 0).filter((node) => !this.domElements.some((el) => el === node)).filter((node) => !this.domElements.some((el) => el.contains(node)));
+  function trackDropDowns(mp, opts) {
+    let allDropdowns = this.query(DROPDOWN_SELECTOR);
+    for (const dropdown of allDropdowns) {
+      this.domElements.push(dropdown);
+      dropdown.addEventListener("change", (e) => {
+        try {
+          mp.track("page click", {
+            ...STANDARD_FIELDS(e),
+            ...DROPDOWN_FIELDS(e),
+            ...statefulProps()
+          });
+        } catch (e2) {
+          if (opts.debug)
+            console.log(e2);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
+  function trackClicks(mp, opts) {
+    let allThings = this.query(ALL_SELECTOR).filter((node) => node.children.length === 0).filter((node) => !this.domElements.some((el) => el === node)).filter((node) => !this.domElements.some((el) => el.contains(node))).filter((node) => node.tagName === "INPUT" ? node.type === "password" ? false : true : true);
     for (const thing of allThings) {
       this.domElements.push(thing);
       thing.addEventListener("click", (e) => {
         try {
-          mp.track("page click", { ...STANDARD_FIELDS(e), ...ANY_TAG_FIELDS(e), ...statefulProps() });
+          mp.track("page click", {
+            ...STANDARD_FIELDS(e),
+            ...ANY_TAG_FIELDS(e, true),
+            ...statefulProps()
+          });
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4343,23 +4401,25 @@ https://developer.mixpanel.com/reference/project-token`);
   function createUserProfiles(mp, opts) {
     try {
       mp.identify(mp.get_distinct_id());
-      mp.people.set({ "last page viewed": window.location.href, "language": window.navigator.language });
-      mp.people.set_once({ "$name": "anonymous" });
+      mp.people.set({
+        "USER \u2192 last page viewed": window.location.href,
+        "USER \u2192 language": window.navigator.language
+      });
       mp.people.increment("total # pages");
-      mp.people.set_once({ "$Created": new Date().toISOString() });
+      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
     } catch (e) {
       if (opts.debug)
         console.log(e);
     }
   }
-  function trackWindoEvents(mp, opts) {
-    window.addEventListener("error", (errEv) => {
+  function trackWindowStuff(mp, opts) {
+    window.addEventListener("error", ((errEv) => {
       mp.track("page error", {
         "ERROR \u2192 type": errEv.type,
         "ERROR \u2192 message": errEv.message,
         ...statefulProps()
       });
-    }, LISTENER_OPTIONS);
+    }, LISTENER_OPTIONS));
     window.addEventListener("resize", (resizeEv) => {
       mp.track("page resize", {
         "PAGE \u2192 height": window.innerHeight,
@@ -4367,30 +4427,32 @@ https://developer.mixpanel.com/reference/project-token`);
         ...statefulProps()
       });
     }, LISTENER_OPTIONS);
+    window.addEventListener("beforeprint", (printEv) => {
+      mp.track("print", {
+        ...statefulProps()
+      });
+    });
+  }
+  function trackClipboard(mp, opts) {
     window.addEventListener("cut", (clipEv) => {
       mp.track("cut", {
         ...statefulProps(),
         ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv)
+        ...ANY_TAG_FIELDS(clipEv, true)
       });
     });
     window.addEventListener("copy", (clipEv) => {
       mp.track("copy", {
         ...statefulProps(),
         ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv)
+        ...ANY_TAG_FIELDS(clipEv, true)
       });
     });
     window.addEventListener("paste", (clipEv) => {
       mp.track("paste", {
         ...statefulProps(),
         ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv)
-      });
-    });
-    window.addEventListener("beforeprint", (printEv) => {
-      mp.track("print", {
-        ...statefulProps()
+        ...ANY_TAG_FIELDS(clipEv, true)
       });
     });
   }
