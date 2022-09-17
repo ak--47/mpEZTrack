@@ -214,7 +214,7 @@ these video events will contain event properties which describe the video being 
 ```
 
 ## tracking all clicks 🐁 <div id="clicks"></div>
-when tracking "every click on every element" on any webpage, in combination with some of the other options it is _possible_ to end up with 2 distinct c"lick" events in mixpanel that represent actually represent a single user click
+when tracking "every click on every element" on any webpage, in combination with some of the other options it is _possible_ to end up with 2 distinct click events in mixpanel that represent actually represent a single user click
 
 for example, consider the following HTML, which represents a button styled by an SVG:
 ```html
