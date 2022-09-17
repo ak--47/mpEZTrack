@@ -51,9 +51,13 @@ in the table below, you will find all the options exposed by this module; if you
 | `links`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
 | `buttons`           | `boolean` | `true`   | tracks all clicks on `<a>` elements                         
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements                  |
+| `selectors`          | `boolean` | `true`   | track all changes to `<select>` and `<datalist>` elements                  |
+| `inputs`          | `boolean` | `false`   | track all user generated/user entered content                  |
 | `profiles`         | `boolean` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
 | `clicks`            | `boolean` | `false`  | tracks all clicks on any page elements                      |
 | `youtube`              | `boolean` | `false`  | tracks interactions with embedded youtube videos            |
+| `window`              | `boolean` | `false`  | tracks interactions with the browser window (`resize`, `print`, etc... )             |
+| `clipboard`              | `boolean` | `false`  | tracks interactions with the clipboard (`cut`, `copy`, `paste`)         |
 
 
 ## `init()` recipes 🍳 <div  id="recipes"></div>
