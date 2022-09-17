@@ -4018,8 +4018,8 @@
     "PAGE \u2192 width": window.innerWidth,
     "PAGE \u2192 title": document.title,
     "SESSION \u2192 # page": window.history.length,
-    "DEVICE \u2192 language": window.navigator.language,
     "DEVICE \u2192 pixel ratio": window.devicePixelRatio,
+    "DEVICE \u2192 language": window.navigator.language,
     "DEVICE \u2192 bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
     "DEVICE \u2192 memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
     "DEVICE \u2192 platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
@@ -4033,20 +4033,21 @@
     "ELEM \u2192 classes": [...ev.target.classList],
     "ELEM \u2192 id": ev.target.id,
     "ELEM \u2192 height": ev.target.offsetHeight,
-    "ELEM \u2192 width": ev.target.offsetWidth
+    "ELEM \u2192 width": ev.target.offsetWidth,
+    "ELEM \u2192 tag (<>)": "".concat("<", ev.target.tagName, ">")
   });
   var LINK_SELECTORS = String.raw`a`;
   var LINK_FIELDS = (ev) => ({
     "LINK \u2192 url": ev.target.href,
-    "LINK \u2192 text": ev.target.innerText,
+    "LINK \u2192 text": ev.target.textContent,
     "LINK \u2192 target": ev.target.target,
     "LINK \u2192 name": ev.target.name,
     "LINK \u2192 child": ev.target.innerHTML
   });
-  var BUTTON_SELECTORS = String.raw`button, .button, .btn`;
+  var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="search"]`;
   var BUTTON_FIELDS = (ev) => ({
     "BUTTON \u2192 disabled": ev.target.disabled,
-    "BUTTON \u2192 text": ev.target.innerText,
+    "BUTTON \u2192 text": ev.target.textContent,
     "BUTTON \u2192 name": ev.target.name
   });
   var FORM_SELECTORS = String.raw`form`;
@@ -4063,20 +4064,46 @@
     "OPTION \u2192 name": ev.target.name,
     "OPTION \u2192 id": ev.target.id,
     "OPTION \u2192 value": ev.target.value,
-    "OPTION \u2192 text": ev.target.innerText
+    "OPTION \u2192 choices": ev.target.innerText.split("\n"),
+    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent)
+  });
+  var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], textarea`;
+  var INPUT_FIELDS = (ev) => ({
+    "CONTENT \u2192 user content": ev.target.value,
+    "CONTENT \u2192 placeholder": ev.target.placeholder,
+    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent)
   });
   var ALL_SELECTOR = String.raw`*`;
   var ANY_TAG_FIELDS = (ev, guard = false) => ({
-    "ELEM \u2192 tag (<>)": "".concat("<", ev.target.tagName, ">"),
-    "ELEM \u2192 text": guard ? "******" : ev.target.innerText || ev.target.value,
+    "ELEM \u2192 text": guard ? "******" : ev.target.textContent || ev.target.value,
     "ELEM \u2192 is editable?": ev.target.isContentEditable
   });
+  var CONDITIONAL_FIELDS = (ev) => {
+    const result = {};
+    if (Object.keys(ev.target.dataset).length > 0) {
+      result["ELEM \u2192 data"] = parseDatasetAttrs(ev.target.dataset);
+    }
+    if (ev.target.src) {
+      result["ELEM \u2192 source"] = ev.target.src;
+    }
+    if (ev.target.alt) {
+      result["ELEM \u2192 desc"] = ev.target.alt;
+    }
+    return result;
+  };
   var YOUTUBE_SELECTOR = String.raw`iframe`;
   function qsToObj(queryString) {
     try {
       const parsedQs = new URLSearchParams(queryString);
       const params = Object.fromEntries(urlParams);
       return params;
+    } catch (e) {
+      return {};
+    }
+  }
+  function parseDatasetAttrs(dataset) {
+    try {
+      return { ...dataset };
     } catch (e) {
       return {};
     }
@@ -4089,6 +4116,7 @@
     numActions: 0,
     domElements: [],
     isFirstVisit: true,
+    checkFirstVisit: firstVisitChecker,
     bind: bindTrackers,
     query: querySelectorAllDeep,
     pageView: trackPageViews,
@@ -4097,6 +4125,7 @@
     links: trackLinkClicks,
     forms: trackFormSubmits,
     selectors: trackDropDowns,
+    inputs: trackUserInput,
     clicks: trackClicks,
     youtube: trackYoutubeVideos,
     window: trackWindowStuff,
@@ -4120,12 +4149,12 @@
         forms: true,
         profiles: true,
         selectors: true,
+        inputs: false,
         clicks: false,
         youtube: false,
         window: false,
         clipboard: false,
-        spa: "none",
-        typing: false
+        spa: "none"
       };
     }
   };
@@ -4162,15 +4191,10 @@ https://developer.mixpanel.com/reference/project-token`);
         batch_flush_interval_ms: opts.refresh,
         loaded: (mp) => {
           if (opts.superProps) {
-            mp.register(SUPER_PROPS, { persistent: false });
-            const isFirstVisit = localStorage.getItem("MPEZTrack_First_Visit");
-            if (isFirstVisit === null) {
-              mp.register({ "SESSION \u2192 is first visit?": true }, { persistent: false });
-              localStorage.setItem("MPEZTrack_First_Visit", false);
-              this.isFirstVisit = false;
-            } else {
-              mp.register({ "SESSION \u2192 is first visit?": false }, { persistent: false });
-            }
+            mp.register({
+              ...SUPER_PROPS,
+              ...this.checkFirstVisit()
+            }, { persistent: false });
           }
           this.bind(mp, opts);
         }
@@ -4196,6 +4220,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.forms(mp, opts);
       if (opts.selectors)
         this.selectors(mp, opts);
+      if (opts.inputs)
+        this.inputs(mp, opts);
       if (opts.clicks)
         this.clicks(mp, opts);
       if (opts.profiles)
@@ -4214,12 +4240,23 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function statefulProps() {
-    this.numActions += 1;
+    ezTrack.numActions += 1;
+    const scrollPercent = (document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100 || 0;
     return {
-      "SESSION \u2192 time on page (sec)": (Date.now() - this.loadTime) / 1e3,
-      "PAGE \u2192 # actions": this.numActions,
-      "PAGE \u2192 scroll (%)": Number(((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100 || 0).toFixed(2))
+      "SESSION \u2192 time on page (sec)": (Date.now() - ezTrack.loadTime) / 1e3,
+      "PAGE \u2192 # actions": ezTrack.numActions,
+      "PAGE \u2192 scroll (%)": Number(scrollPercent.toFixed(2))
     };
+  }
+  function firstVisitChecker() {
+    const isFirstVisit = localStorage.getItem("MPEZTrack_First_Visit");
+    if (isFirstVisit === null) {
+      localStorage.setItem("MPEZTrack_First_Visit", false);
+      this.isFirstVisit = false;
+      return { "SESSION \u2192 is first visit?": true };
+    } else {
+      return { "SESSION \u2192 is first visit?": false };
+    }
   }
   function trackPageViews(mp, opts) {
     mp.track("page enter", { ...statefulProps() });
@@ -4237,6 +4274,7 @@ https://developer.mixpanel.com/reference/project-token`);
         try {
           mp.track("button click", {
             ...STANDARD_FIELDS(e),
+            ...CONDITIONAL_FIELDS(e),
             ...BUTTON_FIELDS(e),
             ...statefulProps()
           });
@@ -4255,6 +4293,7 @@ https://developer.mixpanel.com/reference/project-token`);
         try {
           mp.track("link click", {
             ...STANDARD_FIELDS(e),
+            ...CONDITIONAL_FIELDS(e),
             ...LINK_FIELDS(e),
             ...statefulProps()
           });
@@ -4273,6 +4312,7 @@ https://developer.mixpanel.com/reference/project-token`);
         try {
           mp.track("form submit", {
             ...STANDARD_FIELDS(e),
+            ...CONDITIONAL_FIELDS(e),
             ...FORM_FIELDS(e),
             ...statefulProps()
           });
@@ -4289,9 +4329,29 @@ https://developer.mixpanel.com/reference/project-token`);
       this.domElements.push(dropdown);
       dropdown.addEventListener("change", (e) => {
         try {
-          mp.track("page click", {
+          mp.track("dropdown", {
             ...STANDARD_FIELDS(e),
+            ...CONDITIONAL_FIELDS(e),
             ...DROPDOWN_FIELDS(e),
+            ...statefulProps()
+          });
+        } catch (e2) {
+          if (opts.debug)
+            console.log(e2);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
+  function trackUserInput(mp, opts) {
+    let allTextFields = this.query(INPUT_SELECTOR).filter((node) => node.tagName === "INPUT" ? node.type === "password" ? false : true : true);
+    for (const input of allTextFields) {
+      this.domElements.push(input);
+      input.addEventListener("change", (e) => {
+        try {
+          mp.track("user generated content", {
+            ...STANDARD_FIELDS(e),
+            ...CONDITIONAL_FIELDS(e),
+            ...INPUT_FIELDS(e),
             ...statefulProps()
           });
         } catch (e2) {
@@ -4309,7 +4369,8 @@ https://developer.mixpanel.com/reference/project-token`);
         try {
           mp.track("page click", {
             ...STANDARD_FIELDS(e),
-            ...ANY_TAG_FIELDS(e, true),
+            ...CONDITIONAL_FIELDS(e),
+            ...ANY_TAG_FIELDS(e),
             ...statefulProps()
           });
         } catch (e2) {
@@ -4318,6 +4379,50 @@ https://developer.mixpanel.com/reference/project-token`);
         }
       }, LISTENER_OPTIONS);
     }
+  }
+  function trackWindowStuff(mp, opts) {
+    window.addEventListener("error", ((errEv) => {
+      mp.track("page error", {
+        "ERROR \u2192 type": errEv.type,
+        "ERROR \u2192 message": errEv.message,
+        ...statefulProps()
+      });
+    }, LISTENER_OPTIONS));
+    window.addEventListener("resize", (resizeEv) => {
+      mp.track("page resize", {
+        "PAGE \u2192 height": window.innerHeight,
+        "PAGE \u2192 width": window.innerWidth,
+        ...statefulProps()
+      });
+    }, LISTENER_OPTIONS);
+    window.addEventListener("beforeprint", (printEv) => {
+      mp.track("print", {
+        ...statefulProps()
+      });
+    });
+  }
+  function trackClipboard(mp, opts) {
+    window.addEventListener("cut", (clipEv) => {
+      mp.track("cut", {
+        ...statefulProps(),
+        ...STANDARD_FIELDS(clipEv),
+        ...ANY_TAG_FIELDS(clipEv, true)
+      });
+    });
+    window.addEventListener("copy", (clipEv) => {
+      mp.track("copy", {
+        ...statefulProps(),
+        ...STANDARD_FIELDS(clipEv),
+        ...ANY_TAG_FIELDS(clipEv, true)
+      });
+    });
+    window.addEventListener("paste", (clipEv) => {
+      mp.track("paste", {
+        ...statefulProps(),
+        ...STANDARD_FIELDS(clipEv),
+        ...ANY_TAG_FIELDS(clipEv, true)
+      });
+    });
   }
   function trackYoutubeVideos(mp, opts) {
     const tag = document.createElement("script");
@@ -4411,50 +4516,6 @@ https://developer.mixpanel.com/reference/project-token`);
       if (opts.debug)
         console.log(e);
     }
-  }
-  function trackWindowStuff(mp, opts) {
-    window.addEventListener("error", ((errEv) => {
-      mp.track("page error", {
-        "ERROR \u2192 type": errEv.type,
-        "ERROR \u2192 message": errEv.message,
-        ...statefulProps()
-      });
-    }, LISTENER_OPTIONS));
-    window.addEventListener("resize", (resizeEv) => {
-      mp.track("page resize", {
-        "PAGE \u2192 height": window.innerHeight,
-        "PAGE \u2192 width": window.innerWidth,
-        ...statefulProps()
-      });
-    }, LISTENER_OPTIONS);
-    window.addEventListener("beforeprint", (printEv) => {
-      mp.track("print", {
-        ...statefulProps()
-      });
-    });
-  }
-  function trackClipboard(mp, opts) {
-    window.addEventListener("cut", (clipEv) => {
-      mp.track("cut", {
-        ...statefulProps(),
-        ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv, true)
-      });
-    });
-    window.addEventListener("copy", (clipEv) => {
-      mp.track("copy", {
-        ...statefulProps(),
-        ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv, true)
-      });
-    });
-    window.addEventListener("paste", (clipEv) => {
-      mp.track("paste", {
-        ...statefulProps(),
-        ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv, true)
-      });
-    });
   }
   function beSpaAware(typeOfSpa = "none", mp, opts) {
     switch (typeOfSpa.toLowerCase()) {

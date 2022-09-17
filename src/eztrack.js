@@ -6,7 +6,8 @@ import {
 	BUTTON_SELECTORS, BUTTON_FIELDS,
 	FORM_SELECTORS, FORM_FIELDS,
 	DROPDOWN_SELECTOR, DROPDOWN_FIELDS,
-	ALL_SELECTOR, ANY_TAG_FIELDS,
+	INPUT_SELECTOR, INPUT_FIELDS,
+	ALL_SELECTOR, ANY_TAG_FIELDS, CONDITIONAL_FIELDS,
 	YOUTUBE_SELECTOR,
 	LISTENER_OPTIONS
 } from './attributes';
@@ -17,6 +18,7 @@ export const ezTrack = {
 	numActions: 0,
 	domElements: [],
 	isFirstVisit: true,
+	checkFirstVisit: firstVisitChecker,
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
 	pageView: trackPageViews,
@@ -25,6 +27,7 @@ export const ezTrack = {
 	links: trackLinkClicks,
 	forms: trackFormSubmits,
 	selectors: trackDropDowns,
+	inputs: trackUserInput,
 	clicks: trackClicks,
 	youtube: trackYoutubeVideos,
 	window: trackWindowStuff,
@@ -55,14 +58,14 @@ export const ezTrack = {
 			selectors: true,
 
 			//default off
+			inputs: false,
 			clicks: false,
 			youtube: false,
 			window: false,
 			clipboard: false,
 
 			//wip
-			spa: 'none',
-			typing: false //textareas + inputs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
+			spa: 'none'
 
 		};
 	}
@@ -100,19 +103,11 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 			batch_flush_interval_ms: opts.refresh,
 			loaded: (mp) => {
 				if (opts.superProps) {
-					mp.register(SUPER_PROPS, { persistent: false });
+					mp.register({
+						...SUPER_PROPS,
+						...this.checkFirstVisit()
+					}, { persistent: false });
 
-					//first visit checker
-					const isFirstVisit = localStorage.getItem('MPEZTrack_First_Visit');
-					if (isFirstVisit === null) {
-						mp.register({ "SESSION → is first visit?": true }, { persistent: false });
-						localStorage.setItem('MPEZTrack_First_Visit', false);
-						this.isFirstVisit = false;
-					}
-
-					else {
-						mp.register({ "SESSION → is first visit?": false }, { persistent: false });
-					}
 				}
 
 				this.bind(mp, opts);
@@ -136,6 +131,7 @@ export function bindTrackers(mp, opts) {
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
 		if (opts.selectors) this.selectors(mp, opts);
+		if (opts.inputs) this.inputs(mp, opts);
 		if (opts.clicks) this.clicks(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
@@ -149,8 +145,11 @@ export function bindTrackers(mp, opts) {
 
 }
 
+//IMPURE!
 export function statefulProps() {
-	this.numActions += 1;
+	ezTrack.numActions += 1;
+
+	//https://stackoverflow.com/a/8028584
 	const scrollPercent =
 		(
 			(document.documentElement.scrollTop + document.body.scrollTop) /
@@ -159,10 +158,25 @@ export function statefulProps() {
 		|| 0;
 
 	return {
-		"SESSION → time on page (sec)": (Date.now() - this.loadTime) / 1000,
-		"PAGE → # actions": this.numActions,
+		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTime) / 1000,
+		"PAGE → # actions": ezTrack.numActions,
 		"PAGE → scroll (%)": Number(scrollPercent.toFixed(2))
 	};
+}
+
+//IMPURE!
+export function firstVisitChecker() {
+	const isFirstVisit = localStorage.getItem('MPEZTrack_First_Visit');
+
+	if (isFirstVisit === null) {
+		localStorage.setItem('MPEZTrack_First_Visit', false);
+		this.isFirstVisit = false; //side-effect
+		return { "SESSION → is first visit?": true };
+	}
+
+	else {
+		return { "SESSION → is first visit?": false };
+	}
 }
 
 export function trackPageViews(mp, opts) {
@@ -184,6 +198,7 @@ export function trackButtonClicks(mp, opts) {
 			try {
 				mp.track('button click', {
 					...STANDARD_FIELDS(e),
+					...CONDITIONAL_FIELDS(e),
 					...BUTTON_FIELDS(e),
 					...statefulProps()
 				});
@@ -203,6 +218,7 @@ export function trackLinkClicks(mp, opts) {
 			try {
 				mp.track('link click', {
 					...STANDARD_FIELDS(e),
+					...CONDITIONAL_FIELDS(e),
 					...LINK_FIELDS(e),
 					...statefulProps()
 				});
@@ -222,6 +238,7 @@ export function trackFormSubmits(mp, opts) {
 			try {
 				mp.track('form submit', {
 					...STANDARD_FIELDS(e),
+					...CONDITIONAL_FIELDS(e),
 					...FORM_FIELDS(e),
 					...statefulProps()
 				});
@@ -233,7 +250,6 @@ export function trackFormSubmits(mp, opts) {
 	}
 }
 
-//select tags, input radios, datalists, and optgroups: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
 export function trackDropDowns(mp, opts) {
 	let allDropdowns = this.query(DROPDOWN_SELECTOR);
 
@@ -241,8 +257,9 @@ export function trackDropDowns(mp, opts) {
 		this.domElements.push(dropdown);
 		dropdown.addEventListener('change', (e) => {
 			try {
-				mp.track('page click', {
+				mp.track('dropdown', {
 					...STANDARD_FIELDS(e),
+					...CONDITIONAL_FIELDS(e),
 					...DROPDOWN_FIELDS(e),
 					...statefulProps()
 				});
@@ -254,6 +271,28 @@ export function trackDropDowns(mp, opts) {
 	}
 }
 
+// 🚨 guard against password fields 🚨
+export function trackUserInput(mp, opts) {
+	let allTextFields = this.query(INPUT_SELECTOR)
+		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password;
+
+	for (const input of allTextFields) {
+		this.domElements.push(input);
+		input.addEventListener('change', (e) => {
+			try {
+				mp.track('user generated content', {
+					...STANDARD_FIELDS(e),
+					...CONDITIONAL_FIELDS(e),
+					...INPUT_FIELDS(e),
+					...statefulProps()
+				});
+			}
+			catch (e) {
+				if (opts.debug) console.log(e);
+			}
+		}, LISTENER_OPTIONS);
+	}
+}
 
 // 🚨 guard against password fields 🚨
 export function trackClicks(mp, opts) {
@@ -269,7 +308,8 @@ export function trackClicks(mp, opts) {
 			try {
 				mp.track('page click', {
 					...STANDARD_FIELDS(e),
-					...ANY_TAG_FIELDS(e, true),
+					...CONDITIONAL_FIELDS(e),
+					...ANY_TAG_FIELDS(e),
 					...statefulProps()
 				});
 			}
@@ -280,6 +320,60 @@ export function trackClicks(mp, opts) {
 	}
 }
 
+// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
+export function trackWindowStuff(mp, opts) {
+
+	window.addEventListener('error', (errEv => {
+		mp.track('page error', {
+			"ERROR → type": errEv.type,
+			"ERROR → message": errEv.message,
+			...statefulProps()
+		});
+	}, LISTENER_OPTIONS));
+
+	window.addEventListener('resize', (resizeEv) => {
+		mp.track('page resize', {
+			"PAGE → height": window.innerHeight,
+			"PAGE → width": window.innerWidth,
+			...statefulProps()
+		});
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('beforeprint', (printEv) => {
+		mp.track('print', {
+			...statefulProps()
+		});
+	});
+}
+
+// 🚨 guard against clipboard passwords 🚨
+export function trackClipboard(mp, opts) {
+
+	window.addEventListener('cut', (clipEv) => {
+		mp.track('cut', {
+			...statefulProps(),
+			...STANDARD_FIELDS(clipEv),
+			...ANY_TAG_FIELDS(clipEv, true)
+		});
+	});
+
+	window.addEventListener('copy', (clipEv) => {
+		mp.track('copy', {
+			...statefulProps(),
+			...STANDARD_FIELDS(clipEv),
+			...ANY_TAG_FIELDS(clipEv, true)
+		});
+	});
+
+	window.addEventListener('paste', (clipEv) => {
+		mp.track('paste', {
+			...statefulProps(),
+			...STANDARD_FIELDS(clipEv),
+			...ANY_TAG_FIELDS(clipEv, true)
+		});
+	});
+
+}
 export function trackYoutubeVideos(mp, opts) {
 	// enable youtube iframe API; callback to onYouTubeIframeAPIReady
 	const tag = document.createElement('script');
@@ -399,61 +493,6 @@ export function createUserProfiles(mp, opts) {
 	catch (e) {
 		if (opts.debug) console.log(e);
 	}
-}
-
-// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-export function trackWindowStuff(mp, opts) {
-
-	window.addEventListener('error', (errEv => {
-		mp.track('page error', {
-			"ERROR → type": errEv.type,
-			"ERROR → message": errEv.message,
-			...statefulProps()
-		});
-	}, LISTENER_OPTIONS));
-
-	window.addEventListener('resize', (resizeEv) => {
-		mp.track('page resize', {
-			"PAGE → height": window.innerHeight,
-			"PAGE → width": window.innerWidth,
-			...statefulProps()
-		});
-	}, LISTENER_OPTIONS);
-
-	window.addEventListener('beforeprint', (printEv) => {
-		mp.track('print', {
-			...statefulProps()
-		});
-	});
-}
-
-// 🚨 guard against clipboard passwords 🚨
-export function trackClipboard(mp, opts) {
-
-	window.addEventListener('cut', (clipEv) => {
-		mp.track('cut', {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		});
-	});
-
-	window.addEventListener('copy', (clipEv) => {
-		mp.track('copy', {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		});
-	});
-
-	window.addEventListener('paste', (clipEv) => {
-		mp.track('paste', {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		});
-	});
-
 }
 
 export function beSpaAware(typeOfSpa = 'none', mp, opts) {
