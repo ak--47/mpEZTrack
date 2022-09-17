@@ -65,6 +65,7 @@ export const ezTrack = {
 			clipboard: false,
 
 			//wip
+			logProps: false, //undocumented, for ez debugging
 			spa: 'none'
 
 		};
@@ -105,7 +106,7 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 				if (opts.superProps) {
 					mp.register({
 						...SUPER_PROPS,
-						...this.checkFirstVisit()
+						...this.checkFirstVisit(token)
 					}, { persistent: false });
 
 				}
@@ -131,12 +132,12 @@ export function bindTrackers(mp, opts) {
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
 		if (opts.selectors) this.selectors(mp, opts);
-		if (opts.inputs) this.inputs(mp, opts);
-		if (opts.clicks) this.clicks(mp, opts);
+		if (opts.inputs) this.inputs(mp, opts);		
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
+		if (opts.clicks) this.clicks(mp, opts);
 		if (opts.spa) this.spa(opts.spa, mp, opts);
 	}
 	catch (e) {
@@ -165,11 +166,11 @@ export function statefulProps() {
 }
 
 //IMPURE!
-export function firstVisitChecker() {
-	const isFirstVisit = localStorage.getItem('MPEZTrack_First_Visit');
+export function firstVisitChecker(token) {
+	const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
 
 	if (isFirstVisit === null) {
-		localStorage.setItem('MPEZTrack_First_Visit', false);
+		localStorage.setItem(`MPEZTrack_First_Visit_${token}`, false);
 		this.isFirstVisit = false; //side-effect
 		return { "SESSION → is first visit?": true };
 	}
@@ -196,12 +197,14 @@ export function trackButtonClicks(mp, opts) {
 		this.domElements.push(button);
 		button.addEventListener('click', (e) => {
 			try {
-				mp.track('button click', {
+				const props = {
 					...STANDARD_FIELDS(e),
 					...CONDITIONAL_FIELDS(e),
 					...BUTTON_FIELDS(e),
 					...statefulProps()
-				});
+				};
+				mp.track('button click', props);
+				if (opts.logProps) console.log(props);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -216,12 +219,14 @@ export function trackLinkClicks(mp, opts) {
 		this.domElements.push(link);
 		link.addEventListener('click', (e) => {
 			try {
-				mp.track('link click', {
+				const props = {
 					...STANDARD_FIELDS(e),
 					...CONDITIONAL_FIELDS(e),
 					...LINK_FIELDS(e),
 					...statefulProps()
-				});
+				};
+				mp.track('link click', props);
+				if (opts.logProps) console.log(props);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -234,14 +239,16 @@ export function trackFormSubmits(mp, opts) {
 	const forms = this.query(FORM_SELECTORS);
 	for (const form of forms) {
 		this.domElements.push(form);
-		form.addEventListener('submit', (e) => {
+		form.addEventListener('form submit', (e) => {
 			try {
-				mp.track('form submit', {
+				const props = {
 					...STANDARD_FIELDS(e),
 					...CONDITIONAL_FIELDS(e),
 					...FORM_FIELDS(e),
 					...statefulProps()
-				});
+				};
+				mp.track('form submit', props);
+				if (opts.logProps) console.log(props);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -257,12 +264,14 @@ export function trackDropDowns(mp, opts) {
 		this.domElements.push(dropdown);
 		dropdown.addEventListener('change', (e) => {
 			try {
-				mp.track('dropdown', {
+				const props = {
 					...STANDARD_FIELDS(e),
 					...CONDITIONAL_FIELDS(e),
 					...DROPDOWN_FIELDS(e),
 					...statefulProps()
-				});
+				};
+				mp.track('user selection', props);
+				if (opts.logProps) console.log(props);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -273,19 +282,21 @@ export function trackDropDowns(mp, opts) {
 
 // 🚨 guard against password fields 🚨
 export function trackUserInput(mp, opts) {
-	let allTextFields = this.query(INPUT_SELECTOR)
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password;
+	let inputElements = this.query(INPUT_SELECTOR)
+		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password field;
 
-	for (const input of allTextFields) {
+	for (const input of inputElements) {
 		this.domElements.push(input);
 		input.addEventListener('change', (e) => {
 			try {
-				mp.track('user generated content', {
+				const props = {
 					...STANDARD_FIELDS(e),
 					...CONDITIONAL_FIELDS(e),
 					...INPUT_FIELDS(e),
 					...statefulProps()
-				});
+				};
+				mp.track('user entered text', props);
+				if (opts.logProps) console.log(props);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -306,12 +317,14 @@ export function trackClicks(mp, opts) {
 		this.domElements.push(thing);
 		thing.addEventListener('click', (e) => {
 			try {
-				mp.track('page click', {
+				const props = {
 					...STANDARD_FIELDS(e),
 					...CONDITIONAL_FIELDS(e),
 					...ANY_TAG_FIELDS(e),
 					...statefulProps()
-				});
+				};
+				mp.track('page click', props);
+				if (opts.logProps) console.log(props);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -324,25 +337,31 @@ export function trackClicks(mp, opts) {
 export function trackWindowStuff(mp, opts) {
 
 	window.addEventListener('error', (errEv => {
-		mp.track('page error', {
+		const props = {
 			"ERROR → type": errEv.type,
 			"ERROR → message": errEv.message,
 			...statefulProps()
-		});
+		};
+		mp.track('page error', props);
+		if (opts.logProps) console.log(props);
 	}, LISTENER_OPTIONS));
 
 	window.addEventListener('resize', (resizeEv) => {
-		mp.track('page resize', {
+		const props = {
 			"PAGE → height": window.innerHeight,
 			"PAGE → width": window.innerWidth,
 			...statefulProps()
-		});
+		};
+		mp.track('page resize', props);
+		if (opts.logProps) console.log(props);
 	}, LISTENER_OPTIONS);
 
 	window.addEventListener('beforeprint', (printEv) => {
-		mp.track('print', {
+		const props = {
 			...statefulProps()
-		});
+		};
+		mp.track('print', props);
+		if (opts.logProps) console.log(props);
 	});
 }
 
@@ -350,27 +369,33 @@ export function trackWindowStuff(mp, opts) {
 export function trackClipboard(mp, opts) {
 
 	window.addEventListener('cut', (clipEv) => {
-		mp.track('cut', {
+		const props = {
 			...statefulProps(),
 			...STANDARD_FIELDS(clipEv),
 			...ANY_TAG_FIELDS(clipEv, true)
-		});
+		};
+		mp.track('cut', props);
+		if (opts.logProps) console.log(props);
 	});
 
 	window.addEventListener('copy', (clipEv) => {
-		mp.track('copy', {
+		const props = {
 			...statefulProps(),
 			...STANDARD_FIELDS(clipEv),
 			...ANY_TAG_FIELDS(clipEv, true)
-		});
+		};
+		mp.track('copy', props);
+		if (opts.logProps) console.log(props);
 	});
 
 	window.addEventListener('paste', (clipEv) => {
-		mp.track('paste', {
+		const props = {
 			...statefulProps(),
 			...STANDARD_FIELDS(clipEv),
 			...ANY_TAG_FIELDS(clipEv, true)
-		});
+		};
+		mp.track('paste', props);
+		if (opts.logProps) console.log(props);
 	});
 
 }
