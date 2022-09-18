@@ -24,12 +24,14 @@ export const LISTENER_OPTIONS = {
 
 // https://developer.mozilla.org/en-US/docs/Web/API/Node
 // https://developer.mozilla.org/en-US/docs/Web/API/Element
-export const STANDARD_FIELDS = (ev) => ({
-	"ELEM → classes": [...ev.target.classList],
-	"ELEM → id": ev.target.id,
-	"ELEM → height": ev.target.offsetHeight,
-	"ELEM → width": ev.target.offsetWidth,
-	"ELEM → tag (<>)": "".concat('<', ev.target.tagName, '>'),
+export const STANDARD_FIELDS = (ev, label = `ELEM`) => ({
+	[`${label} → classes`]: [...ev.target.classList],
+	[`${label} → id`]: ev.target.id,
+	[`${label} → height`]: ev.target.offsetHeight,
+	[`${label} → width`]: ev.target.offsetWidth,
+	[`${label} → tag (<>)`]: "".concat('<', ev.target.tagName, '>'),
+	...enumNodeProps(ev.target, label),
+	...conditialFields(ev.target, label)
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
@@ -39,17 +41,15 @@ export const LINK_FIELDS = (ev) => ({
 	"LINK → text": ev.target.textContent?.trim(),
 	"LINK → target": ev.target.target,
 	"LINK → name": ev.target.name,
-	"LINK → child": ev.target.innerHTML,
-	...enumNodeProps(ev.target, "LINK")
+	"LINK → child": ev.target.innerHTML
+
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
 export const BUTTON_FIELDS = (ev) => ({
-	"BUTTON → disabled": ev.target.disabled,
 	"BUTTON → text": ev.target.textContent?.trim(),
-	"BUTTON → name": ev.target.name,
-	...enumNodeProps(ev.target, "BUTTON")
+	"BUTTON → name": ev.target.name
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
@@ -60,8 +60,7 @@ export const FORM_FIELDS = (ev) => ({
 	"FORM → id": ev.target.id,
 	"FORM → method": ev.target.method,
 	"FORM → action": ev.target.action,
-	"FORM → encoding": ev.target.encoding,
-	...enumNodeProps(ev.target, "FORM")
+	"FORM → encoding": ev.target.encoding
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
@@ -71,8 +70,7 @@ export const DROPDOWN_FIELDS = (ev) => ({
 	"OPTION → id": ev.target.id,
 	"OPTION → selected": ev.target.value,
 	"OPTION → choices": ev.target.innerText.split('\n'), //suss ... but .textContent looks weird...
-	"OPTION → labels": [...ev.target.labels].map(label => label.textContent?.trim()),
-	...enumNodeProps(ev.target, "OPTION")
+	"OPTION → labels": [...ev.target.labels].map(label => label.textContent?.trim())
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
@@ -81,8 +79,7 @@ export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"]
 export const INPUT_FIELDS = (ev) => ({
 	"CONTENT → user content": ev.target.value,
 	"CONTENT → placeholder": ev.target.placeholder,
-	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent?.trim()),
-	...enumNodeProps(ev.target, "CONTENT")
+	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent?.trim())
 });
 
 export const ALL_SELECTOR = String.raw`*`;
@@ -90,25 +87,33 @@ export const ALL_SELECTOR = String.raw`*`;
 // 🚨 guard against password fields 🚨
 export const ANY_TAG_FIELDS = (ev, guard = false) => ({
 	"ELEM → text": guard ? "******" : ev.target.textContent?.trim() || ev.target.value?.trim(),
-	"ELEM → is editable?": ev.target.isContentEditable,
-	...enumNodeProps(ev.target)
+	"ELEM → is editable?": ev.target.isContentEditable
 });
 
-export const CONDITIONAL_FIELDS = (ev) => {
+export const conditialFields = (ev, label = "ELEM") => {
 	const result = {};
 
 	// data-* attrs
-	if (Object.keys(ev.target.dataset).length > 0) {
-		result['ELEM → data'] = parseDatasetAttrs(ev.target.dataset);
+	try {
+		if (Object.keys(ev.target.dataset).length > 0) {
+			result[`${label} → data`] = parseDatasetAttrs(ev.target.dataset);
+		}
 	}
+	catch (e) { }
 
-	if (ev.target.src) {
-		result["ELEM → source"] = ev.target.src;
+	try {
+		if (ev.target.src) {
+			result[`${label} → source`] = ev.target.src;
+		}
 	}
+	catch (e) { }
 
-	if (ev.target.alt) {
-		result["ELEM → desc"] = ev.target.alt;
+	try {
+		if (ev.target.alt) {
+			result[`${label} → desc`] = ev.target.alt;
+		}
 	}
+	catch (e) { }
 
 	return result;
 };
@@ -173,7 +178,7 @@ function enumNodeProps(el, label = "ELEM") {
 	];
 	for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
 		att = atts[i];
-		let keySuffix = att.name.replace("aria-", "").replace("data-", ""); // remove aria- and data- prefix
+		let keySuffix = att.name.replace("aria-", "DATA →").replace("data-", "DATA →"); // remove aria- and data- prefix
 		let keyName = `${label} → ${keySuffix}`;
 		let val = att.value?.trim();
 

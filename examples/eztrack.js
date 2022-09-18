@@ -4029,12 +4029,14 @@
   var LISTENER_OPTIONS = {
     "passive": true
   };
-  var STANDARD_FIELDS = (ev) => ({
-    "ELEM \u2192 classes": [...ev.target.classList],
-    "ELEM \u2192 id": ev.target.id,
-    "ELEM \u2192 height": ev.target.offsetHeight,
-    "ELEM \u2192 width": ev.target.offsetWidth,
-    "ELEM \u2192 tag (<>)": "".concat("<", ev.target.tagName, ">")
+  var STANDARD_FIELDS = (ev, label = `ELEM`) => ({
+    [`${label} \u2192 classes`]: [...ev.target.classList],
+    [`${label} \u2192 id`]: ev.target.id,
+    [`${label} \u2192 height`]: ev.target.offsetHeight,
+    [`${label} \u2192 width`]: ev.target.offsetWidth,
+    [`${label} \u2192 tag (<>)`]: "".concat("<", ev.target.tagName, ">"),
+    ...enumNodeProps(ev.target, label),
+    ...conditialFields(ev.target, label)
   });
   var LINK_SELECTORS = String.raw`a`;
   var LINK_FIELDS = (ev) => ({
@@ -4042,15 +4044,12 @@
     "LINK \u2192 text": ev.target.textContent?.trim(),
     "LINK \u2192 target": ev.target.target,
     "LINK \u2192 name": ev.target.name,
-    "LINK \u2192 child": ev.target.innerHTML,
-    ...enumNodeProps(ev.target, "LINK")
+    "LINK \u2192 child": ev.target.innerHTML
   });
   var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
   var BUTTON_FIELDS = (ev) => ({
-    "BUTTON \u2192 disabled": ev.target.disabled,
     "BUTTON \u2192 text": ev.target.textContent?.trim(),
-    "BUTTON \u2192 name": ev.target.name,
-    ...enumNodeProps(ev.target, "BUTTON")
+    "BUTTON \u2192 name": ev.target.name
   });
   var FORM_SELECTORS = String.raw`form`;
   var FORM_FIELDS = (ev) => ({
@@ -4059,8 +4058,7 @@
     "FORM \u2192 id": ev.target.id,
     "FORM \u2192 method": ev.target.method,
     "FORM \u2192 action": ev.target.action,
-    "FORM \u2192 encoding": ev.target.encoding,
-    ...enumNodeProps(ev.target, "FORM")
+    "FORM \u2192 encoding": ev.target.encoding
   });
   var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
   var DROPDOWN_FIELDS = (ev) => ({
@@ -4068,32 +4066,38 @@
     "OPTION \u2192 id": ev.target.id,
     "OPTION \u2192 selected": ev.target.value,
     "OPTION \u2192 choices": ev.target.innerText.split("\n"),
-    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim()),
-    ...enumNodeProps(ev.target, "OPTION")
+    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim())
   });
   var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
   var INPUT_FIELDS = (ev) => ({
     "CONTENT \u2192 user content": ev.target.value,
     "CONTENT \u2192 placeholder": ev.target.placeholder,
-    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim()),
-    ...enumNodeProps(ev.target, "CONTENT")
+    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim())
   });
   var ALL_SELECTOR = String.raw`*`;
   var ANY_TAG_FIELDS = (ev, guard = false) => ({
     "ELEM \u2192 text": guard ? "******" : ev.target.textContent?.trim() || ev.target.value?.trim(),
-    "ELEM \u2192 is editable?": ev.target.isContentEditable,
-    ...enumNodeProps(ev.target)
+    "ELEM \u2192 is editable?": ev.target.isContentEditable
   });
-  var CONDITIONAL_FIELDS = (ev) => {
+  var conditialFields = (ev, label = "ELEM") => {
     const result = {};
-    if (Object.keys(ev.target.dataset).length > 0) {
-      result["ELEM \u2192 data"] = parseDatasetAttrs(ev.target.dataset);
+    try {
+      if (Object.keys(ev.target.dataset).length > 0) {
+        result[`${label} \u2192 data`] = parseDatasetAttrs(ev.target.dataset);
+      }
+    } catch (e) {
     }
-    if (ev.target.src) {
-      result["ELEM \u2192 source"] = ev.target.src;
+    try {
+      if (ev.target.src) {
+        result[`${label} \u2192 source`] = ev.target.src;
+      }
+    } catch (e) {
     }
-    if (ev.target.alt) {
-      result["ELEM \u2192 desc"] = ev.target.alt;
+    try {
+      if (ev.target.alt) {
+        result[`${label} \u2192 desc`] = ev.target.alt;
+      }
+    } catch (e) {
     }
     return result;
   };
@@ -4144,7 +4148,7 @@
     ];
     for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
       att = atts[i];
-      let keySuffix = att.name.replace("aria-", "").replace("data-", "");
+      let keySuffix = att.name.replace("aria-", "DATA \u2192").replace("data-", "DATA \u2192");
       let keyName = `${label} \u2192 ${keySuffix}`;
       let val = att.value?.trim();
       if (boolAttrs.some((attr) => attr === att.name))
@@ -4259,8 +4263,6 @@ https://developer.mixpanel.com/reference/project-token`);
         this.pageView(mp, opts);
       if (opts.pageExit)
         this.pageExit(mp, opts);
-      if (opts.links)
-        this.links(mp, opts);
       if (opts.buttons)
         this.buttons(mp, opts);
       if (opts.forms)
@@ -4269,6 +4271,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.selectors(mp, opts);
       if (opts.inputs)
         this.inputs(mp, opts);
+      if (opts.links)
+        this.links(mp, opts);
       if (opts.profiles)
         this.profiles(mp, opts);
       if (opts.youtube)
@@ -4314,20 +4318,19 @@ https://developer.mixpanel.com/reference/project-token`);
     });
   }
   function trackButtonClicks(mp, opts) {
-    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => node.tagName !== "LABEL");
+    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const button of buttons) {
       this.domElementsTracked.push(button);
       button.addEventListener("click", (e) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e),
-            ...CONDITIONAL_FIELDS(e),
+            ...STANDARD_FIELDS(e, "BUTTON"),
             ...BUTTON_FIELDS(e),
             ...statefulProps()
           };
           mp.track("button click", props);
           if (opts.logProps)
-            console.log(props);
+            console.log(JSON.stringify(props, null, 2));
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4336,20 +4339,19 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackLinkClicks(mp, opts) {
-    const links = uniqueNodes(this.query(LINK_SELECTORS));
+    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const link of links) {
       this.domElementsTracked.push(link);
       link.addEventListener("click", (e) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e),
-            ...CONDITIONAL_FIELDS(e),
+            ...STANDARD_FIELDS(e, "LINK"),
             ...LINK_FIELDS(e),
             ...statefulProps()
           };
           mp.track("link click", props);
           if (opts.logProps)
-            console.log(props);
+            console.log(JSON.stringify(props, null, 2));
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4364,14 +4366,13 @@ https://developer.mixpanel.com/reference/project-token`);
       form.addEventListener("form submit", (e) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e),
-            ...CONDITIONAL_FIELDS(e),
+            ...STANDARD_FIELDS(e, "FORM"),
             ...FORM_FIELDS(e),
             ...statefulProps()
           };
           mp.track("form submit", props);
           if (opts.logProps)
-            console.log(props);
+            console.log(JSON.stringify(props, null, 2));
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4380,20 +4381,19 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackDropDowns(mp, opts) {
-    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL");
+    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const dropdown of allDropdowns) {
       this.domElementsTracked.push(dropdown);
       dropdown.addEventListener("change", (e) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e),
-            ...CONDITIONAL_FIELDS(e),
+            ...STANDARD_FIELDS(e, "OPTION"),
             ...DROPDOWN_FIELDS(e),
             ...statefulProps()
           };
           mp.track("user selection", props);
           if (opts.logProps)
-            console.log(props);
+            console.log(JSON.stringify(props, null, 2));
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4402,20 +4402,19 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackUserInput(mp, opts) {
-    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL");
+    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const input of inputElements) {
       this.domElementsTracked.push(input);
       input.addEventListener("change", (e) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e),
-            ...CONDITIONAL_FIELDS(e),
+            ...STANDARD_FIELDS(e, "CONTENT"),
             ...INPUT_FIELDS(e),
             ...statefulProps()
           };
           mp.track("user entered text", props);
           if (opts.logProps)
-            console.log(props);
+            console.log(JSON.stringify(props, null, 2));
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4431,13 +4430,12 @@ https://developer.mixpanel.com/reference/project-token`);
         try {
           const props = {
             ...STANDARD_FIELDS(e),
-            ...CONDITIONAL_FIELDS(e),
             ...ANY_TAG_FIELDS(e),
             ...statefulProps()
           };
           mp.track("page click", props);
           if (opts.logProps)
-            console.log(props);
+            console.log(JSON.stringify(props, null, 2));
         } catch (e2) {
           if (opts.debug)
             console.log(e2);
@@ -4455,7 +4453,7 @@ https://developer.mixpanel.com/reference/project-token`);
         };
         mp.track("page error", props);
         if (opts.logProps)
-          console.log(props);
+          console.log(JSON.stringify(props, null, 2));
       } catch (e) {
         if (opts.debug)
           console.log(e);
@@ -4468,7 +4466,7 @@ https://developer.mixpanel.com/reference/project-token`);
         };
         mp.track("print", props);
         if (opts.logProps)
-          console.log(props);
+          console.log(JSON.stringify(props, null, 2));
       } catch (e) {
         if (opts.debug)
           console.log(e);
@@ -4485,7 +4483,7 @@ https://developer.mixpanel.com/reference/project-token`);
         };
         mp.track("cut", props);
         if (opts.logProps)
-          console.log(props);
+          console.log(JSON.stringify(props, null, 2));
       } catch (e) {
         if (opts.debug)
           console.log(e);
@@ -4500,7 +4498,7 @@ https://developer.mixpanel.com/reference/project-token`);
         };
         mp.track("copy", props);
         if (opts.logProps)
-          console.log(props);
+          console.log(JSON.stringify(props, null, 2));
       } catch (e) {
         if (opts.debug)
           console.log(e);
@@ -4515,7 +4513,7 @@ https://developer.mixpanel.com/reference/project-token`);
         };
         mp.track("paste", props);
         if (opts.logProps)
-          console.log(props);
+          console.log(JSON.stringify(props, null, 2));
       } catch (e) {
         if (opts.debug)
           console.log(e);
