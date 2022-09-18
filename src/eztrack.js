@@ -13,14 +13,24 @@ import {
 } from './attributes';
 
 export const ezTrack = {
-	init: bootStrapModule,
-	loadTime: Date.now(),
+	// entry
+	init: entryPoint,
+
+
+	// stateful props
+	loadTimeUTC: Date.now(),
 	numActions: 0,
-	domElements: [],
 	isFirstVisit: true,
-	checkFirstVisit: firstVisitChecker,
+	priorVisit: firstVisitChecker,
+	debug: () => { mixpanel.ez.set_config({ debug: true }); },
+
+	// dom stuff
+	domElementsTracked: [],
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
+	spa: beSpaAware, // todo???
+
+	//elements + tracking
 	pageView: trackPageViews,
 	pageExit: trackPageExits,
 	buttons: trackButtonClicks,
@@ -30,69 +40,35 @@ export const ezTrack = {
 	inputs: trackUserInput,
 	clicks: trackClicks,
 	youtube: trackYoutubeVideos,
+
+	// meta
 	window: trackWindowStuff,
 	clipboard: trackClipboard,
 	profiles: createUserProfiles,
-	forceDebug: () => { mixpanel.ez.set_config({ debug: true }); }, //currently undocumented
-
-	//todo?
-	spa: beSpaAware,
 
 	// DEFAULTS!
-	defaultOpts: function getDefaultOptions() {
-		return {
-			//meta
-			debug: false,
-			extend: false,
-			refresh: 5000,
-			location: true,
-
-			//default on
-			superProps: true,
-			pageView: true,
-			pageExit: true,
-			links: true,
-			buttons: true,
-			forms: true,
-			profiles: true,
-			selectors: true,
-
-			//default off
-			inputs: false,
-			clicks: false,
-			youtube: false,
-			window: false,
-			clipboard: false,
-
-			//wip
-			logProps: false, //undocumented, for ez debugging
-			spa: 'none'
-
-		};
-	}
+	defaultOpts: getDefaultOptions
 };
 
-
-export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue = false) {
+export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = false) {
 	// validate token as 32 char string
 	if (!token || token.length !== 32) {
 		console.error(`EZTrack: Bad Token!\n\ngot: "${token}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token`);
 		throw new Error(`BAD TOKEN! TRY AGAIN`);
 	}
 
-	//gather options
+	// gather options
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
-
 	if (forceTrue) {
 		for (let key in opts) {
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
 	}
-
 	this.opts = Object.freeze(opts);
 
+	// do mixpanel
 	try {
 		mixpanel.init(token, {
 			debug: opts.debug,
@@ -106,11 +82,12 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 				if (opts.superProps) {
 					mp.register({
 						...SUPER_PROPS,
-						...this.checkFirstVisit(token)
+						...this.priorVisit(token) //check prior visits
 					}, { persistent: false });
 
 				}
 
+				//add tracking
 				this.bind(mp, opts);
 			}
 		}, "ez");
@@ -124,6 +101,38 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 	}
 }
 
+export function getDefaultOptions() {
+	return {
+		//meta
+		debug: false,
+		extend: false,
+		refresh: 5000,
+		location: true,
+
+		//default on
+		superProps: true,
+		pageView: true,
+		pageExit: true,
+		links: true,
+		buttons: true,
+		forms: true,
+		profiles: true,
+		selectors: true,
+
+		//default off
+		inputs: false,
+		clicks: false,
+		youtube: false,
+		window: false,
+		clipboard: false,
+
+		//wip
+		logProps: false, //undocumented, for ez debugging
+		spa: 'none'
+
+	};
+}
+
 export function bindTrackers(mp, opts) {
 	try {
 		if (opts.pageView) this.pageView(mp, opts);
@@ -132,13 +141,14 @@ export function bindTrackers(mp, opts) {
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
 		if (opts.selectors) this.selectors(mp, opts);
-		if (opts.inputs) this.inputs(mp, opts);		
+		if (opts.inputs) this.inputs(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
-		if (opts.clicks) this.clicks(mp, opts);
 		if (opts.spa) this.spa(opts.spa, mp, opts);
+		//this should always be last
+		if (opts.clicks) this.clicks(mp, opts);
 	}
 	catch (e) {
 		if (opts.debug) console.log(e);
@@ -146,7 +156,6 @@ export function bindTrackers(mp, opts) {
 
 }
 
-//IMPURE!
 export function statefulProps() {
 	ezTrack.numActions += 1;
 
@@ -159,13 +168,12 @@ export function statefulProps() {
 		|| 0;
 
 	return {
-		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTime) / 1000,
+		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTimeUTC) / 1000,
 		"PAGE → # actions": ezTrack.numActions,
 		"PAGE → scroll (%)": Number(scrollPercent.toFixed(2))
 	};
 }
 
-//IMPURE!
 export function firstVisitChecker(token) {
 	const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
 
@@ -194,7 +202,7 @@ export function trackPageExits(mp, opts) {
 export function trackButtonClicks(mp, opts) {
 	const buttons = this.query(BUTTON_SELECTORS);
 	for (const button of buttons) {
-		this.domElements.push(button);
+		this.domElementsTracked.push(button);
 		button.addEventListener('click', (e) => {
 			try {
 				const props = {
@@ -216,7 +224,7 @@ export function trackButtonClicks(mp, opts) {
 export function trackLinkClicks(mp, opts) {
 	const links = this.query(LINK_SELECTORS);
 	for (const link of links) {
-		this.domElements.push(link);
+		this.domElementsTracked.push(link);
 		link.addEventListener('click', (e) => {
 			try {
 				const props = {
@@ -238,7 +246,7 @@ export function trackLinkClicks(mp, opts) {
 export function trackFormSubmits(mp, opts) {
 	const forms = this.query(FORM_SELECTORS);
 	for (const form of forms) {
-		this.domElements.push(form);
+		this.domElementsTracked.push(form);
 		form.addEventListener('form submit', (e) => {
 			try {
 				const props = {
@@ -261,7 +269,7 @@ export function trackDropDowns(mp, opts) {
 	let allDropdowns = this.query(DROPDOWN_SELECTOR);
 
 	for (const dropdown of allDropdowns) {
-		this.domElements.push(dropdown);
+		this.domElementsTracked.push(dropdown);
 		dropdown.addEventListener('change', (e) => {
 			try {
 				const props = {
@@ -280,13 +288,12 @@ export function trackDropDowns(mp, opts) {
 	}
 }
 
-// 🚨 guard against password fields 🚨
+
 export function trackUserInput(mp, opts) {
-	let inputElements = this.query(INPUT_SELECTOR)
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password field;
+	let inputElements = this.query(INPUT_SELECTOR);
 
 	for (const input of inputElements) {
-		this.domElements.push(input);
+		this.domElementsTracked.push(input);
 		input.addEventListener('change', (e) => {
 			try {
 				const props = {
@@ -308,13 +315,14 @@ export function trackUserInput(mp, opts) {
 // 🚨 guard against password fields 🚨
 export function trackClicks(mp, opts) {
 	let allThings = this.query(ALL_SELECTOR)
-		.filter(node => node.children.length === 0) //most specific
-		.filter(node => !this.domElements.some(el => el === node)) //not already tracked
-		.filter(node => !this.domElements.some(el => el.contains(node))) //not a child of already tracked
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password
+		.filter(node => node.childElementCount === 0) //most specific
+		.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
+		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
+		.filter(node => node.tagName !== 'LABEL') //not a label
+		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true); //not a password or hidden input
 
 	for (const thing of allThings) {
-		this.domElements.push(thing);
+		this.domElementsTracked.push(thing);
 		thing.addEventListener('click', (e) => {
 			try {
 				const props = {
@@ -333,72 +341,121 @@ export function trackClicks(mp, opts) {
 	}
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
 export function trackWindowStuff(mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
 
-	window.addEventListener('error', (errEv => {
-		const props = {
-			"ERROR → type": errEv.type,
-			"ERROR → message": errEv.message,
-			...statefulProps()
-		};
-		mp.track('page error', props);
-		if (opts.logProps) console.log(props);
-	}, LISTENER_OPTIONS));
-
-	window.addEventListener('resize', (resizeEv) => {
-		const props = {
-			"PAGE → height": window.innerHeight,
-			"PAGE → width": window.innerWidth,
-			...statefulProps()
-		};
-		mp.track('page resize', props);
-		if (opts.logProps) console.log(props);
+	window.addEventListener('error', (errEv) => {
+		try {
+			const props = {
+				"ERROR → type": errEv.type,
+				"ERROR → message": errEv.message,
+				...statefulProps()
+			};
+			mp.track('page error', props);
+			if (opts.logProps) console.log(props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
 	}, LISTENER_OPTIONS);
 
+	// // goal: only fire a resize event after 5 seconds in which no more resize events have occured
+	// // reality: it doesn't work and makes scrolling slow
+	// window.addEventListener('resize', (resizeEv) => {
+	// 	ezTrack.resizeTimer = window.setTimeout(() => {
+	// 		const props = {
+	// 			"PAGE → height": window.innerHeight,
+	// 			"PAGE → width": window.innerWidth,
+	// 			...statefulProps()
+	// 		};
+	// 		mp.track('page resize', props);
+	// 		if (opts.logProps) console.log(props);
+	// 	}, 5000);
+		
+	// 	window.clearTimeout(ezTrack.resizeTimer);
+	// }, LISTENER_OPTIONS);
+	
+
 	window.addEventListener('beforeprint', (printEv) => {
-		const props = {
-			...statefulProps()
-		};
-		mp.track('print', props);
-		if (opts.logProps) console.log(props);
-	});
+		try {
+			const props = {
+				...statefulProps()
+			};
+			mp.track('print', props);
+			if (opts.logProps) console.log(props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
 }
+
 
 // 🚨 guard against clipboard passwords 🚨
 export function trackClipboard(mp, opts) {
 
 	window.addEventListener('cut', (clipEv) => {
-		const props = {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		};
-		mp.track('cut', props);
-		if (opts.logProps) console.log(props);
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv),
+				...ANY_TAG_FIELDS(clipEv, true)
+			};
+			mp.track('cut', props);
+			if (opts.logProps) console.log(props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
 	});
 
 	window.addEventListener('copy', (clipEv) => {
-		const props = {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		};
-		mp.track('copy', props);
-		if (opts.logProps) console.log(props);
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv),
+				...ANY_TAG_FIELDS(clipEv, true)
+			};
+			mp.track('copy', props);
+			if (opts.logProps) console.log(props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
 	});
 
 	window.addEventListener('paste', (clipEv) => {
-		const props = {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		};
-		mp.track('paste', props);
-		if (opts.logProps) console.log(props);
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv),
+				...ANY_TAG_FIELDS(clipEv, true)
+			};
+			mp.track('paste', props);
+			if (opts.logProps) console.log(props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
 	});
 
 }
+
+export function createUserProfiles(mp, opts) {
+	try {
+		mp.identify(mp.get_distinct_id());
+		mp.people.set({
+			"USER → last page viewed": window.location.href,
+			"USER → language": window.navigator.language
+		});
+		mp.people.increment("total # pages");
+		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+	}
+	catch (e) {
+		if (opts.debug) console.log(e);
+	}
+}
+
 export function trackYoutubeVideos(mp, opts) {
 	// enable youtube iframe API; callback to onYouTubeIframeAPIReady
 	const tag = document.createElement('script');
@@ -409,13 +466,13 @@ export function trackYoutubeVideos(mp, opts) {
 
 	const videos = this.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
 
-	// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
 	for (video of videos) {
-		this.domElements.push(video);
+		this.domElementsTracked.push(video);
 		if (!video.id) {
 			video.id = new URL(video.src).pathname.replace("/embed/", "");
 		}
 
+		// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
 		if (!video.src.includes('enablejsapi')) {
 			const newSRC = new URL(video.src);
 			newSRC.searchParams.delete('enablejsapi');
@@ -425,7 +482,6 @@ export function trackYoutubeVideos(mp, opts) {
 	}
 
 	// this called by youtube's iframe api and needs to be named as such
-	//todo... how to bind THIS inside the callback ?
 	window.onYouTubeIframeAPIReady = function () {
 		const videos = ezTrack.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
 		for (const video of videos) {
@@ -503,21 +559,6 @@ export function trackYoutubeVideos(mp, opts) {
 		}
 	}
 
-}
-
-export function createUserProfiles(mp, opts) {
-	try {
-		mp.identify(mp.get_distinct_id());
-		mp.people.set({
-			"USER → last page viewed": window.location.href,
-			"USER → language": window.navigator.language
-		});
-		mp.people.increment("total # pages");
-		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
-	}
-	catch (e) {
-		if (opts.debug) console.log(e);
-	}
 }
 
 export function beSpaAware(typeOfSpa = 'none', mp, opts) {

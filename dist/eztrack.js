@@ -4042,13 +4042,15 @@
     "LINK \u2192 text": ev.target.textContent,
     "LINK \u2192 target": ev.target.target,
     "LINK \u2192 name": ev.target.name,
-    "LINK \u2192 child": ev.target.innerHTML
+    "LINK \u2192 child": ev.target.innerHTML,
+    ...enumNodeProps(ev.target, "LINK")
   });
-  var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="search"]`;
+  var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
   var BUTTON_FIELDS = (ev) => ({
     "BUTTON \u2192 disabled": ev.target.disabled,
     "BUTTON \u2192 text": ev.target.textContent,
-    "BUTTON \u2192 name": ev.target.name
+    "BUTTON \u2192 name": ev.target.name,
+    ...enumNodeProps(ev.target, "BUTTON")
   });
   var FORM_SELECTORS = String.raw`form`;
   var FORM_FIELDS = (ev) => ({
@@ -4057,26 +4059,30 @@
     "FORM \u2192 id": ev.target.id,
     "FORM \u2192 method": ev.target.method,
     "FORM \u2192 action": ev.target.action,
-    "FORM \u2192 encoding": ev.target.encoding
+    "FORM \u2192 encoding": ev.target.encoding,
+    ...enumNodeProps(ev.target, "FORM")
   });
-  var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"]`;
+  var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
   var DROPDOWN_FIELDS = (ev) => ({
     "OPTION \u2192 name": ev.target.name,
     "OPTION \u2192 id": ev.target.id,
     "OPTION \u2192 selected": ev.target.value,
     "OPTION \u2192 choices": ev.target.innerText.split("\n"),
-    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent.trim())
+    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent.trim()),
+    ...enumNodeProps(ev.target, "OPTION")
   });
-  var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], textarea`;
+  var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
   var INPUT_FIELDS = (ev) => ({
     "CONTENT \u2192 user content": ev.target.value,
     "CONTENT \u2192 placeholder": ev.target.placeholder,
-    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent.trim())
+    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent.trim()),
+    ...enumNodeProps(ev.target, "CONTENT")
   });
   var ALL_SELECTOR = String.raw`*`;
   var ANY_TAG_FIELDS = (ev, guard = false) => ({
     "ELEM \u2192 text": guard ? "******" : ev.target.textContent || ev.target.value,
-    "ELEM \u2192 is editable?": ev.target.isContentEditable
+    "ELEM \u2192 is editable?": ev.target.isContentEditable,
+    ...enumNodeProps(ev.target)
   });
   var CONDITIONAL_FIELDS = (ev) => {
     const result = {};
@@ -4108,17 +4114,60 @@
       return {};
     }
   }
+  function enumNodeProps(el, label = "ELEM") {
+    const result = {};
+    const boolAttrs = [
+      "allowfullscreen",
+      "async",
+      "autofocus",
+      "autoplay",
+      "checked",
+      "controls",
+      "default",
+      "defer",
+      "disabled",
+      "formnovalidate",
+      "ismap",
+      "itemscope",
+      "loop",
+      "multiple",
+      "muted",
+      "nomodule",
+      "novalidate",
+      "open",
+      "playsinline",
+      "readonly",
+      "required",
+      "reversed",
+      "selected",
+      "truespeed"
+    ];
+    for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+      att = atts[i];
+      let keySuffix = att.name.replace("aria-", "").replace("data-", "");
+      let keyName = `${label} \u2192 ${keySuffix}`;
+      let val = att.value.trim();
+      if (boolAttrs.some((attr) => attr === att.name))
+        val = true;
+      result[keyName] = val;
+    }
+    return result;
+  }
 
   // src/eztrack.js
   var ezTrack = {
-    init: bootStrapModule,
-    loadTime: Date.now(),
+    init: entryPoint,
+    loadTimeUTC: Date.now(),
     numActions: 0,
-    domElements: [],
     isFirstVisit: true,
-    checkFirstVisit: firstVisitChecker,
+    priorVisit: firstVisitChecker,
+    debug: () => {
+      import_mixpanel_browser.default.ez.set_config({ debug: true });
+    },
+    domElementsTracked: [],
     bind: bindTrackers,
     query: querySelectorAllDeep,
+    spa: beSpaAware,
     pageView: trackPageViews,
     pageExit: trackPageExits,
     buttons: trackButtonClicks,
@@ -4131,35 +4180,9 @@
     window: trackWindowStuff,
     clipboard: trackClipboard,
     profiles: createUserProfiles,
-    forceDebug: () => {
-      import_mixpanel_browser.default.ez.set_config({ debug: true });
-    },
-    spa: beSpaAware,
-    defaultOpts: function getDefaultOptions() {
-      return {
-        debug: false,
-        extend: false,
-        refresh: 5e3,
-        location: true,
-        superProps: true,
-        pageView: true,
-        pageExit: true,
-        links: true,
-        buttons: true,
-        forms: true,
-        profiles: true,
-        selectors: true,
-        inputs: false,
-        clicks: false,
-        youtube: false,
-        window: false,
-        clipboard: false,
-        logProps: false,
-        spa: "none"
-      };
-    }
+    defaultOpts: getDefaultOptions
   };
-  function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue = false) {
+  function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = false) {
     if (!token || token.length !== 32) {
       console.error(`EZTrack: Bad Token!
 
@@ -4194,7 +4217,7 @@ https://developer.mixpanel.com/reference/project-token`);
           if (opts.superProps) {
             mp.register({
               ...SUPER_PROPS,
-              ...this.checkFirstVisit(token)
+              ...this.priorVisit(token)
             }, { persistent: false });
           }
           this.bind(mp, opts);
@@ -4206,6 +4229,29 @@ https://developer.mixpanel.com/reference/project-token`);
       if (opts.debug)
         console.log(e);
     }
+  }
+  function getDefaultOptions() {
+    return {
+      debug: false,
+      extend: false,
+      refresh: 5e3,
+      location: true,
+      superProps: true,
+      pageView: true,
+      pageExit: true,
+      links: true,
+      buttons: true,
+      forms: true,
+      profiles: true,
+      selectors: true,
+      inputs: false,
+      clicks: false,
+      youtube: false,
+      window: false,
+      clipboard: false,
+      logProps: false,
+      spa: "none"
+    };
   }
   function bindTrackers(mp, opts) {
     try {
@@ -4231,10 +4277,10 @@ https://developer.mixpanel.com/reference/project-token`);
         this.window(mp, opts);
       if (opts.clipboard)
         this.clipboard(mp, opts);
-      if (opts.clicks)
-        this.clicks(mp, opts);
       if (opts.spa)
         this.spa(opts.spa, mp, opts);
+      if (opts.clicks)
+        this.clicks(mp, opts);
     } catch (e) {
       if (opts.debug)
         console.log(e);
@@ -4244,7 +4290,7 @@ https://developer.mixpanel.com/reference/project-token`);
     ezTrack.numActions += 1;
     const scrollPercent = (document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100 || 0;
     return {
-      "SESSION \u2192 time on page (sec)": (Date.now() - ezTrack.loadTime) / 1e3,
+      "SESSION \u2192 time on page (sec)": (Date.now() - ezTrack.loadTimeUTC) / 1e3,
       "PAGE \u2192 # actions": ezTrack.numActions,
       "PAGE \u2192 scroll (%)": Number(scrollPercent.toFixed(2))
     };
@@ -4270,7 +4316,7 @@ https://developer.mixpanel.com/reference/project-token`);
   function trackButtonClicks(mp, opts) {
     const buttons = this.query(BUTTON_SELECTORS);
     for (const button of buttons) {
-      this.domElements.push(button);
+      this.domElementsTracked.push(button);
       button.addEventListener("click", (e) => {
         try {
           const props = {
@@ -4292,7 +4338,7 @@ https://developer.mixpanel.com/reference/project-token`);
   function trackLinkClicks(mp, opts) {
     const links = this.query(LINK_SELECTORS);
     for (const link of links) {
-      this.domElements.push(link);
+      this.domElementsTracked.push(link);
       link.addEventListener("click", (e) => {
         try {
           const props = {
@@ -4314,7 +4360,7 @@ https://developer.mixpanel.com/reference/project-token`);
   function trackFormSubmits(mp, opts) {
     const forms = this.query(FORM_SELECTORS);
     for (const form of forms) {
-      this.domElements.push(form);
+      this.domElementsTracked.push(form);
       form.addEventListener("form submit", (e) => {
         try {
           const props = {
@@ -4336,7 +4382,7 @@ https://developer.mixpanel.com/reference/project-token`);
   function trackDropDowns(mp, opts) {
     let allDropdowns = this.query(DROPDOWN_SELECTOR);
     for (const dropdown of allDropdowns) {
-      this.domElements.push(dropdown);
+      this.domElementsTracked.push(dropdown);
       dropdown.addEventListener("change", (e) => {
         try {
           const props = {
@@ -4356,9 +4402,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackUserInput(mp, opts) {
-    let inputElements = this.query(INPUT_SELECTOR).filter((node) => node.tagName === "INPUT" ? node.type === "password" ? false : true : true);
+    let inputElements = this.query(INPUT_SELECTOR);
     for (const input of inputElements) {
-      this.domElements.push(input);
+      this.domElementsTracked.push(input);
       input.addEventListener("change", (e) => {
         try {
           const props = {
@@ -4378,9 +4424,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackClicks(mp, opts) {
-    let allThings = this.query(ALL_SELECTOR).filter((node) => node.children.length === 0).filter((node) => !this.domElements.some((el) => el === node)).filter((node) => !this.domElements.some((el) => el.contains(node))).filter((node) => node.tagName === "INPUT" ? node.type === "password" ? false : true : true);
+    let allThings = this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true);
     for (const thing of allThings) {
-      this.domElements.push(thing);
+      this.domElementsTracked.push(thing);
       thing.addEventListener("click", (e) => {
         try {
           const props = {
@@ -4400,66 +4446,95 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackWindowStuff(mp, opts) {
-    window.addEventListener("error", ((errEv) => {
-      const props = {
-        "ERROR \u2192 type": errEv.type,
-        "ERROR \u2192 message": errEv.message,
-        ...statefulProps()
-      };
-      mp.track("page error", props);
-      if (opts.logProps)
-        console.log(props);
-    }, LISTENER_OPTIONS));
-    window.addEventListener("resize", (resizeEv) => {
-      const props = {
-        "PAGE \u2192 height": window.innerHeight,
-        "PAGE \u2192 width": window.innerWidth,
-        ...statefulProps()
-      };
-      mp.track("page resize", props);
-      if (opts.logProps)
-        console.log(props);
+    window.addEventListener("error", (errEv) => {
+      try {
+        const props = {
+          "ERROR \u2192 type": errEv.type,
+          "ERROR \u2192 message": errEv.message,
+          ...statefulProps()
+        };
+        mp.track("page error", props);
+        if (opts.logProps)
+          console.log(props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
     }, LISTENER_OPTIONS);
     window.addEventListener("beforeprint", (printEv) => {
-      const props = {
-        ...statefulProps()
-      };
-      mp.track("print", props);
-      if (opts.logProps)
-        console.log(props);
-    });
+      try {
+        const props = {
+          ...statefulProps()
+        };
+        mp.track("print", props);
+        if (opts.logProps)
+          console.log(props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    }, LISTENER_OPTIONS);
   }
   function trackClipboard(mp, opts) {
     window.addEventListener("cut", (clipEv) => {
-      const props = {
-        ...statefulProps(),
-        ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv, true)
-      };
-      mp.track("cut", props);
-      if (opts.logProps)
-        console.log(props);
+      try {
+        const props = {
+          ...statefulProps(),
+          ...STANDARD_FIELDS(clipEv),
+          ...ANY_TAG_FIELDS(clipEv, true)
+        };
+        mp.track("cut", props);
+        if (opts.logProps)
+          console.log(props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
     });
     window.addEventListener("copy", (clipEv) => {
-      const props = {
-        ...statefulProps(),
-        ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv, true)
-      };
-      mp.track("copy", props);
-      if (opts.logProps)
-        console.log(props);
+      try {
+        const props = {
+          ...statefulProps(),
+          ...STANDARD_FIELDS(clipEv),
+          ...ANY_TAG_FIELDS(clipEv, true)
+        };
+        mp.track("copy", props);
+        if (opts.logProps)
+          console.log(props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
     });
     window.addEventListener("paste", (clipEv) => {
-      const props = {
-        ...statefulProps(),
-        ...STANDARD_FIELDS(clipEv),
-        ...ANY_TAG_FIELDS(clipEv, true)
-      };
-      mp.track("paste", props);
-      if (opts.logProps)
-        console.log(props);
+      try {
+        const props = {
+          ...statefulProps(),
+          ...STANDARD_FIELDS(clipEv),
+          ...ANY_TAG_FIELDS(clipEv, true)
+        };
+        mp.track("paste", props);
+        if (opts.logProps)
+          console.log(props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
     });
+  }
+  function createUserProfiles(mp, opts) {
+    try {
+      mp.identify(mp.get_distinct_id());
+      mp.people.set({
+        "USER \u2192 last page viewed": window.location.href,
+        "USER \u2192 language": window.navigator.language
+      });
+      mp.people.increment("total # pages");
+      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+    } catch (e) {
+      if (opts.debug)
+        console.log(e);
+    }
   }
   function trackYoutubeVideos(mp, opts) {
     const tag = document.createElement("script");
@@ -4469,7 +4544,7 @@ https://developer.mixpanel.com/reference/project-token`);
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     const videos = this.query(YOUTUBE_SELECTOR).filter((frame) => frame.src.includes("youtube.com/embed"));
     for (video of videos) {
-      this.domElements.push(video);
+      this.domElementsTracked.push(video);
       if (!video.id) {
         video.id = new URL(video.src).pathname.replace("/embed/", "");
       }
@@ -4538,20 +4613,6 @@ https://developer.mixpanel.com/reference/project-token`);
         default:
           break;
       }
-    }
-  }
-  function createUserProfiles(mp, opts) {
-    try {
-      mp.identify(mp.get_distinct_id());
-      mp.people.set({
-        "USER \u2192 last page viewed": window.location.href,
-        "USER \u2192 language": window.navigator.language
-      });
-      mp.people.increment("total # pages");
-      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
-    } catch (e) {
-      if (opts.debug)
-        console.log(e);
     }
   }
   function beSpaAware(typeOfSpa = "none", mp, opts) {

@@ -39,15 +39,17 @@ export const LINK_FIELDS = (ev) => ({
 	"LINK → text": ev.target.textContent,
 	"LINK → target": ev.target.target,
 	"LINK → name": ev.target.name,
-	"LINK → child": ev.target.innerHTML
+	"LINK → child": ev.target.innerHTML,
+	...enumNodeProps(ev.target, "LINK")
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
-export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="search"]`;
+export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
 export const BUTTON_FIELDS = (ev) => ({
 	"BUTTON → disabled": ev.target.disabled,
 	"BUTTON → text": ev.target.textContent,
-	"BUTTON → name": ev.target.name
+	"BUTTON → name": ev.target.name,
+	...enumNodeProps(ev.target, "BUTTON")
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
@@ -58,26 +60,29 @@ export const FORM_FIELDS = (ev) => ({
 	"FORM → id": ev.target.id,
 	"FORM → method": ev.target.method,
 	"FORM → action": ev.target.action,
-	"FORM → encoding": ev.target.encoding
+	"FORM → encoding": ev.target.encoding,
+	...enumNodeProps(ev.target, "FORM")
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
-export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"]`;
+export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
 export const DROPDOWN_FIELDS = (ev) => ({
 	"OPTION → name": ev.target.name,
 	"OPTION → id": ev.target.id,
 	"OPTION → selected": ev.target.value,
 	"OPTION → choices": ev.target.innerText.split('\n'), //suss ... but .textContent looks weird...
-	"OPTION → labels": [...ev.target.labels].map(label => label.textContent.trim())
+	"OPTION → labels": [...ev.target.labels].map(label => label.textContent.trim()),
+	...enumNodeProps(ev.target, "OPTION")
 });
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input
-export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], textarea`;
+export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
 export const INPUT_FIELDS = (ev) => ({
 	"CONTENT → user content": ev.target.value,
 	"CONTENT → placeholder": ev.target.placeholder,
-	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent.trim())
+	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent.trim()),
+	...enumNodeProps(ev.target, "CONTENT")
 });
 
 export const ALL_SELECTOR = String.raw`*`;
@@ -85,7 +90,8 @@ export const ALL_SELECTOR = String.raw`*`;
 // 🚨 guard against password fields 🚨
 export const ANY_TAG_FIELDS = (ev, guard = false) => ({
 	"ELEM → text": guard ? "******" : ev.target.textContent || ev.target.value,
-	"ELEM → is editable?": ev.target.isContentEditable
+	"ELEM → is editable?": ev.target.isContentEditable,
+	...enumNodeProps(ev.target)
 });
 
 export const CONDITIONAL_FIELDS = (ev) => {
@@ -132,4 +138,51 @@ function parseDatasetAttrs(dataset) {
 	catch (e) {
 		return {};
 	}
+}
+
+// is this a bad idea?
+// https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes
+function enumNodeProps(el, label = "ELEM") {
+	const result = {};
+	// https://meiert.com/en/blog/boolean-attributes-of-html/
+	const boolAttrs = [
+		"allowfullscreen",
+		"async",
+		"autofocus",
+		"autoplay",
+		"checked",
+		"controls",
+		"default",
+		"defer",
+		"disabled",
+		"formnovalidate",
+		"ismap",
+		"itemscope",
+		"loop",
+		"multiple",
+		"muted",
+		"nomodule",
+		"novalidate",
+		"open",
+		"playsinline",
+		"readonly",
+		"required",
+		"reversed",
+		"selected",
+		"truespeed"
+	];
+	for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+		att = atts[i];
+		let keySuffix = att.name.replace("aria-", "").replace("data-", ""); // remove aria- and data- prefix
+		let keyName = `${label} → ${keySuffix}`;
+		let val = att.value.trim();
+
+		if (boolAttrs.some(attr => attr === att.name)) val = true; //attrs which have no value are "boolean" true
+
+		result[keyName] = val;
+
+	}
+
+	return result;
+
 }
