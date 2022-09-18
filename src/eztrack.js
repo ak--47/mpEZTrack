@@ -200,7 +200,9 @@ export function trackPageExits(mp, opts) {
 }
 
 export function trackButtonClicks(mp, opts) {
-	const buttons = this.query(BUTTON_SELECTORS);
+	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
+		.filter(node => node.tagName !== 'LABEL'); //not a label
+
 	for (const button of buttons) {
 		this.domElementsTracked.push(button);
 		button.addEventListener('click', (e) => {
@@ -222,7 +224,8 @@ export function trackButtonClicks(mp, opts) {
 }
 
 export function trackLinkClicks(mp, opts) {
-	const links = this.query(LINK_SELECTORS);
+	const links = uniqueNodes(this.query(LINK_SELECTORS));
+
 	for (const link of links) {
 		this.domElementsTracked.push(link);
 		link.addEventListener('click', (e) => {
@@ -244,7 +247,7 @@ export function trackLinkClicks(mp, opts) {
 }
 
 export function trackFormSubmits(mp, opts) {
-	const forms = this.query(FORM_SELECTORS);
+	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
 		this.domElementsTracked.push(form);
 		form.addEventListener('form submit', (e) => {
@@ -266,7 +269,9 @@ export function trackFormSubmits(mp, opts) {
 }
 
 export function trackDropDowns(mp, opts) {
-	let allDropdowns = this.query(DROPDOWN_SELECTOR);
+	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
+		.filter(node => node.tagName !== 'LABEL'); //not a label
+
 
 	for (const dropdown of allDropdowns) {
 		this.domElementsTracked.push(dropdown);
@@ -290,7 +295,9 @@ export function trackDropDowns(mp, opts) {
 
 
 export function trackUserInput(mp, opts) {
-	let inputElements = this.query(INPUT_SELECTOR);
+	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
+		.filter(node => node.tagName !== 'LABEL'); //not a label
+
 
 	for (const input of inputElements) {
 		this.domElementsTracked.push(input);
@@ -314,7 +321,7 @@ export function trackUserInput(mp, opts) {
 
 // 🚨 guard against password fields 🚨
 export function trackClicks(mp, opts) {
-	let allThings = this.query(ALL_SELECTOR)
+	let allThings = uniqueNodes(this.query(ALL_SELECTOR))
 		.filter(node => node.childElementCount === 0) //most specific
 		.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
 		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
@@ -371,10 +378,10 @@ export function trackWindowStuff(mp, opts) {
 	// 		mp.track('page resize', props);
 	// 		if (opts.logProps) console.log(props);
 	// 	}, 5000);
-		
+
 	// 	window.clearTimeout(ezTrack.resizeTimer);
 	// }, LISTENER_OPTIONS);
-	
+
 
 	window.addEventListener('beforeprint', (printEv) => {
 		try {
@@ -464,7 +471,7 @@ export function trackYoutubeVideos(mp, opts) {
 	const firstScriptTag = document.getElementsByTagName('script')[0] || document.getElementsByTagName('body')[0].children[0];
 	firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-	const videos = this.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
+	const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter(frame => frame.src.includes('youtube.com/embed'));
 
 	for (video of videos) {
 		this.domElementsTracked.push(video);
@@ -591,6 +598,10 @@ export function beSpaAware(typeOfSpa = 'none', mp, opts) {
 		default:
 			break;
 	}
+}
+
+export function uniqueNodes(arrayOfNodes) {
+	return [...new Set(arrayOfNodes)];
 }
 
 //put it in global namespace 🤠

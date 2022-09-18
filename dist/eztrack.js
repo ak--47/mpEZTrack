@@ -4039,7 +4039,7 @@
   var LINK_SELECTORS = String.raw`a`;
   var LINK_FIELDS = (ev) => ({
     "LINK \u2192 url": ev.target.href,
-    "LINK \u2192 text": ev.target.textContent,
+    "LINK \u2192 text": ev.target.textContent?.trim(),
     "LINK \u2192 target": ev.target.target,
     "LINK \u2192 name": ev.target.name,
     "LINK \u2192 child": ev.target.innerHTML,
@@ -4048,7 +4048,7 @@
   var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
   var BUTTON_FIELDS = (ev) => ({
     "BUTTON \u2192 disabled": ev.target.disabled,
-    "BUTTON \u2192 text": ev.target.textContent,
+    "BUTTON \u2192 text": ev.target.textContent?.trim(),
     "BUTTON \u2192 name": ev.target.name,
     ...enumNodeProps(ev.target, "BUTTON")
   });
@@ -4068,19 +4068,19 @@
     "OPTION \u2192 id": ev.target.id,
     "OPTION \u2192 selected": ev.target.value,
     "OPTION \u2192 choices": ev.target.innerText.split("\n"),
-    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent.trim()),
+    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim()),
     ...enumNodeProps(ev.target, "OPTION")
   });
   var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
   var INPUT_FIELDS = (ev) => ({
     "CONTENT \u2192 user content": ev.target.value,
     "CONTENT \u2192 placeholder": ev.target.placeholder,
-    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent.trim()),
+    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim()),
     ...enumNodeProps(ev.target, "CONTENT")
   });
   var ALL_SELECTOR = String.raw`*`;
   var ANY_TAG_FIELDS = (ev, guard = false) => ({
-    "ELEM \u2192 text": guard ? "******" : ev.target.textContent || ev.target.value,
+    "ELEM \u2192 text": guard ? "******" : ev.target.textContent?.trim() || ev.target.value?.trim(),
     "ELEM \u2192 is editable?": ev.target.isContentEditable,
     ...enumNodeProps(ev.target)
   });
@@ -4146,7 +4146,7 @@
       att = atts[i];
       let keySuffix = att.name.replace("aria-", "").replace("data-", "");
       let keyName = `${label} \u2192 ${keySuffix}`;
-      let val = att.value.trim();
+      let val = att.value?.trim();
       if (boolAttrs.some((attr) => attr === att.name))
         val = true;
       result[keyName] = val;
@@ -4314,7 +4314,7 @@ https://developer.mixpanel.com/reference/project-token`);
     });
   }
   function trackButtonClicks(mp, opts) {
-    const buttons = this.query(BUTTON_SELECTORS);
+    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => node.tagName !== "LABEL");
     for (const button of buttons) {
       this.domElementsTracked.push(button);
       button.addEventListener("click", (e) => {
@@ -4336,7 +4336,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackLinkClicks(mp, opts) {
-    const links = this.query(LINK_SELECTORS);
+    const links = uniqueNodes(this.query(LINK_SELECTORS));
     for (const link of links) {
       this.domElementsTracked.push(link);
       link.addEventListener("click", (e) => {
@@ -4358,7 +4358,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackFormSubmits(mp, opts) {
-    const forms = this.query(FORM_SELECTORS);
+    const forms = uniqueNodes(this.query(FORM_SELECTORS));
     for (const form of forms) {
       this.domElementsTracked.push(form);
       form.addEventListener("form submit", (e) => {
@@ -4380,7 +4380,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackDropDowns(mp, opts) {
-    let allDropdowns = this.query(DROPDOWN_SELECTOR);
+    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL");
     for (const dropdown of allDropdowns) {
       this.domElementsTracked.push(dropdown);
       dropdown.addEventListener("change", (e) => {
@@ -4402,7 +4402,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackUserInput(mp, opts) {
-    let inputElements = this.query(INPUT_SELECTOR);
+    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL");
     for (const input of inputElements) {
       this.domElementsTracked.push(input);
       input.addEventListener("change", (e) => {
@@ -4424,7 +4424,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackClicks(mp, opts) {
-    let allThings = this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true);
+    let allThings = uniqueNodes(this.query(ALL_SELECTOR)).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true);
     for (const thing of allThings) {
       this.domElementsTracked.push(thing);
       thing.addEventListener("click", (e) => {
@@ -4542,7 +4542,7 @@ https://developer.mixpanel.com/reference/project-token`);
     tag.src = "https://www.youtube.com/iframe_api";
     const firstScriptTag = document.getElementsByTagName("script")[0] || document.getElementsByTagName("body")[0].children[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    const videos = this.query(YOUTUBE_SELECTOR).filter((frame) => frame.src.includes("youtube.com/embed"));
+    const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter((frame) => frame.src.includes("youtube.com/embed"));
     for (video of videos) {
       this.domElementsTracked.push(video);
       if (!video.id) {
@@ -4636,6 +4636,9 @@ https://developer.mixpanel.com/reference/project-token`);
       default:
         break;
     }
+  }
+  function uniqueNodes(arrayOfNodes) {
+    return [...new Set(arrayOfNodes)];
   }
   window.mpEZTrack = ezTrack;
 })();

@@ -36,7 +36,7 @@ export const STANDARD_FIELDS = (ev) => ({
 export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (ev) => ({
 	"LINK → url": ev.target.href,
-	"LINK → text": ev.target.textContent,
+	"LINK → text": ev.target.textContent?.trim(),
 	"LINK → target": ev.target.target,
 	"LINK → name": ev.target.name,
 	"LINK → child": ev.target.innerHTML,
@@ -47,7 +47,7 @@ export const LINK_FIELDS = (ev) => ({
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
 export const BUTTON_FIELDS = (ev) => ({
 	"BUTTON → disabled": ev.target.disabled,
-	"BUTTON → text": ev.target.textContent,
+	"BUTTON → text": ev.target.textContent?.trim(),
 	"BUTTON → name": ev.target.name,
 	...enumNodeProps(ev.target, "BUTTON")
 });
@@ -71,7 +71,7 @@ export const DROPDOWN_FIELDS = (ev) => ({
 	"OPTION → id": ev.target.id,
 	"OPTION → selected": ev.target.value,
 	"OPTION → choices": ev.target.innerText.split('\n'), //suss ... but .textContent looks weird...
-	"OPTION → labels": [...ev.target.labels].map(label => label.textContent.trim()),
+	"OPTION → labels": [...ev.target.labels].map(label => label.textContent?.trim()),
 	...enumNodeProps(ev.target, "OPTION")
 });
 
@@ -81,7 +81,7 @@ export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"]
 export const INPUT_FIELDS = (ev) => ({
 	"CONTENT → user content": ev.target.value,
 	"CONTENT → placeholder": ev.target.placeholder,
-	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent.trim()),
+	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent?.trim()),
 	...enumNodeProps(ev.target, "CONTENT")
 });
 
@@ -89,7 +89,7 @@ export const ALL_SELECTOR = String.raw`*`;
 
 // 🚨 guard against password fields 🚨
 export const ANY_TAG_FIELDS = (ev, guard = false) => ({
-	"ELEM → text": guard ? "******" : ev.target.textContent || ev.target.value,
+	"ELEM → text": guard ? "******" : ev.target.textContent?.trim() || ev.target.value?.trim(),
 	"ELEM → is editable?": ev.target.isContentEditable,
 	...enumNodeProps(ev.target)
 });
@@ -175,7 +175,7 @@ function enumNodeProps(el, label = "ELEM") {
 		att = atts[i];
 		let keySuffix = att.name.replace("aria-", "").replace("data-", ""); // remove aria- and data- prefix
 		let keyName = `${label} → ${keySuffix}`;
-		let val = att.value.trim();
+		let val = att.value?.trim();
 
 		if (boolAttrs.some(attr => attr === att.name)) val = true; //attrs which have no value are "boolean" true
 
