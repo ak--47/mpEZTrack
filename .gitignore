@@ -5,3 +5,8 @@ tmp/*
 !tmp/.gitkeep
 node_modules
 notes.txt
+examples/*
+!examples/*.js
+!examples/*.map
+!examples/*.md
+!/examples/mindfulSelfIndulgence.html
