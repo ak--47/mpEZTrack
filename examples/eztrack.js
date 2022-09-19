@@ -4109,6 +4109,8 @@
       }
       if (el.parentElement.title)
         results[`${label} \u2192 label`] = el.parentElement.title.trim();
+      if (el.parentElement.name)
+        results[`${label} \u2192 label`] = el.parentElement.name.trim();
       if (el.parentElement.id)
         results[`${label} \u2192 label`] = el.parentElement.id.trim();
       if (!results[`${label} \u2192 label`]) {
@@ -4571,8 +4573,8 @@ https://developer.mixpanel.com/reference/project-token`);
       try {
         const props = {
           ...statefulProps(),
-          ...STANDARD_FIELDS(clipEv),
-          ...ANY_TAG_FIELDS(clipEv, true)
+          ...STANDARD_FIELDS(clipEv.target),
+          ...ANY_TAG_FIELDS(clipEv.target, true)
         };
         mp.track("cut", props);
         if (opts.logProps)
@@ -4586,8 +4588,8 @@ https://developer.mixpanel.com/reference/project-token`);
       try {
         const props = {
           ...statefulProps(),
-          ...STANDARD_FIELDS(clipEv),
-          ...ANY_TAG_FIELDS(clipEv, true)
+          ...STANDARD_FIELDS(clipEv.target),
+          ...ANY_TAG_FIELDS(clipEv.target, true)
         };
         mp.track("copy", props);
         if (opts.logProps)
@@ -4601,8 +4603,8 @@ https://developer.mixpanel.com/reference/project-token`);
       try {
         const props = {
           ...statefulProps(),
-          ...STANDARD_FIELDS(clipEv),
-          ...ANY_TAG_FIELDS(clipEv, true)
+          ...STANDARD_FIELDS(clipEv.target),
+          ...ANY_TAG_FIELDS(clipEv.target, true)
         };
         mp.track("paste", props);
         if (opts.logProps)

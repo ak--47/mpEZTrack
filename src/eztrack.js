@@ -517,8 +517,8 @@ export function trackClipboard(mp, opts) {
 		try {
 			const props = {
 				...statefulProps(),
-				...STANDARD_FIELDS(clipEv),
-				...ANY_TAG_FIELDS(clipEv, true)
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
 			};
 			mp.track('cut', props);
 			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
@@ -532,8 +532,8 @@ export function trackClipboard(mp, opts) {
 		try {
 			const props = {
 				...statefulProps(),
-				...STANDARD_FIELDS(clipEv),
-				...ANY_TAG_FIELDS(clipEv, true)
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
 			};
 			mp.track('copy', props);
 			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
@@ -547,8 +547,8 @@ export function trackClipboard(mp, opts) {
 		try {
 			const props = {
 				...statefulProps(),
-				...STANDARD_FIELDS(clipEv),
-				...ANY_TAG_FIELDS(clipEv, true)
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
 			};
 			mp.track('paste', props);
 			if (opts.logProps) console.log(JSON.stringify(props, null, 2));

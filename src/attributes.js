@@ -50,7 +50,7 @@ export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (el) => ({
 	"LINK → text": squish(el.textContent),
 	"LINK → target": el.target,
-	"LINK → child": el.innerHTML
+	"LINK → child": el.innerHTML //QQ this is also sus
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
 });
@@ -164,6 +164,7 @@ export function conditionalFields(el, label = "ELEM") {
 
 		//other hueristics
 		if (el.parentElement.title) results[`${label} → label`] = el.parentElement.title.trim();
+		if (el.parentElement.name) results[`${label} → label`] = el.parentElement.name.trim();
 		if (el.parentElement.id) results[`${label} → label`] = el.parentElement.id.trim();
 
 		// otherwise, recursively find the closest textContent by moving up the DOM
@@ -234,6 +235,8 @@ export function truncate(text, n = 50, useWordBoundary = true) {
 		subString) + "...";
 };
 
+
+
 // THESE PRODUCE {}s 
 export function qsToObj(queryString) {
 	try {
@@ -245,6 +248,13 @@ export function qsToObj(queryString) {
 	catch (e) {
 		return {};
 	}
+}
+
+// unused
+// https://stackoverflow.com/a/15458968
+export function isHTML(str) {
+	var doc = new DOMParser().parseFromString(str, "text/html");
+	return Array.from(doc.body.childNodes).some(node => node.nodeType === 1);
 }
 
 // unused
