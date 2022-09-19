@@ -1,4 +1,13 @@
+
+/*
+------------------
+SELECTORS + FIELDS
+------------------
+*/
+
+
 export const SUPER_PROPS = {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window
 	"PAGE → url (/)": decodeURIComponent(window.location.pathname),
 	"PAGE → hash (#)": window.location.hash,
 	"PAGE → params (?)": qsToObj(window.location.search),
@@ -17,111 +26,216 @@ export const SUPER_PROPS = {
 	"$source": "mpEZTrack"
 };
 
-// https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+
 export const LISTENER_OPTIONS = {
 	"passive": true
+
+	// https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
 };
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Node
-// https://developer.mozilla.org/en-US/docs/Web/API/Element
-export const STANDARD_FIELDS = (ev, label = `ELEM`) => ({
-	[`${label} → classes`]: [...ev.target.classList],
-	[`${label} → id`]: ev.target.id,
-	[`${label} → height`]: ev.target.offsetHeight,
-	[`${label} → width`]: ev.target.offsetWidth,
-	[`${label} → tag (<>)`]: "".concat('<', ev.target.tagName, '>'),
-	...enumNodeProps(ev.target, label),
-	...conditialFields(ev.target, label)
+export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
+	[`${label} → classes`]: [...el.classList],
+	[`${label} → height`]: el.offsetHeight,
+	[`${label} → width`]: el.offsetWidth,
+	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
+	...enumNodeProps(el, label),
+	...conditionalFields(el, label)
+
+	// https://developer.mozilla.org/en-US/docs/Web/API/Node
+	// https://developer.mozilla.org/en-US/docs/Web/API/Element	
 });
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
+
 export const LINK_SELECTORS = String.raw`a`;
-export const LINK_FIELDS = (ev) => ({
-	"LINK → url": ev.target.href,
-	"LINK → text": ev.target.textContent?.trim(),
-	"LINK → target": ev.target.target,
-	"LINK → name": ev.target.name,
-	"LINK → child": ev.target.innerHTML
+export const LINK_FIELDS = (el) => ({
+	"LINK → text": squish(el.textContent),
+	"LINK → target": el.target,
+	"LINK → child": el.innerHTML
 
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
 });
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
+
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
-export const BUTTON_FIELDS = (ev) => ({
-	"BUTTON → text": ev.target.textContent?.trim(),
-	"BUTTON → name": ev.target.name
+export const BUTTON_FIELDS = (el) => ({
+	"BUTTON → text": squish(el.textContent)
+
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
 });
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
+
 export const FORM_SELECTORS = String.raw`form`;
-export const FORM_FIELDS = (ev) => ({
-	"FORM → # inputs": ev.target.length,
-	"FORM → name": ev.target.name,
-	"FORM → id": ev.target.id,
-	"FORM → method": ev.target.method,
-	"FORM → action": ev.target.action,
-	"FORM → encoding": ev.target.encoding
+export const FORM_FIELDS = (el) => ({
+	"FORM → # inputs": el.length,
+	"FORM → method": el.method,
+	"FORM → action": el.action,
+	"FORM → encoding": el.encoding
+
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
 });
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
+
 export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
-export const DROPDOWN_FIELDS = (ev) => ({
-	"OPTION → name": ev.target.name,
-	"OPTION → id": ev.target.id,
-	"OPTION → selected": ev.target.value,
-	"OPTION → choices": ev.target.innerText.split('\n'), //suss ... but .textContent looks weird...
-	"OPTION → labels": [...ev.target.labels].map(label => label.textContent?.trim())
+export const DROPDOWN_FIELDS = (el) => ({
+	"OPTION → selected": el.value,
+	"OPTION → choices": el.innerText.split('\n'), //QQ suss ... but .textContent looks weird...
+	"OPTION → labels": [...el.labels].map(label => label.textContent?.trim())
+
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
+
 });
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input
+
 export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
-export const INPUT_FIELDS = (ev) => ({
-	"CONTENT → user content": ev.target.value,
-	"CONTENT → placeholder": ev.target.placeholder,
-	"CONTENT → labels": [...ev.target.labels].map(label => label.textContent?.trim())
-});
+export const INPUT_FIELDS = (el) => ({
+	"CONTENT → user content": el.value,
+	"CONTENT → labels": [...el.labels].map(label => squish(label.textContent))
 
-export const ALL_SELECTOR = String.raw`*`;
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
+	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input
+});
 
 // 🚨 guard against password fields 🚨
-export const ANY_TAG_FIELDS = (ev, guard = false) => ({
-	"ELEM → text": guard ? "******" : ev.target.textContent?.trim() || ev.target.value?.trim(),
-	"ELEM → is editable?": ev.target.isContentEditable
+export const ALL_SELECTOR = String.raw`*:not(script):not(title):not(meta):not(link):not([type="password"])`;
+export const ANY_TAG_FIELDS = (el, guard = false) => ({
+	"ELEM → text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
+	"ELEM → is editable?": el.isContentEditable
 });
-
-export const conditialFields = (ev, label = "ELEM") => {
-	const result = {};
-
-	// data-* attrs
-	try {
-		if (Object.keys(ev.target.dataset).length > 0) {
-			result[`${label} → data`] = parseDatasetAttrs(ev.target.dataset);
-		}
-	}
-	catch (e) { }
-
-	try {
-		if (ev.target.src) {
-			result[`${label} → source`] = ev.target.src;
-		}
-	}
-	catch (e) { }
-
-	try {
-		if (ev.target.alt) {
-			result[`${label} → desc`] = ev.target.alt;
-		}
-	}
-	catch (e) { }
-
-	return result;
-};
 
 export const YOUTUBE_SELECTOR = String.raw`iframe`;
 
+/*
+---------
+UTILITIES
+---------
+*/
 
-function qsToObj(queryString) {
+// QQ: is this a bad idea?
+// https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes
+export function enumNodeProps(el, label = "ELEM") {
+	const result = {};
+	// https://meiert.com/en/blog/boolean-attributes-of-html/
+	const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
+
+	const replaceAttrs = {
+		'aria-': 'DATA → ',
+		'data-': 'DATA → ',
+		'src': 'source',
+		'alt': 'desc',
+		'class': 'class (full)'
+	};
+
+	for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+		att = atts[i];
+		let keySuffix = mapReplace(att.name, replaceAttrs);
+		let keyName = `${label} → ${keySuffix}`;
+		let val = att.value?.trim();
+
+		if (boolAttrs.some(attr => attr === att.name)) val = true; //attrs which have no value are "boolean" and therefore true when present
+
+		result[keyName] = val;
+
+	}
+
+	return result;
+}
+
+export function conditionalFields(el, label = "ELEM") {
+	const results = {};
+
+	// LABELS
+	// sometimes lables are not explicitly tied to elements
+	if (Array.from(el?.labels || "").length === 0) {
+		// siblings
+		if (el.previousElementSibling?.nodeName === `LABEL`) {
+			results[`${label} → label`] = el.previousElementSibling.textContent.trim();
+		}
+		if (el.nextElementSibling?.nodeName === `LABEL`) {
+			results[`${label} → label`] = el.nextElementSibling.textContent.trim();
+		}
+
+		// parents + children
+		if (el.parentElement?.nodeName === `LABEL`) {
+			results[`${label} → label`] = el.parentElement.textContent.trim();
+		}
+		if (el.childNodes[0]?.nodeName === `LABEL`) {
+			results[`${label} → label`] = el.childNodes[0].textContent.trim();
+		}
+
+		//other hueristics
+		if (el.parentElement.title) results[`${label} → label`] = el.parentElement.title.trim();
+		if (el.parentElement.id) results[`${label} → label`] = el.parentElement.id.trim();
+
+		// otherwise, recursively find the closest textContent by moving up the DOM
+		if (!results[`${label} → label`]) {
+			function findLabelRecursively(el) {
+				if (!el) {
+					return false;
+				}
+
+				if (el.textContent.trim() !== "") {
+					results[`${label} → label`] = truncate(squish(el.textContent));
+					return true;
+				}
+
+				else {
+					findLabelRecursively(el?.parentElement);
+				}
+			}
+
+			findLabelRecursively(el);
+		}
+
+	}
+
+
+	return results;
+};
+
+/*
+-------
+HELPERS
+-------
+*/
+
+export function escape(text) {
+	return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+}
+
+export function mapReplace(str, replacements) {
+	var regex = [];
+
+	for (var prop in replacements) {
+		regex.push(escape(prop));
+	}
+
+	regex = new RegExp(regex.join('|'), "g");
+
+	return str.replace(regex, function (match) {
+		return replacements[match];
+	});
+}
+
+export function squish(string) {
+	const CONSECUTIVE_SPACES = /\s+/g;
+	return string.trim().replace(CONSECUTIVE_SPACES, ' ');
+}
+
+export function truncate(text, n = 50, useWordBoundary = true) {
+	if (!text) {
+		return "";
+	}
+	if (text.length <= n) {
+		return text;
+	}
+	var subString = text.substr(0, n - 1);
+	return (useWordBoundary ?
+		subString.substr(0, subString.lastIndexOf(' ')) :
+		subString) + "...";
+};
+
+// THESE PRODUCE {}s 
+export function qsToObj(queryString) {
 	try {
 		const parsedQs = new URLSearchParams(queryString);
 		const params = Object.fromEntries(urlParams);
@@ -133,9 +247,9 @@ function qsToObj(queryString) {
 	}
 }
 
-//try to get internal tag data?
+// unused
 // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/dataset
-function parseDatasetAttrs(dataset) {
+export function parseDatasetAttrs(dataset) {
 	try {
 		return { ...dataset };
 	}
@@ -145,49 +259,3 @@ function parseDatasetAttrs(dataset) {
 	}
 }
 
-// is this a bad idea?
-// https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes
-function enumNodeProps(el, label = "ELEM") {
-	const result = {};
-	// https://meiert.com/en/blog/boolean-attributes-of-html/
-	const boolAttrs = [
-		"allowfullscreen",
-		"async",
-		"autofocus",
-		"autoplay",
-		"checked",
-		"controls",
-		"default",
-		"defer",
-		"disabled",
-		"formnovalidate",
-		"ismap",
-		"itemscope",
-		"loop",
-		"multiple",
-		"muted",
-		"nomodule",
-		"novalidate",
-		"open",
-		"playsinline",
-		"readonly",
-		"required",
-		"reversed",
-		"selected",
-		"truespeed"
-	];
-	for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
-		att = atts[i];
-		let keySuffix = att.name.replace("aria-", "DATA →").replace("data-", "DATA →"); // remove aria- and data- prefix
-		let keyName = `${label} → ${keySuffix}`;
-		let val = att.value?.trim();
-
-		if (boolAttrs.some(attr => attr === att.name)) val = true; //attrs which have no value are "boolean" true
-
-		result[keyName] = val;
-
-	}
-
-	return result;
-
-}

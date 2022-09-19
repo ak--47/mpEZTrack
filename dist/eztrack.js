@@ -4029,79 +4029,132 @@
   var LISTENER_OPTIONS = {
     "passive": true
   };
-  var STANDARD_FIELDS = (ev, label = `ELEM`) => ({
-    [`${label} \u2192 classes`]: [...ev.target.classList],
-    [`${label} \u2192 id`]: ev.target.id,
-    [`${label} \u2192 height`]: ev.target.offsetHeight,
-    [`${label} \u2192 width`]: ev.target.offsetWidth,
-    [`${label} \u2192 tag (<>)`]: "".concat("<", ev.target.tagName, ">"),
-    ...enumNodeProps(ev.target, label),
-    ...conditialFields(ev.target, label)
+  var STANDARD_FIELDS = (el, label = `ELEM`) => ({
+    [`${label} \u2192 classes`]: [...el.classList],
+    [`${label} \u2192 height`]: el.offsetHeight,
+    [`${label} \u2192 width`]: el.offsetWidth,
+    [`${label} \u2192 tag (<>)`]: "".concat("<", el.tagName, ">"),
+    ...enumNodeProps(el, label),
+    ...conditionalFields(el, label)
   });
   var LINK_SELECTORS = String.raw`a`;
-  var LINK_FIELDS = (ev) => ({
-    "LINK \u2192 url": ev.target.href,
-    "LINK \u2192 text": ev.target.textContent?.trim(),
-    "LINK \u2192 target": ev.target.target,
-    "LINK \u2192 name": ev.target.name,
-    "LINK \u2192 child": ev.target.innerHTML
+  var LINK_FIELDS = (el) => ({
+    "LINK \u2192 text": squish(el.textContent),
+    "LINK \u2192 target": el.target,
+    "LINK \u2192 child": el.innerHTML
   });
   var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
-  var BUTTON_FIELDS = (ev) => ({
-    "BUTTON \u2192 text": ev.target.textContent?.trim(),
-    "BUTTON \u2192 name": ev.target.name
+  var BUTTON_FIELDS = (el) => ({
+    "BUTTON \u2192 text": squish(el.textContent)
   });
   var FORM_SELECTORS = String.raw`form`;
-  var FORM_FIELDS = (ev) => ({
-    "FORM \u2192 # inputs": ev.target.length,
-    "FORM \u2192 name": ev.target.name,
-    "FORM \u2192 id": ev.target.id,
-    "FORM \u2192 method": ev.target.method,
-    "FORM \u2192 action": ev.target.action,
-    "FORM \u2192 encoding": ev.target.encoding
+  var FORM_FIELDS = (el) => ({
+    "FORM \u2192 # inputs": el.length,
+    "FORM \u2192 method": el.method,
+    "FORM \u2192 action": el.action,
+    "FORM \u2192 encoding": el.encoding
   });
   var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
-  var DROPDOWN_FIELDS = (ev) => ({
-    "OPTION \u2192 name": ev.target.name,
-    "OPTION \u2192 id": ev.target.id,
-    "OPTION \u2192 selected": ev.target.value,
-    "OPTION \u2192 choices": ev.target.innerText.split("\n"),
-    "OPTION \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim())
+  var DROPDOWN_FIELDS = (el) => ({
+    "OPTION \u2192 selected": el.value,
+    "OPTION \u2192 choices": el.innerText.split("\n"),
+    "OPTION \u2192 labels": [...el.labels].map((label) => label.textContent?.trim())
   });
   var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
-  var INPUT_FIELDS = (ev) => ({
-    "CONTENT \u2192 user content": ev.target.value,
-    "CONTENT \u2192 placeholder": ev.target.placeholder,
-    "CONTENT \u2192 labels": [...ev.target.labels].map((label) => label.textContent?.trim())
+  var INPUT_FIELDS = (el) => ({
+    "CONTENT \u2192 user content": el.value,
+    "CONTENT \u2192 labels": [...el.labels].map((label) => squish(label.textContent))
   });
-  var ALL_SELECTOR = String.raw`*`;
-  var ANY_TAG_FIELDS = (ev, guard = false) => ({
-    "ELEM \u2192 text": guard ? "******" : ev.target.textContent?.trim() || ev.target.value?.trim(),
-    "ELEM \u2192 is editable?": ev.target.isContentEditable
+  var ALL_SELECTOR = String.raw`*:not(script):not(title):not(meta):not(link):not([type="password"])`;
+  var ANY_TAG_FIELDS = (el, guard = false) => ({
+    "ELEM \u2192 text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
+    "ELEM \u2192 is editable?": el.isContentEditable
   });
-  var conditialFields = (ev, label = "ELEM") => {
+  var YOUTUBE_SELECTOR = String.raw`iframe`;
+  function enumNodeProps(el, label = "ELEM") {
     const result = {};
-    try {
-      if (Object.keys(ev.target.dataset).length > 0) {
-        result[`${label} \u2192 data`] = parseDatasetAttrs(ev.target.dataset);
-      }
-    } catch (e) {
-    }
-    try {
-      if (ev.target.src) {
-        result[`${label} \u2192 source`] = ev.target.src;
-      }
-    } catch (e) {
-    }
-    try {
-      if (ev.target.alt) {
-        result[`${label} \u2192 desc`] = ev.target.alt;
-      }
-    } catch (e) {
+    const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
+    const replaceAttrs = {
+      "aria-": "DATA \u2192 ",
+      "data-": "DATA \u2192 ",
+      "src": "source",
+      "alt": "desc",
+      "class": "class (full)"
+    };
+    for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+      att = atts[i];
+      let keySuffix = mapReplace(att.name, replaceAttrs);
+      let keyName = `${label} \u2192 ${keySuffix}`;
+      let val = att.value?.trim();
+      if (boolAttrs.some((attr) => attr === att.name))
+        val = true;
+      result[keyName] = val;
     }
     return result;
-  };
-  var YOUTUBE_SELECTOR = String.raw`iframe`;
+  }
+  function conditionalFields(el, label = "ELEM") {
+    const results = {};
+    if (Array.from(el?.labels || "").length === 0) {
+      if (el.previousElementSibling?.nodeName === `LABEL`) {
+        results[`${label} \u2192 label`] = el.previousElementSibling.textContent.trim();
+      }
+      if (el.nextElementSibling?.nodeName === `LABEL`) {
+        results[`${label} \u2192 label`] = el.nextElementSibling.textContent.trim();
+      }
+      if (el.parentElement?.nodeName === `LABEL`) {
+        results[`${label} \u2192 label`] = el.parentElement.textContent.trim();
+      }
+      if (el.childNodes[0]?.nodeName === `LABEL`) {
+        results[`${label} \u2192 label`] = el.childNodes[0].textContent.trim();
+      }
+      if (el.parentElement.title)
+        results[`${label} \u2192 label`] = el.parentElement.title.trim();
+      if (el.parentElement.id)
+        results[`${label} \u2192 label`] = el.parentElement.id.trim();
+      if (!results[`${label} \u2192 label`]) {
+        let findLabelRecursively = function(el2) {
+          if (!el2) {
+            return false;
+          }
+          if (el2.textContent.trim() !== "") {
+            results[`${label} \u2192 label`] = truncate(squish(el2.textContent));
+            return true;
+          } else {
+            findLabelRecursively(el2?.parentElement);
+          }
+        };
+        findLabelRecursively(el);
+      }
+    }
+    return results;
+  }
+  function escape(text) {
+    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+  }
+  function mapReplace(str, replacements) {
+    var regex = [];
+    for (var prop in replacements) {
+      regex.push(escape(prop));
+    }
+    regex = new RegExp(regex.join("|"), "g");
+    return str.replace(regex, function(match) {
+      return replacements[match];
+    });
+  }
+  function squish(string) {
+    const CONSECUTIVE_SPACES = /\s+/g;
+    return string.trim().replace(CONSECUTIVE_SPACES, " ");
+  }
+  function truncate(text, n = 50, useWordBoundary = true) {
+    if (!text) {
+      return "";
+    }
+    if (text.length <= n) {
+      return text;
+    }
+    var subString = text.substr(0, n - 1);
+    return (useWordBoundary ? subString.substr(0, subString.lastIndexOf(" ")) : subString) + "...";
+  }
   function qsToObj(queryString) {
     try {
       const parsedQs = new URLSearchParams(queryString);
@@ -4110,52 +4163,6 @@
     } catch (e) {
       return {};
     }
-  }
-  function parseDatasetAttrs(dataset) {
-    try {
-      return { ...dataset };
-    } catch (e) {
-      return {};
-    }
-  }
-  function enumNodeProps(el, label = "ELEM") {
-    const result = {};
-    const boolAttrs = [
-      "allowfullscreen",
-      "async",
-      "autofocus",
-      "autoplay",
-      "checked",
-      "controls",
-      "default",
-      "defer",
-      "disabled",
-      "formnovalidate",
-      "ismap",
-      "itemscope",
-      "loop",
-      "multiple",
-      "muted",
-      "nomodule",
-      "novalidate",
-      "open",
-      "playsinline",
-      "readonly",
-      "required",
-      "reversed",
-      "selected",
-      "truespeed"
-    ];
-    for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
-      att = atts[i];
-      let keySuffix = att.name.replace("aria-", "DATA \u2192").replace("data-", "DATA \u2192");
-      let keyName = `${label} \u2192 ${keySuffix}`;
-      let val = att.value?.trim();
-      if (boolAttrs.some((attr) => attr === att.name))
-        val = true;
-      result[keyName] = val;
-    }
-    return result;
   }
 
   // src/eztrack.js
@@ -4321,19 +4328,19 @@ https://developer.mixpanel.com/reference/project-token`);
     const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const button of buttons) {
       this.domElementsTracked.push(button);
-      button.addEventListener("click", (e) => {
+      button.addEventListener("click", (ev) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e, "BUTTON"),
-            ...BUTTON_FIELDS(e),
+            ...STANDARD_FIELDS(ev.target, "BUTTON"),
+            ...BUTTON_FIELDS(ev.target),
             ...statefulProps()
           };
           mp.track("button click", props);
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
-        } catch (e2) {
+        } catch (e) {
           if (opts.debug)
-            console.log(e2);
+            console.log(e);
         }
       }, LISTENER_OPTIONS);
     }
@@ -4342,19 +4349,19 @@ https://developer.mixpanel.com/reference/project-token`);
     const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const link of links) {
       this.domElementsTracked.push(link);
-      link.addEventListener("click", (e) => {
+      link.addEventListener("click", (ev) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e, "LINK"),
-            ...LINK_FIELDS(e),
+            ...STANDARD_FIELDS(ev.target, "LINK"),
+            ...LINK_FIELDS(ev.target),
             ...statefulProps()
           };
           mp.track("link click", props);
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
-        } catch (e2) {
+        } catch (e) {
           if (opts.debug)
-            console.log(e2);
+            console.log(e);
         }
       }, LISTENER_OPTIONS);
     }
@@ -4363,19 +4370,19 @@ https://developer.mixpanel.com/reference/project-token`);
     const forms = uniqueNodes(this.query(FORM_SELECTORS));
     for (const form of forms) {
       this.domElementsTracked.push(form);
-      form.addEventListener("form submit", (e) => {
+      form.addEventListener("form submit", (ev) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e, "FORM"),
-            ...FORM_FIELDS(e),
+            ...STANDARD_FIELDS(ev.target, "FORM"),
+            ...FORM_FIELDS(ev.target),
             ...statefulProps()
           };
           mp.track("form submit", props);
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
-        } catch (e2) {
+        } catch (e) {
           if (opts.debug)
-            console.log(e2);
+            console.log(e);
         }
       }, LISTENER_OPTIONS);
     }
@@ -4384,19 +4391,19 @@ https://developer.mixpanel.com/reference/project-token`);
     let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const dropdown of allDropdowns) {
       this.domElementsTracked.push(dropdown);
-      dropdown.addEventListener("change", (e) => {
+      dropdown.addEventListener("change", (ev) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e, "OPTION"),
-            ...DROPDOWN_FIELDS(e),
+            ...STANDARD_FIELDS(ev.target, "OPTION"),
+            ...DROPDOWN_FIELDS(ev.target),
             ...statefulProps()
           };
           mp.track("user selection", props);
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
-        } catch (e2) {
+        } catch (e) {
           if (opts.debug)
-            console.log(e2);
+            console.log(e);
         }
       }, LISTENER_OPTIONS);
     }
@@ -4405,19 +4412,19 @@ https://developer.mixpanel.com/reference/project-token`);
     let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const input of inputElements) {
       this.domElementsTracked.push(input);
-      input.addEventListener("change", (e) => {
+      input.addEventListener("change", (ev) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e, "CONTENT"),
-            ...INPUT_FIELDS(e),
+            ...STANDARD_FIELDS(ev.target, "CONTENT"),
+            ...INPUT_FIELDS(ev.target),
             ...statefulProps()
           };
           mp.track("user entered text", props);
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
-        } catch (e2) {
+        } catch (e) {
           if (opts.debug)
-            console.log(e2);
+            console.log(e);
         }
       }, LISTENER_OPTIONS);
     }
@@ -4426,112 +4433,21 @@ https://developer.mixpanel.com/reference/project-token`);
     let allThings = uniqueNodes(this.query(ALL_SELECTOR)).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true);
     for (const thing of allThings) {
       this.domElementsTracked.push(thing);
-      thing.addEventListener("click", (e) => {
+      thing.addEventListener("click", (ev) => {
         try {
           const props = {
-            ...STANDARD_FIELDS(e),
-            ...ANY_TAG_FIELDS(e),
+            ...STANDARD_FIELDS(ev.target),
+            ...ANY_TAG_FIELDS(ev.target),
             ...statefulProps()
           };
           mp.track("page click", props);
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
-        } catch (e2) {
+        } catch (e) {
           if (opts.debug)
-            console.log(e2);
+            console.log(e);
         }
       }, LISTENER_OPTIONS);
-    }
-  }
-  function trackWindowStuff(mp, opts) {
-    window.addEventListener("error", (errEv) => {
-      try {
-        const props = {
-          "ERROR \u2192 type": errEv.type,
-          "ERROR \u2192 message": errEv.message,
-          ...statefulProps()
-        };
-        mp.track("page error", props);
-        if (opts.logProps)
-          console.log(JSON.stringify(props, null, 2));
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    }, LISTENER_OPTIONS);
-    window.addEventListener("beforeprint", (printEv) => {
-      try {
-        const props = {
-          ...statefulProps()
-        };
-        mp.track("print", props);
-        if (opts.logProps)
-          console.log(JSON.stringify(props, null, 2));
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    }, LISTENER_OPTIONS);
-  }
-  function trackClipboard(mp, opts) {
-    window.addEventListener("cut", (clipEv) => {
-      try {
-        const props = {
-          ...statefulProps(),
-          ...STANDARD_FIELDS(clipEv),
-          ...ANY_TAG_FIELDS(clipEv, true)
-        };
-        mp.track("cut", props);
-        if (opts.logProps)
-          console.log(JSON.stringify(props, null, 2));
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    });
-    window.addEventListener("copy", (clipEv) => {
-      try {
-        const props = {
-          ...statefulProps(),
-          ...STANDARD_FIELDS(clipEv),
-          ...ANY_TAG_FIELDS(clipEv, true)
-        };
-        mp.track("copy", props);
-        if (opts.logProps)
-          console.log(JSON.stringify(props, null, 2));
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    });
-    window.addEventListener("paste", (clipEv) => {
-      try {
-        const props = {
-          ...statefulProps(),
-          ...STANDARD_FIELDS(clipEv),
-          ...ANY_TAG_FIELDS(clipEv, true)
-        };
-        mp.track("paste", props);
-        if (opts.logProps)
-          console.log(JSON.stringify(props, null, 2));
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    });
-  }
-  function createUserProfiles(mp, opts) {
-    try {
-      mp.identify(mp.get_distinct_id());
-      mp.people.set({
-        "USER \u2192 last page viewed": window.location.href,
-        "USER \u2192 language": window.navigator.language
-      });
-      mp.people.increment("total # pages");
-      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
-    } catch (e) {
-      if (opts.debug)
-        console.log(e);
     }
   }
   function trackYoutubeVideos(mp, opts) {
@@ -4611,6 +4527,104 @@ https://developer.mixpanel.com/reference/project-token`);
         default:
           break;
       }
+    }
+  }
+  function trackWindowStuff(mp, opts) {
+    window.addEventListener("error", (errEv) => {
+      try {
+        const props = {
+          "ERROR \u2192 type": errEv.type,
+          "ERROR \u2192 message": errEv.message,
+          ...statefulProps()
+        };
+        mp.track("page error", props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    }, LISTENER_OPTIONS);
+    window.addEventListener("resize", (resizeEv) => {
+      window.clearTimeout(ezTrack.resizeTimer);
+      ezTrack.resizeTimer = window.setTimeout(() => {
+        const props = {
+          "PAGE \u2192 height": window.innerHeight,
+          "PAGE \u2192 width": window.innerWidth,
+          ...statefulProps()
+        };
+        mp.track("page resize", props);
+      }, 3e3);
+    }, LISTENER_OPTIONS);
+    window.addEventListener("beforeprint", (printEv) => {
+      try {
+        const props = {
+          ...statefulProps()
+        };
+        mp.track("print", props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    }, LISTENER_OPTIONS);
+  }
+  function trackClipboard(mp, opts) {
+    window.addEventListener("cut", (clipEv) => {
+      try {
+        const props = {
+          ...statefulProps(),
+          ...STANDARD_FIELDS(clipEv),
+          ...ANY_TAG_FIELDS(clipEv, true)
+        };
+        mp.track("cut", props);
+        if (opts.logProps)
+          console.log(JSON.stringify(props, null, 2));
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    });
+    window.addEventListener("copy", (clipEv) => {
+      try {
+        const props = {
+          ...statefulProps(),
+          ...STANDARD_FIELDS(clipEv),
+          ...ANY_TAG_FIELDS(clipEv, true)
+        };
+        mp.track("copy", props);
+        if (opts.logProps)
+          console.log(JSON.stringify(props, null, 2));
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    });
+    window.addEventListener("paste", (clipEv) => {
+      try {
+        const props = {
+          ...statefulProps(),
+          ...STANDARD_FIELDS(clipEv),
+          ...ANY_TAG_FIELDS(clipEv, true)
+        };
+        mp.track("paste", props);
+        if (opts.logProps)
+          console.log(JSON.stringify(props, null, 2));
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    });
+  }
+  function createUserProfiles(mp, opts) {
+    try {
+      mp.identify(mp.get_distinct_id());
+      mp.people.set({
+        "USER \u2192 last page viewed": window.location.href,
+        "USER \u2192 language": window.navigator.language
+      });
+      mp.people.increment("total # pages");
+      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+    } catch (e) {
+      if (opts.debug)
+        console.log(e);
     }
   }
   function beSpaAware(typeOfSpa = "none", mp, opts) {

@@ -50,6 +50,12 @@ export const ezTrack = {
 	defaultOpts: getDefaultOptions
 };
 
+/*
+-----
+SETUP
+-----
+*/
+
 export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = false) {
 	// validate token as 32 char string
 	if (!token || token.length !== 32) {
@@ -136,7 +142,7 @@ export function getDefaultOptions() {
 export function bindTrackers(mp, opts) {
 	try {
 		if (opts.pageView) this.pageView(mp, opts);
-		if (opts.pageExit) this.pageExit(mp, opts);		
+		if (opts.pageExit) this.pageExit(mp, opts);
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
 		if (opts.selectors) this.selectors(mp, opts);
@@ -188,6 +194,13 @@ export function firstVisitChecker(token) {
 	}
 }
 
+/*
+-------------
+HTML ELEMENTS
+-------------
+*/
+
+// QQ: will the pagehide pageshow PageTransition Events be more reliable?
 export function trackPageViews(mp, opts) {
 	mp.track('page enter', { ...statefulProps() });
 	// if (opts.pageExit) mp.time_event('page exit');
@@ -206,11 +219,11 @@ export function trackButtonClicks(mp, opts) {
 
 	for (const button of buttons) {
 		this.domElementsTracked.push(button);
-		button.addEventListener('click', (e) => {
+		button.addEventListener('click', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e, "BUTTON"),
-					...BUTTON_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "BUTTON"),
+					...BUTTON_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('button click', props);
@@ -229,11 +242,11 @@ export function trackLinkClicks(mp, opts) {
 
 	for (const link of links) {
 		this.domElementsTracked.push(link);
-		link.addEventListener('click', (e) => {
+		link.addEventListener('click', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e, "LINK"),
-					...LINK_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "LINK"),
+					...LINK_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('link click', props);
@@ -250,11 +263,11 @@ export function trackFormSubmits(mp, opts) {
 	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
 		this.domElementsTracked.push(form);
-		form.addEventListener('form submit', (e) => {
+		form.addEventListener('form submit', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e, "FORM"),
-					...FORM_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "FORM"),
+					...FORM_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('form submit', props);
@@ -272,14 +285,13 @@ export function trackDropDowns(mp, opts) {
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
-
 	for (const dropdown of allDropdowns) {
 		this.domElementsTracked.push(dropdown);
-		dropdown.addEventListener('change', (e) => {
+		dropdown.addEventListener('change', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e, "OPTION"),
-					...DROPDOWN_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "OPTION"),
+					...DROPDOWN_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('user selection', props);
@@ -292,20 +304,18 @@ export function trackDropDowns(mp, opts) {
 	}
 }
 
-
 export function trackUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
-
 	for (const input of inputElements) {
 		this.domElementsTracked.push(input);
-		input.addEventListener('change', (e) => {
+		input.addEventListener('change', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e, "CONTENT"),
-					...INPUT_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "CONTENT"),
+					...INPUT_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('user entered text', props);
@@ -329,11 +339,11 @@ export function trackClicks(mp, opts) {
 
 	for (const thing of allThings) {
 		this.domElementsTracked.push(thing);
-		thing.addEventListener('click', (e) => {
+		thing.addEventListener('click', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...ANY_TAG_FIELDS(e),
+					...STANDARD_FIELDS(ev.target),
+					...ANY_TAG_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('page click', props);
@@ -343,121 +353,6 @@ export function trackClicks(mp, opts) {
 				if (opts.debug) console.log(e);
 			}
 		}, LISTENER_OPTIONS);
-	}
-}
-
-export function trackWindowStuff(mp, opts) {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-
-	window.addEventListener('error', (errEv) => {
-		try {
-			const props = {
-				"ERROR → type": errEv.type,
-				"ERROR → message": errEv.message,
-				...statefulProps()
-			};
-			mp.track('page error', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	}, LISTENER_OPTIONS);
-
-	// // goal: only fire a resize event after 5 seconds in which no more resize events have occured
-	// // reality: it doesn't work and makes scrolling slow
-	// window.addEventListener('resize', (resizeEv) => {
-	// 	ezTrack.resizeTimer = window.setTimeout(() => {
-	// 		const props = {
-	// 			"PAGE → height": window.innerHeight,
-	// 			"PAGE → width": window.innerWidth,
-	// 			...statefulProps()
-	// 		};
-	// 		mp.track('page resize', props);
-	// 		if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-	// 	}, 5000);
-
-	// 	window.clearTimeout(ezTrack.resizeTimer);
-	// }, LISTENER_OPTIONS);
-
-
-	window.addEventListener('beforeprint', (printEv) => {
-		try {
-			const props = {
-				...statefulProps()
-			};
-			mp.track('print', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	}, LISTENER_OPTIONS);
-}
-
-
-// 🚨 guard against clipboard passwords 🚨
-export function trackClipboard(mp, opts) {
-
-	window.addEventListener('cut', (clipEv) => {
-		try {
-			const props = {
-				...statefulProps(),
-				...STANDARD_FIELDS(clipEv),
-				...ANY_TAG_FIELDS(clipEv, true)
-			};
-			mp.track('cut', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	});
-
-	window.addEventListener('copy', (clipEv) => {
-		try {
-			const props = {
-				...statefulProps(),
-				...STANDARD_FIELDS(clipEv),
-				...ANY_TAG_FIELDS(clipEv, true)
-			};
-			mp.track('copy', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	});
-
-	window.addEventListener('paste', (clipEv) => {
-		try {
-			const props = {
-				...statefulProps(),
-				...STANDARD_FIELDS(clipEv),
-				...ANY_TAG_FIELDS(clipEv, true)
-			};
-			mp.track('paste', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	});
-
-}
-
-export function createUserProfiles(mp, opts) {
-	try {
-		mp.identify(mp.get_distinct_id());
-		mp.people.set({
-			"USER → last page viewed": window.location.href,
-			"USER → language": window.navigator.language
-		});
-		mp.people.increment("total # pages");
-		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
-	}
-	catch (e) {
-		if (opts.debug) console.log(e);
 	}
 }
 
@@ -564,6 +459,126 @@ export function trackYoutubeVideos(mp, opts) {
 		}
 	}
 
+}
+
+/*
+-----------------
+BROWSER BEHAVIORS
+-----------------
+*/
+
+export function trackWindowStuff(mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
+	window.addEventListener('error', (errEv) => {
+		try {
+			const props = {
+				"ERROR → type": errEv.type,
+				"ERROR → message": errEv.message,
+				...statefulProps()
+			};
+			mp.track('page error', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
+	window.addEventListener('resize', (resizeEv) => {
+		window.clearTimeout(ezTrack.resizeTimer); 
+		ezTrack.resizeTimer = window.setTimeout(() => {
+			const props = {
+				"PAGE → height": window.innerHeight,
+				"PAGE → width": window.innerWidth,
+				...statefulProps()
+			};
+			mp.track('page resize', props);
+		}, 3000);		
+
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('beforeprint', (printEv) => {
+		try {
+			const props = {
+				...statefulProps()
+			};
+			mp.track('print', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+}
+
+// 🚨 guard against clipboard passwords 🚨
+export function trackClipboard(mp, opts) {
+
+	window.addEventListener('cut', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv),
+				...ANY_TAG_FIELDS(clipEv, true)
+			};
+			mp.track('cut', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	});
+
+	window.addEventListener('copy', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv),
+				...ANY_TAG_FIELDS(clipEv, true)
+			};
+			mp.track('copy', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	});
+
+	window.addEventListener('paste', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv),
+				...ANY_TAG_FIELDS(clipEv, true)
+			};
+			mp.track('paste', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	});
+
+}
+
+/*
+-------
+HELPERS
+-------
+*/
+
+export function createUserProfiles(mp, opts) {
+	try {
+		mp.identify(mp.get_distinct_id());
+		mp.people.set({
+			"USER → last page viewed": window.location.href,
+			"USER → language": window.navigator.language
+		});
+		mp.people.increment("total # pages");
+		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+	}
+	catch (e) {
+		if (opts.debug) console.log(e);
+	}
 }
 
 export function beSpaAware(typeOfSpa = 'none', mp, opts) {
