@@ -4311,11 +4311,11 @@ https://developer.mixpanel.com/reference/project-token`);
   function firstVisitChecker(token) {
     const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
     if (isFirstVisit === null) {
-      localStorage.setItem(`MPEZTrack_First_Visit_${token}`, false);
+      localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
       this.isFirstVisit = false;
-      return { "SESSION \u2192 is first visit?": true };
+      return { "SESSION \u2192 is first page?": true };
     } else {
-      return { "SESSION \u2192 is first visit?": false };
+      return { "SESSION \u2192 is first page?": false };
     }
   }
   function trackPageViews(mp, opts) {
@@ -4372,7 +4372,7 @@ https://developer.mixpanel.com/reference/project-token`);
     const forms = uniqueNodes(this.query(FORM_SELECTORS));
     for (const form of forms) {
       this.domElementsTracked.push(form);
-      form.addEventListener("form submit", (ev) => {
+      form.addEventListener("submit", (ev) => {
         try {
           const props = {
             ...STANDARD_FIELDS(ev.target, "FORM"),

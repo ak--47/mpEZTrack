@@ -110,7 +110,7 @@ UTILITIES
 ---------
 */
 
-// QQ: is this a bad idea?
+// @ted: is this a bad idea?
 // https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes
 export function enumNodeProps(el, label = "ELEM") {
 	const result = {};
@@ -140,6 +140,7 @@ export function enumNodeProps(el, label = "ELEM") {
 	return result;
 }
 
+// @ted: is this another bad idea?
 export function conditionalFields(el, label = "ELEM") {
 	const results = {};
 
@@ -237,7 +238,7 @@ export function truncate(text, n = 50, useWordBoundary = true) {
 
 
 
-// THESE PRODUCE {}s 
+// @ted: this will produce {}s, which work in mp but are not officially supported
 export function qsToObj(queryString) {
 	try {
 		const parsedQs = new URLSearchParams(queryString);

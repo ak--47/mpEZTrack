@@ -28,7 +28,7 @@ export const ezTrack = {
 	domElementsTracked: [],
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
-	spa: beSpaAware, // todo???
+	spa: beSpaAware, // TODO
 
 	//elements + tracking
 	pageView: trackPageViews,
@@ -64,6 +64,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 	}
 
 	// gather options
+	// @ted: is this a reasonable way to take in user supplied options?
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
 	if (forceTrue) {
@@ -132,8 +133,10 @@ export function getDefaultOptions() {
 		window: false,
 		clipboard: false,
 
-		//wip
-		logProps: false, //undocumented, for ez debugging
+		//undocumented, for ez debugging
+		logProps: false,
+
+		//wips
 		spa: 'none'
 
 	};
@@ -153,7 +156,8 @@ export function bindTrackers(mp, opts) {
 		if (opts.window) this.window(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
 		if (opts.spa) this.spa(opts.spa, mp, opts);
-		//this should always be last
+
+		//this should always be last as it is the most general form of tracking
 		if (opts.clicks) this.clicks(mp, opts);
 	}
 	catch (e) {
@@ -181,16 +185,17 @@ export function statefulProps() {
 }
 
 export function firstVisitChecker(token) {
+	// @ted: is this an ok way to check for "is first page?"
 	const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
 
 	if (isFirstVisit === null) {
-		localStorage.setItem(`MPEZTrack_First_Visit_${token}`, false);
-		this.isFirstVisit = false; //side-effect
-		return { "SESSION → is first visit?": true };
+		localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
+		this.isFirstVisit = false; //side-effect, but not relied upon
+		return { "SESSION → is first page?": true };
 	}
 
 	else {
-		return { "SESSION → is first visit?": false };
+		return { "SESSION → is first page?": false };
 	}
 }
 
@@ -200,21 +205,27 @@ HTML ELEMENTS
 -------------
 */
 
-// QQ: will the pagehide pageshow PageTransition Events be more reliable?
+//default: on
 export function trackPageViews(mp, opts) {
+	// @ted: would it be smarter to implement pagehide/pageshow PageTransition Events?
 	mp.track('page enter', { ...statefulProps() });
 	// if (opts.pageExit) mp.time_event('page exit');
 }
 
+//default: on
 export function trackPageExits(mp, opts) {
 	window.addEventListener('beforeunload', () => {
 		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
+		// @ted: can i 'send_immediately' with people methods?
 	});
 }
 
+//default: on
 export function trackButtonClicks(mp, opts) {
+	// @ted: this pattern is re-used throughout; is it reasonable?
+
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
-		.filter(node => node.tagName !== 'LABEL') //not a label
+		.filter(node => node.tagName !== 'LABEL') //button is not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
 	for (const button of buttons) {
@@ -236,6 +247,7 @@ export function trackButtonClicks(mp, opts) {
 	}
 }
 
+//default: on
 export function trackLinkClicks(mp, opts) {
 	const links = uniqueNodes(this.query(LINK_SELECTORS))
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
@@ -249,7 +261,8 @@ export function trackLinkClicks(mp, opts) {
 					...LINK_FIELDS(ev.target),
 					...statefulProps()
 				};
-				mp.track('link click', props);
+				//@ted: should i make an assumption that links with a # href are actually "app nav"
+				mp.track('link click', props); 
 				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
@@ -259,11 +272,12 @@ export function trackLinkClicks(mp, opts) {
 	}
 }
 
+//default: on
 export function trackFormSubmits(mp, opts) {
 	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
 		this.domElementsTracked.push(form);
-		form.addEventListener('form submit', (ev) => {
+		form.addEventListener('submit', (ev) => {
 			try {
 				const props = {
 					...STANDARD_FIELDS(ev.target, "FORM"),
@@ -280,6 +294,7 @@ export function trackFormSubmits(mp, opts) {
 	}
 }
 
+//default: on
 export function trackDropDowns(mp, opts) {
 	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
@@ -304,6 +319,7 @@ export function trackDropDowns(mp, opts) {
 	}
 }
 
+//default: off
 export function trackUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
@@ -329,6 +345,7 @@ export function trackUserInput(mp, opts) {
 }
 
 // 🚨 guard against password fields 🚨
+//default: off
 export function trackClicks(mp, opts) {
 	let allThings = uniqueNodes(this.query(ALL_SELECTOR))
 		.filter(node => node.childElementCount === 0) //most specific
@@ -336,6 +353,7 @@ export function trackClicks(mp, opts) {
 		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true); //not a password or hidden input
+	// @ted: is ^^^ good enough?
 
 	for (const thing of allThings) {
 		this.domElementsTracked.push(thing);
@@ -356,6 +374,7 @@ export function trackClicks(mp, opts) {
 	}
 }
 
+//default: off
 export function trackYoutubeVideos(mp, opts) {
 	// enable youtube iframe API; callback to onYouTubeIframeAPIReady
 	const tag = document.createElement('script');
@@ -396,7 +415,6 @@ export function trackYoutubeVideos(mp, opts) {
 				'onStateChange': onPlayerStateChange
 			}
 		});
-
 	}
 
 	function getVideoInfo(player) {
@@ -432,33 +450,26 @@ export function trackYoutubeVideos(mp, opts) {
 			case -1:
 				//mp.track('youtube video unstarted but ready', videoInfo);   
 				break;
-
 			case 0:
 				mp.track('youtube video finish', { ...videoInfo, ...statefulProps() });
 				break;
-
 			case 1:
 				mp.track('youtube video play', { ...videoInfo, ...statefulProps() });
 				mp.time_event('youtube video finish');
 				break;
-
 			case 2:
 				mp.track('youtube video pause', { ...videoInfo, ...statefulProps() });
 				break;
-
 			case 3:
 				// mp.track('youtube video buffer', videoInfo);
 				break;
-
 			case 5:
 				// mp.track('youtube video queued', videoInfo);
 				break;
-
 			default:
 				break;
 		}
 	}
-
 }
 
 /*
@@ -467,6 +478,7 @@ BROWSER BEHAVIORS
 -----------------
 */
 
+//default: off
 export function trackWindowStuff(mp, opts) {
 	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
 	window.addEventListener('error', (errEv) => {
@@ -485,7 +497,7 @@ export function trackWindowStuff(mp, opts) {
 
 	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
 	window.addEventListener('resize', (resizeEv) => {
-		window.clearTimeout(ezTrack.resizeTimer); 
+		window.clearTimeout(ezTrack.resizeTimer);
 		ezTrack.resizeTimer = window.setTimeout(() => {
 			const props = {
 				"PAGE → height": window.innerHeight,
@@ -493,7 +505,7 @@ export function trackWindowStuff(mp, opts) {
 				...statefulProps()
 			};
 			mp.track('page resize', props);
-		}, 3000);		
+		}, 3000);
 
 	}, LISTENER_OPTIONS);
 
@@ -511,6 +523,7 @@ export function trackWindowStuff(mp, opts) {
 }
 
 // 🚨 guard against clipboard passwords 🚨
+//default: off
 export function trackClipboard(mp, opts) {
 
 	window.addEventListener('cut', (clipEv) => {
@@ -566,6 +579,7 @@ HELPERS
 -------
 */
 
+//default: on
 export function createUserProfiles(mp, opts) {
 	try {
 		mp.identify(mp.get_distinct_id());
@@ -613,9 +627,11 @@ export function beSpaAware(typeOfSpa = 'none', mp, opts) {
 	}
 }
 
+// @ted: is this a safe way to unique HTML nodes?
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];
 }
 
 //put it in global namespace 🤠
+// @ted: is this a resonable pattern?
 window.mpEZTrack = ezTrack;
