@@ -7,20 +7,30 @@ import {
 	FORM_SELECTORS, FORM_FIELDS,
 	DROPDOWN_SELECTOR, DROPDOWN_FIELDS,
 	INPUT_SELECTOR, INPUT_FIELDS,
-	ALL_SELECTOR, ANY_TAG_FIELDS, CONDITIONAL_FIELDS,
+	ALL_SELECTOR, ANY_TAG_FIELDS,
 	YOUTUBE_SELECTOR,
 	LISTENER_OPTIONS
 } from './attributes';
 
 export const ezTrack = {
-	init: bootStrapModule,
-	loadTime: Date.now(),
+	// entry
+	init: entryPoint,
+
+
+	// stateful props
+	loadTimeUTC: Date.now(),
 	numActions: 0,
-	domElements: [],
 	isFirstVisit: true,
-	checkFirstVisit: firstVisitChecker,
+	priorVisit: firstVisitChecker,
+	debug: () => { mixpanel.ez.set_config({ debug: true }); },
+
+	// dom stuff
+	domElementsTracked: [],
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom
+	spa: beSpaAware, // TODO
+
+	//elements + tracking
 	pageView: trackPageViews,
 	pageExit: trackPageExits,
 	buttons: trackButtonClicks,
@@ -30,69 +40,42 @@ export const ezTrack = {
 	inputs: trackUserInput,
 	clicks: trackClicks,
 	youtube: trackYoutubeVideos,
+
+	// meta
 	window: trackWindowStuff,
 	clipboard: trackClipboard,
 	profiles: createUserProfiles,
-	forceDebug: () => { mixpanel.ez.set_config({ debug: true }); }, //currently undocumented
-
-	//todo?
-	spa: beSpaAware,
 
 	// DEFAULTS!
-	defaultOpts: function getDefaultOptions() {
-		return {
-			//meta
-			debug: false,
-			extend: false,
-			refresh: 5000,
-			location: true,
-
-			//default on
-			superProps: true,
-			pageView: true,
-			pageExit: true,
-			links: true,
-			buttons: true,
-			forms: true,
-			profiles: true,
-			selectors: true,
-
-			//default off
-			inputs: false,
-			clicks: false,
-			youtube: false,
-			window: false,
-			clipboard: false,
-
-			//wip
-			logProps: false, //undocumented, for ez debugging
-			spa: 'none'
-
-		};
-	}
+	defaultOpts: getDefaultOptions
 };
 
+/*
+-----
+SETUP
+-----
+*/
 
-export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue = false) {
+export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = false) {
 	// validate token as 32 char string
 	if (!token || token.length !== 32) {
 		console.error(`EZTrack: Bad Token!\n\ngot: "${token}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token`);
 		throw new Error(`BAD TOKEN! TRY AGAIN`);
 	}
 
-	//gather options
+	// gather options
+	// @ted: is this a reasonable way to take in user supplied options?
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
-
 	if (forceTrue) {
 		for (let key in opts) {
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
 	}
-
 	this.opts = Object.freeze(opts);
 
+	// do mixpanel
 	try {
 		mixpanel.init(token, {
 			debug: opts.debug,
@@ -106,11 +89,12 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 				if (opts.superProps) {
 					mp.register({
 						...SUPER_PROPS,
-						...this.checkFirstVisit(token)
+						...this.priorVisit(token) //check prior visits
 					}, { persistent: false });
 
 				}
 
+				//add tracking
 				this.bind(mp, opts);
 			}
 		}, "ez");
@@ -124,21 +108,57 @@ export function bootStrapModule(token = ``, userSuppliedOptions = {}, forceTrue 
 	}
 }
 
+export function getDefaultOptions() {
+	return {
+		//meta
+		debug: false,
+		extend: false,
+		refresh: 5000,
+		location: true,
+
+		//default on
+		superProps: true,
+		pageView: true,
+		pageExit: true,
+		links: true,
+		buttons: true,
+		forms: true,
+		profiles: true,
+		selectors: true,
+
+		//default off
+		inputs: false,
+		clicks: false,
+		youtube: false,
+		window: false,
+		clipboard: false,
+
+		//undocumented, for ez debugging
+		logProps: false,
+
+		//wips
+		spa: 'none'
+
+	};
+}
+
 export function bindTrackers(mp, opts) {
 	try {
 		if (opts.pageView) this.pageView(mp, opts);
 		if (opts.pageExit) this.pageExit(mp, opts);
-		if (opts.links) this.links(mp, opts);
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
 		if (opts.selectors) this.selectors(mp, opts);
-		if (opts.inputs) this.inputs(mp, opts);		
+		if (opts.inputs) this.inputs(mp, opts);
+		if (opts.links) this.links(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
-		if (opts.clicks) this.clicks(mp, opts);
 		if (opts.spa) this.spa(opts.spa, mp, opts);
+
+		//this should always be last as it is the most general form of tracking
+		if (opts.clicks) this.clicks(mp, opts);
 	}
 	catch (e) {
 		if (opts.debug) console.log(e);
@@ -146,7 +166,6 @@ export function bindTrackers(mp, opts) {
 
 }
 
-//IMPURE!
 export function statefulProps() {
 	ezTrack.numActions += 1;
 
@@ -159,52 +178,67 @@ export function statefulProps() {
 		|| 0;
 
 	return {
-		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTime) / 1000,
+		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTimeUTC) / 1000,
 		"PAGE → # actions": ezTrack.numActions,
 		"PAGE → scroll (%)": Number(scrollPercent.toFixed(2))
 	};
 }
 
-//IMPURE!
 export function firstVisitChecker(token) {
+	// @ted: is this an ok way to check for "is first page?"
 	const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
 
 	if (isFirstVisit === null) {
-		localStorage.setItem(`MPEZTrack_First_Visit_${token}`, false);
-		this.isFirstVisit = false; //side-effect
-		return { "SESSION → is first visit?": true };
+		localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
+		this.isFirstVisit = false; //side-effect, but not relied upon
+		return { "SESSION → is first page?": true };
 	}
 
 	else {
-		return { "SESSION → is first visit?": false };
+		return { "SESSION → is first page?": false };
 	}
 }
 
+/*
+-------------
+HTML ELEMENTS
+-------------
+*/
+
+//default: on
 export function trackPageViews(mp, opts) {
+	// @ted: would it be smarter to implement pagehide/pageshow PageTransition Events?
 	mp.track('page enter', { ...statefulProps() });
 	// if (opts.pageExit) mp.time_event('page exit');
 }
 
+//default: on
 export function trackPageExits(mp, opts) {
 	window.addEventListener('beforeunload', () => {
 		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
+		// @ted: can i 'send_immediately' with people methods?
 	});
 }
 
+//default: on
 export function trackButtonClicks(mp, opts) {
-	const buttons = this.query(BUTTON_SELECTORS);
+	// @ted: this pattern is re-used throughout; is it reasonable?
+
+	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
+		.filter(node => node.tagName !== 'LABEL') //button is not a label
+		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
+
 	for (const button of buttons) {
-		this.domElements.push(button);
-		button.addEventListener('click', (e) => {
+		this.domElementsTracked.push(button);
+		button.addEventListener('click', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...CONDITIONAL_FIELDS(e),
-					...BUTTON_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "BUTTON"),
+					...BUTTON_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('button click', props);
-				if (opts.logProps) console.log(props);
+				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -213,20 +247,23 @@ export function trackButtonClicks(mp, opts) {
 	}
 }
 
+//default: on
 export function trackLinkClicks(mp, opts) {
-	const links = this.query(LINK_SELECTORS);
+	const links = uniqueNodes(this.query(LINK_SELECTORS))
+		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
+
 	for (const link of links) {
-		this.domElements.push(link);
-		link.addEventListener('click', (e) => {
+		this.domElementsTracked.push(link);
+		link.addEventListener('click', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...CONDITIONAL_FIELDS(e),
-					...LINK_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "LINK"),
+					...LINK_FIELDS(ev.target),
 					...statefulProps()
 				};
-				mp.track('link click', props);
-				if (opts.logProps) console.log(props);
+				//@ted: should i make an assumption that links with a # href are actually "app nav"
+				mp.track('link click', props); 
+				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -235,20 +272,20 @@ export function trackLinkClicks(mp, opts) {
 	}
 }
 
+//default: on
 export function trackFormSubmits(mp, opts) {
-	const forms = this.query(FORM_SELECTORS);
+	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
-		this.domElements.push(form);
-		form.addEventListener('form submit', (e) => {
+		this.domElementsTracked.push(form);
+		form.addEventListener('submit', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...CONDITIONAL_FIELDS(e),
-					...FORM_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "FORM"),
+					...FORM_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('form submit', props);
-				if (opts.logProps) console.log(props);
+				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -257,21 +294,23 @@ export function trackFormSubmits(mp, opts) {
 	}
 }
 
+//default: on
 export function trackDropDowns(mp, opts) {
-	let allDropdowns = this.query(DROPDOWN_SELECTOR);
+	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
+		.filter(node => node.tagName !== 'LABEL') //not a label
+		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
 	for (const dropdown of allDropdowns) {
-		this.domElements.push(dropdown);
-		dropdown.addEventListener('change', (e) => {
+		this.domElementsTracked.push(dropdown);
+		dropdown.addEventListener('change', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...CONDITIONAL_FIELDS(e),
-					...DROPDOWN_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "OPTION"),
+					...DROPDOWN_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('user selection', props);
-				if (opts.logProps) console.log(props);
+				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -280,23 +319,23 @@ export function trackDropDowns(mp, opts) {
 	}
 }
 
-// 🚨 guard against password fields 🚨
+//default: off
 export function trackUserInput(mp, opts) {
-	let inputElements = this.query(INPUT_SELECTOR)
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password field;
+	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
+		.filter(node => node.tagName !== 'LABEL') //not a label
+		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
 	for (const input of inputElements) {
-		this.domElements.push(input);
-		input.addEventListener('change', (e) => {
+		this.domElementsTracked.push(input);
+		input.addEventListener('change', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...CONDITIONAL_FIELDS(e),
-					...INPUT_FIELDS(e),
+					...STANDARD_FIELDS(ev.target, "CONTENT"),
+					...INPUT_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('user entered text', props);
-				if (opts.logProps) console.log(props);
+				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -306,25 +345,27 @@ export function trackUserInput(mp, opts) {
 }
 
 // 🚨 guard against password fields 🚨
+//default: off
 export function trackClicks(mp, opts) {
-	let allThings = this.query(ALL_SELECTOR)
-		.filter(node => node.children.length === 0) //most specific
-		.filter(node => !this.domElements.some(el => el === node)) //not already tracked
-		.filter(node => !this.domElements.some(el => el.contains(node))) //not a child of already tracked
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" ? false : true) : true); //not a password
+	let allThings = uniqueNodes(this.query(ALL_SELECTOR))
+		.filter(node => node.childElementCount === 0) //most specific
+		.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
+		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
+		.filter(node => node.tagName !== 'LABEL') //not a label
+		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true); //not a password or hidden input
+	// @ted: is ^^^ good enough?
 
 	for (const thing of allThings) {
-		this.domElements.push(thing);
-		thing.addEventListener('click', (e) => {
+		this.domElementsTracked.push(thing);
+		thing.addEventListener('click', (ev) => {
 			try {
 				const props = {
-					...STANDARD_FIELDS(e),
-					...CONDITIONAL_FIELDS(e),
-					...ANY_TAG_FIELDS(e),
+					...STANDARD_FIELDS(ev.target),
+					...ANY_TAG_FIELDS(ev.target),
 					...statefulProps()
 				};
 				mp.track('page click', props);
-				if (opts.logProps) console.log(props);
+				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -333,72 +374,7 @@ export function trackClicks(mp, opts) {
 	}
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-export function trackWindowStuff(mp, opts) {
-
-	window.addEventListener('error', (errEv => {
-		const props = {
-			"ERROR → type": errEv.type,
-			"ERROR → message": errEv.message,
-			...statefulProps()
-		};
-		mp.track('page error', props);
-		if (opts.logProps) console.log(props);
-	}, LISTENER_OPTIONS));
-
-	window.addEventListener('resize', (resizeEv) => {
-		const props = {
-			"PAGE → height": window.innerHeight,
-			"PAGE → width": window.innerWidth,
-			...statefulProps()
-		};
-		mp.track('page resize', props);
-		if (opts.logProps) console.log(props);
-	}, LISTENER_OPTIONS);
-
-	window.addEventListener('beforeprint', (printEv) => {
-		const props = {
-			...statefulProps()
-		};
-		mp.track('print', props);
-		if (opts.logProps) console.log(props);
-	});
-}
-
-// 🚨 guard against clipboard passwords 🚨
-export function trackClipboard(mp, opts) {
-
-	window.addEventListener('cut', (clipEv) => {
-		const props = {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		};
-		mp.track('cut', props);
-		if (opts.logProps) console.log(props);
-	});
-
-	window.addEventListener('copy', (clipEv) => {
-		const props = {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		};
-		mp.track('copy', props);
-		if (opts.logProps) console.log(props);
-	});
-
-	window.addEventListener('paste', (clipEv) => {
-		const props = {
-			...statefulProps(),
-			...STANDARD_FIELDS(clipEv),
-			...ANY_TAG_FIELDS(clipEv, true)
-		};
-		mp.track('paste', props);
-		if (opts.logProps) console.log(props);
-	});
-
-}
+//default: off
 export function trackYoutubeVideos(mp, opts) {
 	// enable youtube iframe API; callback to onYouTubeIframeAPIReady
 	const tag = document.createElement('script');
@@ -407,15 +383,15 @@ export function trackYoutubeVideos(mp, opts) {
 	const firstScriptTag = document.getElementsByTagName('script')[0] || document.getElementsByTagName('body')[0].children[0];
 	firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-	const videos = this.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
+	const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter(frame => frame.src.includes('youtube.com/embed'));
 
-	// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
 	for (video of videos) {
-		this.domElements.push(video);
+		this.domElementsTracked.push(video);
 		if (!video.id) {
 			video.id = new URL(video.src).pathname.replace("/embed/", "");
 		}
 
+		// note: enabling the iframe API triggers a redirect on the video, causing it to "flash"
 		if (!video.src.includes('enablejsapi')) {
 			const newSRC = new URL(video.src);
 			newSRC.searchParams.delete('enablejsapi');
@@ -425,7 +401,6 @@ export function trackYoutubeVideos(mp, opts) {
 	}
 
 	// this called by youtube's iframe api and needs to be named as such
-	//todo... how to bind THIS inside the callback ?
 	window.onYouTubeIframeAPIReady = function () {
 		const videos = ezTrack.query(YOUTUBE_SELECTOR).filter(frame => frame.src.includes('youtube.com/embed'));
 		for (const video of videos) {
@@ -440,7 +415,6 @@ export function trackYoutubeVideos(mp, opts) {
 				'onStateChange': onPlayerStateChange
 			}
 		});
-
 	}
 
 	function getVideoInfo(player) {
@@ -476,35 +450,136 @@ export function trackYoutubeVideos(mp, opts) {
 			case -1:
 				//mp.track('youtube video unstarted but ready', videoInfo);   
 				break;
-
 			case 0:
 				mp.track('youtube video finish', { ...videoInfo, ...statefulProps() });
 				break;
-
 			case 1:
 				mp.track('youtube video play', { ...videoInfo, ...statefulProps() });
 				mp.time_event('youtube video finish');
 				break;
-
 			case 2:
 				mp.track('youtube video pause', { ...videoInfo, ...statefulProps() });
 				break;
-
 			case 3:
 				// mp.track('youtube video buffer', videoInfo);
 				break;
-
 			case 5:
 				// mp.track('youtube video queued', videoInfo);
 				break;
-
 			default:
 				break;
 		}
 	}
+}
+
+/*
+-----------------
+BROWSER BEHAVIORS
+-----------------
+*/
+
+//default: off
+export function trackWindowStuff(mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
+	window.addEventListener('error', (errEv) => {
+		try {
+			const props = {
+				"ERROR → type": errEv.type,
+				"ERROR → message": errEv.message,
+				...statefulProps()
+			};
+			mp.track('page error', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
+	window.addEventListener('resize', (resizeEv) => {
+		window.clearTimeout(ezTrack.resizeTimer);
+		ezTrack.resizeTimer = window.setTimeout(() => {
+			const props = {
+				"PAGE → height": window.innerHeight,
+				"PAGE → width": window.innerWidth,
+				...statefulProps()
+			};
+			mp.track('page resize', props);
+		}, 3000);
+
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('beforeprint', (printEv) => {
+		try {
+			const props = {
+				...statefulProps()
+			};
+			mp.track('print', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+}
+
+// 🚨 guard against clipboard passwords 🚨
+//default: off
+export function trackClipboard(mp, opts) {
+
+	window.addEventListener('cut', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
+			};
+			mp.track('cut', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	});
+
+	window.addEventListener('copy', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
+			};
+			mp.track('copy', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	});
+
+	window.addEventListener('paste', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
+			};
+			mp.track('paste', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	});
 
 }
 
+/*
+-------
+HELPERS
+-------
+*/
+
+//default: on
 export function createUserProfiles(mp, opts) {
 	try {
 		mp.identify(mp.get_distinct_id());
@@ -552,5 +627,11 @@ export function beSpaAware(typeOfSpa = 'none', mp, opts) {
 	}
 }
 
+// @ted: is this a safe way to unique HTML nodes?
+export function uniqueNodes(arrayOfNodes) {
+	return [...new Set(arrayOfNodes)];
+}
+
 //put it in global namespace 🤠
+// @ted: is this a resonable pattern?
 window.mpEZTrack = ezTrack;
