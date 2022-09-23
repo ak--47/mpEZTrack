@@ -43,6 +43,7 @@ export const ezTrack = {
 
 	// meta
 	window: trackWindowStuff,
+	error: trackErrors,
 	clipboard: trackClipboard,
 	profiles: createUserProfiles,
 
@@ -110,7 +111,6 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 	}
 }
 
-//ted says: more efficient as a const
 export function getDefaultOptions() {
 	return {
 		//meta
@@ -136,6 +136,7 @@ export function getDefaultOptions() {
 		window: false,
 		clipboard: false,
 		firstPage: false,
+		error: false,
 
 		//undocumented, for ez debugging
 		logProps: false,
@@ -158,6 +159,7 @@ export function bindTrackers(mp, opts) {
 		if (opts.profiles) this.profiles(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
+		if (opts.error) this.error(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
 		if (opts.spa) this.spa(opts.spa, mp, opts);
 
@@ -188,7 +190,7 @@ export function statefulProps() {
 	};
 }
 
-//GDPR concerns? ... clearing cookies messes this up
+//default: off
 export function firstVisitChecker(token, opts = { firstPage: false }) {
 	if (opts.firstPage) {
 		try {
@@ -497,20 +499,6 @@ BROWSER BEHAVIORS
 
 //default: off
 export function trackWindowStuff(mp, opts) {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-	window.addEventListener('error', (errEv) => {
-		try {
-			const props = {
-				"ERROR → type": errEv.type,
-				"ERROR → message": errEv.message,
-				...statefulProps()
-			};
-			mp.track('page error', props);
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	}, LISTENER_OPTIONS);
 
 	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
 	window.addEventListener('resize', (resizeEv) => {
@@ -538,6 +526,26 @@ export function trackWindowStuff(mp, opts) {
 		}
 	}, LISTENER_OPTIONS);
 }
+
+//default: off
+export function trackErrors(mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
+	window.addEventListener('error', (errEv) => {
+		try {
+			const props = {
+				"ERROR → type": errEv.type,
+				"ERROR → message": errEv.message,
+				...statefulProps()
+			};
+			mp.track('page error', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+}
+
 
 // 🚨 guard against clipboard passwords 🚨
 //default: off
@@ -644,11 +652,9 @@ export function beSpaAware(typeOfSpa = 'none', mp, opts) {
 	}
 }
 
-// @ted: is this a safe way to unique HTML nodes?
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];
 }
 
 //put it in global namespace 🤠
-// @ted: is this a resonable pattern?
 window.mpEZTrack = ezTrack;

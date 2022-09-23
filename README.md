@@ -60,6 +60,8 @@ in the table below, you will find all the options exposed by this module; if you
 | `clicks`            | `boolean` | `false`  | tracks all clicks on any _other_ page elements as `page click` [(see note)](#clicks)                     |
 | `youtube`              | `boolean` | `false`  | tracks interactions with embedded youtube videos [(see note)](#youtube)            |
 | `window`              | `boolean` | `false`  | tracks interactions with the browser window (`resize`, `print`, etc... )             |
+| `error`              | `boolean` | `false`  | tracks any javascript errors thrown             |
+| `firstPage`              | `boolean` | `false`  | property to determine if it is the first page in the user's history            |
 | `clipboard`              | `boolean` | `false`  | tracks interactions with the clipboard (`cut`, `copy`, `paste`)         |
 
 

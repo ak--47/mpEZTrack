@@ -4191,6 +4191,7 @@
     clicks: trackClicks,
     youtube: trackYoutubeVideos,
     window: trackWindowStuff,
+    error: trackErrors,
     clipboard: trackClipboard,
     profiles: createUserProfiles,
     defaultOpts: getDefaultOptions
@@ -4227,13 +4228,18 @@ https://developer.mixpanel.com/reference/project-token`);
         ignore_dnt: true,
         batch_flush_interval_ms: opts.refresh,
         loaded: (mp) => {
-          if (opts.superProps) {
-            mp.register({
-              ...SUPER_PROPS,
-              ...this.priorVisit(token)
-            }, { persistent: false });
+          if (opts.superProps)
+            mp.register(SUPER_PROPS, { persistent: false });
+          if (opts.firstPage)
+            mp.register(this.priorVisit(token, opts), { persistent: false });
+          try {
+            this.bind(mp, opts);
+          } catch (e) {
+            if (opts.debug) {
+              console.error("mpEZTrack failed bind to the DOM!");
+              console.log(e);
+            }
           }
-          this.bind(mp, opts);
         }
       }, "ez");
       if (opts.extend)
@@ -4262,6 +4268,8 @@ https://developer.mixpanel.com/reference/project-token`);
       youtube: false,
       window: false,
       clipboard: false,
+      firstPage: false,
+      error: false,
       logProps: false,
       spa: "none"
     };
@@ -4288,6 +4296,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.youtube(mp, opts);
       if (opts.window)
         this.window(mp, opts);
+      if (opts.error)
+        this.error(mp, opts);
       if (opts.clipboard)
         this.clipboard(mp, opts);
       if (opts.spa)
@@ -4308,14 +4318,22 @@ https://developer.mixpanel.com/reference/project-token`);
       "PAGE \u2192 scroll (%)": Number(scrollPercent.toFixed(2))
     };
   }
-  function firstVisitChecker(token) {
-    const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
-    if (isFirstVisit === null) {
-      localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
-      this.isFirstVisit = false;
-      return { "SESSION \u2192 is first page?": true };
+  function firstVisitChecker(token, opts = { firstPage: false }) {
+    if (opts.firstPage) {
+      try {
+        const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
+        if (isFirstVisit === null) {
+          localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
+          this.isFirstVisit = false;
+          return { "SESSION \u2192 is first page?": true };
+        } else {
+          return { "SESSION \u2192 is first page?": false };
+        }
+      } catch (e) {
+        return { "SESSION \u2192 is first page?": false };
+      }
     } else {
-      return { "SESSION \u2192 is first page?": false };
+      return {};
     }
   }
   function trackPageViews(mp, opts) {
@@ -4532,19 +4550,6 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackWindowStuff(mp, opts) {
-    window.addEventListener("error", (errEv) => {
-      try {
-        const props = {
-          "ERROR \u2192 type": errEv.type,
-          "ERROR \u2192 message": errEv.message,
-          ...statefulProps()
-        };
-        mp.track("page error", props);
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    }, LISTENER_OPTIONS);
     window.addEventListener("resize", (resizeEv) => {
       window.clearTimeout(ezTrack.resizeTimer);
       ezTrack.resizeTimer = window.setTimeout(() => {
@@ -4562,6 +4567,21 @@ https://developer.mixpanel.com/reference/project-token`);
           ...statefulProps()
         };
         mp.track("print", props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    }, LISTENER_OPTIONS);
+  }
+  function trackErrors(mp, opts) {
+    window.addEventListener("error", (errEv) => {
+      try {
+        const props = {
+          "ERROR \u2192 type": errEv.type,
+          "ERROR \u2192 message": errEv.message,
+          ...statefulProps()
+        };
+        mp.track("page error", props);
       } catch (e) {
         if (opts.debug)
           console.log(e);
