@@ -26,8 +26,9 @@ export const ezTrack = {
 
 	// dom stuff
 	domElementsTracked: [],
+	host: document.location.host,
 	bind: bindTrackers,
-	query: querySelectorAllDeep, //this guy can pierce the shadow dom
+	query: querySelectorAllDeep, //this guy can pierce the shadow dom	
 	spa: beSpaAware, // TODO
 
 	//elements + tracking
@@ -256,6 +257,7 @@ export function trackButtonClicks(mp, opts) {
 					...BUTTON_FIELDS(ev.target),
 					...statefulProps()
 				};
+
 				mp.track('button click', props);
 				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
@@ -280,8 +282,24 @@ export function trackLinkClicks(mp, opts) {
 					...LINK_FIELDS(ev.target),
 					...statefulProps()
 				};
-				//@ted: should i make an assumption that links with a # href are actually "app nav"
-				mp.track('link click', props);
+
+				// "links" can also be "navigation"
+				if (props["LINK → href"]?.startsWith('#')) {
+					mp.track('navigation click', props);
+				}
+
+				else if (props["LINK → href"]?.includes(this.host)) {
+					mp.track('navigation click', props);
+				}
+
+				else if (!props["LINK → href"]) {
+					mp.track('navigation click', props);
+				}
+
+				else {
+					mp.track('link click', props);
+				}
+
 				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {

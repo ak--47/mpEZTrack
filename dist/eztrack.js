@@ -4178,6 +4178,7 @@
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
     domElementsTracked: [],
+    host: document.location.host,
     bind: bindTrackers,
     query: querySelectorAllDeep,
     spa: beSpaAware,
@@ -4376,7 +4377,15 @@ https://developer.mixpanel.com/reference/project-token`);
             ...LINK_FIELDS(ev.target),
             ...statefulProps()
           };
-          mp.track("link click", props);
+          if (props["LINK \u2192 href"]?.startsWith("#")) {
+            mp.track("navigation click", props);
+          } else if (props["LINK \u2192 href"]?.includes(this.host)) {
+            mp.track("navigation click", props);
+          } else if (!props["LINK \u2192 href"]) {
+            mp.track("navigation click", props);
+          } else {
+            mp.track("link click", props);
+          }
           if (opts.logProps)
             console.log(JSON.stringify(props, null, 2));
         } catch (e) {
