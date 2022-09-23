@@ -66,7 +66,6 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 	}
 
 	// gather options
-	// @ted: is this a reasonable way to take in user supplied options?
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
 	if (forceTrue) {
@@ -74,6 +73,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
+		if (forceTrue === "nodebug") opts.debug = false;
 	}
 	this.opts = Object.freeze(opts);
 
@@ -227,7 +227,6 @@ HTML ELEMENTS
 
 //default: on
 export function trackPageViews(mp, opts) {
-	// @ted: would it be smarter to implement pagehide/pageshow PageTransition Events?
 	mp.track('page enter', { ...statefulProps() });
 	// if (opts.pageExit) mp.time_event('page exit');
 }
@@ -236,13 +235,11 @@ export function trackPageViews(mp, opts) {
 export function trackPageExits(mp, opts) {
 	window.addEventListener('beforeunload', () => {
 		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
-		// @ted: can i 'send_immediately' with people methods?
 	});
 }
 
 //default: on
 export function trackButtonClicks(mp, opts) {
-	// @ted: this pattern is re-used throughout; is it reasonable?
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
 		.filter(node => node.tagName !== 'LABEL') //button is not a label
@@ -259,7 +256,7 @@ export function trackButtonClicks(mp, opts) {
 				};
 
 				mp.track('button click', props);
-				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+				if (opts.logProps) console.log('BUTTON CLICK'); console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -282,25 +279,31 @@ export function trackLinkClicks(mp, opts) {
 					...LINK_FIELDS(ev.target),
 					...statefulProps()
 				};
+				
+				let type;
 
 				// "links" can also be "navigation"
 				if (props["LINK → href"]?.startsWith('#')) {
 					mp.track('navigation click', props);
+					type = `NAVIGATION`
 				}
 
 				else if (props["LINK → href"]?.includes(this.host)) {
 					mp.track('navigation click', props);
+					type = `NAVIGATION`
 				}
 
 				else if (!props["LINK → href"]) {
 					mp.track('navigation click', props);
+					type = `NAVIGATION`
 				}
 
 				else {
 					mp.track('link click', props);
+					type = `LINK`
 				}
 
-				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+				if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -322,7 +325,7 @@ export function trackFormSubmits(mp, opts) {
 					...statefulProps()
 				};
 				mp.track('form submit', props);
-				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+				if (opts.logProps) console.log("FORM SUBMIT"); console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -347,7 +350,7 @@ export function trackDropDowns(mp, opts) {
 					...statefulProps()
 				};
 				mp.track('user selection', props);
-				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+				if (opts.logProps) console.log('USER SELECTION'); console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -372,7 +375,7 @@ export function trackUserInput(mp, opts) {
 					...statefulProps()
 				};
 				mp.track('user entered text', props);
-				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+				if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -390,7 +393,6 @@ export function trackClicks(mp, opts) {
 		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true); //not a password or hidden input
-	// @ted: is ^^^ good enough?
 
 	for (const thing of allThings) {
 		this.domElementsTracked.push(thing);
@@ -402,7 +404,7 @@ export function trackClicks(mp, opts) {
 					...statefulProps()
 				};
 				mp.track('page click', props);
-				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+				if (opts.logProps) console.log('PAGE CLICK'); console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);

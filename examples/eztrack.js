@@ -4081,15 +4081,18 @@
       "alt": "desc",
       "class": "class (full)"
     };
-    for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
-      att = atts[i];
-      let keySuffix = mapReplace(att.name, replaceAttrs);
-      let keyName = `${label} \u2192 ${keySuffix}`;
-      let val = att.value?.trim();
-      if (boolAttrs.some((attr) => attr === att.name))
-        val = true;
-      result[keyName] = val;
-    }
+    loopAttributes:
+      for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+        att = atts[i];
+        let keySuffix = mapReplace(att.name, replaceAttrs);
+        if (keySuffix?.toLowerCase()?.includes("pass"))
+          continue loopAttributes;
+        let keyName = `${label} \u2192 ${keySuffix}`;
+        let val = att.value?.trim();
+        if (boolAttrs.some((attr) => attr === att.name))
+          val = true;
+        result[keyName] = val;
+      }
     return result;
   }
   function conditionalFields(el, label = "ELEM") {
@@ -4217,6 +4220,8 @@ https://developer.mixpanel.com/reference/project-token`);
         if (typeof opts[key] === "number")
           opts[key] = 0;
       }
+      if (forceTrue === "nodebug")
+        opts.debug = false;
     }
     this.opts = Object.freeze(opts);
     try {
@@ -4358,7 +4363,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("button click", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("BUTTON CLICK");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4377,17 +4383,23 @@ https://developer.mixpanel.com/reference/project-token`);
             ...LINK_FIELDS(ev.target),
             ...statefulProps()
           };
+          let type;
           if (props["LINK \u2192 href"]?.startsWith("#")) {
             mp.track("navigation click", props);
+            type = `NAVIGATION`;
           } else if (props["LINK \u2192 href"]?.includes(this.host)) {
             mp.track("navigation click", props);
+            type = `NAVIGATION`;
           } else if (!props["LINK \u2192 href"]) {
             mp.track("navigation click", props);
+            type = `NAVIGATION`;
           } else {
             mp.track("link click", props);
+            type = `LINK`;
           }
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log(`${type} CLICK`);
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4408,7 +4420,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("form submit", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("FORM SUBMIT");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4429,7 +4442,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("user selection", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("USER SELECTION");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4450,7 +4464,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("user entered text", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("USER ENTERED CONTENT");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4471,7 +4486,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("page click", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("PAGE CLICK");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);

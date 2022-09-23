@@ -110,7 +110,7 @@ UTILITIES
 ---------
 */
 
-// @ted: is this a bad idea?
+
 // https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes
 export function enumNodeProps(el, label = "ELEM") {
 	const result = {};
@@ -125,9 +125,10 @@ export function enumNodeProps(el, label = "ELEM") {
 		'class': 'class (full)'
 	};
 
-	for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+	loopAttributes: for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
 		att = atts[i];
 		let keySuffix = mapReplace(att.name, replaceAttrs);
+		if (keySuffix?.toLowerCase()?.includes('pass')) continue loopAttributes; //no sneakily emedded password fields
 		let keyName = `${label} → ${keySuffix}`;
 		let val = att.value?.trim();
 
@@ -140,7 +141,7 @@ export function enumNodeProps(el, label = "ELEM") {
 	return result;
 }
 
-// @ted: is this another bad idea?
+// for fields that won't always exist
 export function conditionalFields(el, label = "ELEM") {
 	const results = {};
 
@@ -163,7 +164,7 @@ export function conditionalFields(el, label = "ELEM") {
 			results[`${label} → label`] = el.childNodes[0].textContent.trim();
 		}
 
-		//other hueristics
+		//other possibilities for the label
 		if (el.parentElement.title) results[`${label} → label`] = el.parentElement.title.trim();
 		if (el.parentElement.name) results[`${label} → label`] = el.parentElement.name.trim();
 		if (el.parentElement.id) results[`${label} → label`] = el.parentElement.id.trim();
@@ -238,7 +239,6 @@ export function truncate(text, n = 50, useWordBoundary = true) {
 
 
 
-// @ted: this will produce {}s, which work in mp but are not officially supported
 export function qsToObj(queryString) {
 	try {
 		const parsedQs = new URLSearchParams(queryString);
