@@ -44,9 +44,6 @@ in the table below, you will find all the options exposed by this module; if you
 
 | option                 | expected type    | default | notes                                                       |
 |------------------------|-------------------|----------|-------------------------------------------------------------|
-|`debug`	| `boolean` 	| `false`	| puts the `mixpanel` SDK in debug mode                          
-|`extend`	| `boolean` 	|`false`	| exposes the `mixpanel` object as a global and `EZTrack` as `mixpanel.ez`                              |
-|`refresh`	| `integer` 	| `5000`	| the frequency (ms) in which the `.track()` queue will be flushed                             |
 |`location`	|	 `boolean` | `true`	| use mixpanel to resolve geo-location                              |
 | `superProps`           | `boolean` | `true`   | adds information about the client device to all events      |
 | `pageView`            | `boolean` | `true`   | tracks all page views as `page enter`                                       |
@@ -60,7 +57,12 @@ in the table below, you will find all the options exposed by this module; if you
 | `clicks`            | `boolean` | `false`  | tracks all clicks on any _other_ page elements as `page click` [(see note)](#clicks)                     |
 | `youtube`              | `boolean` | `false`  | tracks interactions with embedded youtube videos [(see note)](#youtube)            |
 | `window`              | `boolean` | `false`  | tracks interactions with the browser window (`resize`, `print`, etc... )             |
+| `error`              | `boolean` | `false`  | tracks any javascript errors thrown             |
+| `firstPage`              | `boolean` | `false`  | on each page, determine if it is the first page in the user's history (uses `localStorage`)           |
 | `clipboard`              | `boolean` | `false`  | tracks interactions with the clipboard (`cut`, `copy`, `paste`)         |
+|`debug`	| `boolean` 	| `false`	| puts the `mixpanel` SDK in debug mode                          
+|`extend`	| `boolean` 	|`false`	| exposes the `mixpanel` object as a global and `EZTrack` as `mixpanel.ez`                              |
+|`refresh`	| `integer` 	| `5000`	| the frequency (ms) in which the `.track()` queue will be flushed                             |
 
 
 ## `init()` recipes 🍳 <div  id="recipes"></div>
@@ -89,7 +91,7 @@ mpEZTrack.init('YOUR-PROJECT-TOKEN', { debug: false, extend: false,  refresh: 50
 ```
 
 ## a note on user profiles 👥 <div  id="profiles"></div>
-one of the biggest drawbacks to purely codeless analytics SDKs, is that they lose the ability to properly resolve the end-user's identity. while `mpEZTrack` will happily persist a user's identity across sessions on a single device, without a run-time signal from your app, it is not possible to identify the same user across multiple devices.
+one of the biggest drawbacks to purely codeless analytics SDKs, is that they lose the ability to properly resolve the end-user's identity. while `mpEZTrack` will happily persist a user's identity across sessions on a single device, without a signal (at run time) from your app, it is not possible to identify the same user across multiple devices.
 
 if you are using the `{ profiles : true }`  option (or the defaults), you may notice that all of your user profiles show users as `anonymous`:
 
@@ -97,11 +99,11 @@ if you are using the `{ profiles : true }`  option (or the defaults), you may no
 
 this is expected behavior.
 
-if your application can supply a **canonical unique user identifier** you can `extend` the `EZTrack` implementation and call _any_ [Mixpanel SDK methods](https://developer.mixpanel.com/docs/javascript-full-api-reference) under the `ez` namespace.
+if your application can supply a **canonical unique user identifier** you can `extend` the `EZTrack` implementation and call _any_ [Mixpanel SDK methods](https://developer.mixpanel.com/docs/javascript-full-api-reference) under the `ez` namespace. when doing this, it is recommended to turn `profiles` off... 
 
 an example implementation of custom identity management might look like this:
 ```javascript
-mpEZTrack.init('token', { extend: true});	// expose the mixpanel object
+mpEZTrack.init('token', { extend: true, profiles: false });	// expose the mixpanel object
 mixpanel.ez.identify(currentUser.id); 		// tell mixpanel who the user is
 mixpanel.ez.track('log in');			// precision-track any events
 
@@ -120,7 +122,7 @@ where `currentUser` has the following shape:
 }
 ```
 
-future versions of this module may improve upon this API. please submit an idea or suggestion if you have (an idea or suggestion) about how this should work.
+future versions of this module may improve upon this API. please [submit an enhancement](https://github.com/ak--47/mpEZTrack/issues) if you have (an idea or suggestion) about how this should work.
 
 ## motivation 💬 <div  id="motivation"></div>
 there are [many opinions](https://mixpanel.com/blog/codeless-analytics-problems/) on the `auto-capture` v.s. `precision tracking` debate; there are (valid) pros and cons to both sides, and i've had the "do-we-collect-everything-automatically-and-tag-it-later?" or "do-we-explicitly-tag-and-try-not-to-miss-anything?" conversation _many_ times in my career. having that conversation is (in part) what led me to make this.
@@ -164,9 +166,10 @@ you may wish to test `mpEZTrack` before putting it into production. for this rea
  - go to [chrome://extensions/](https://www.notion.so/Chrome-extension-to-link-old-gerrit-changeset-ids-in-GH-11a36b47a65a4d84882694d2a02bad0f) in your browser. Click **load unpacked** in the top left
  - point the pop-up at the directory in this repo `/mpEZTrack/chromeExtension`; you should see the extension get installed
  - click the chrome puzzle icon 🧩 (top right) to pin the extension to your start bar
- - go to any page. click the extension. 
- - open the developer console and type `mpEZTrack.init("your-project-token", {debug: true})` replacing  `your-project-token` with your  [mixpanel project token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-)
- - preform some actions on the webpage, and you'll see the events in your console (and in your mixpanel project!)
+ - click the extension. you will scee a screen that lets you inject `mpEZTrack` into your current tab, or into all tabs
+ 	- for one single tab injection: open the developer console on your current tab and type `mpEZTrack.init("your-project-token", {debug: true})` replacing  `your-project-token` with your  [mixpanel project token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-)
+ 	- for all tab injection: plug in your token and press save; `mpEZTrack` is now streaming all of your clicks/actions on all tabs to your mixpanel project. press `reset` to turn this off
+ - now preform some actions on the webpage, and you'll see the events in your console (and in your mixpanel project!)
 
 🥳 celebrate! you just implemented `mpEZTrack` locally! 
 

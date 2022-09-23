@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>mpEZTrack Extension</title>
+	<style>
+		:root {
+			--light: #F3F6FB;
+			--dark: #2A2A2F;
+			--purp: #7856FF;
+			--red: #FF7557;
+			--blue: #80E1D9;
+			--yellow: #F8BC3B;
+			--magenta: #B2596E;
+			--pink: #CA80DC;
+		}
+
+		body {
+			height: 420px;
+			width: 420px;
+			background-color: var(--dark);
+			text-align: center;
+			color: var(--light);
+		}
+
+		h1 {
+			color: var(--purp)
+		}
+
+		#desc {
+			text-align: left;
+		}
+
+		div {
+			padding-bottom: 10px;
+		}
+
+		.hidden {
+			display: none;
+		}
+
+		#smiley {
+			font-size: 60px;
+		}
+
+		em {
+			color: var(--red);
+			font-weight: bold;
+		}
+
+		code {
+			font-size: 16px;
+		}
+
+		#tempText {
+			line-height: 29px;
+		}
+
+		a {
+			text-decoration: none;
+			color: var(--blue);
+		}
+
+		a:visited {
+			text-decoration: none;
+			color: var(--yellow);
+		}
+
+		a:hover {
+			text-decoration: underline;
+			color: var(--pink);
+		}
+
+		.statusText {
+			padding-top: 10px;
+		}
+
+		#docs {
+			font-size: 26px;
+		}
+
+		#token {
+			width: 234px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="title">
+		<h1>mpEZTrack Injector</h1>
+	</div>
+	<div id="desc">
+		<p>
+			you can use this extension to:
+		<ul>
+			<li>inject mpEZTrack onto a single page</li>
+			<li>persist mpEZTrack across all your pages</li>
+		</ul>
+
+		</p>
+	</div>
+	<div id="controls">
+		<button id="inject">inject in current tab</button>
+		<div>
+			<div class="hidden" id="tempActive">
+				<span id="smiley">🥳</span>
+				<br />
+				<span id="tempText">mpEZTrack is now <em>injected to your current tab</em><br />open your
+					<em>developer console</em> and call<br />
+					<code>mpEZTrack.init('your-token', {debug: true})</code><br /></span>
+			</div>
+		</div>
+		<div>
+			<p></p>
+		</div>
+		<div>
+			<input type="text" name="token" id="token" placeholder="your mixpanel token!!!" maxlength="32"
+				minlength="32">
+			<button id="save">save</button>
+			<button id="reset" disabled>reset</button>
+			<div class="statusText hidden" id="statusTextOn">
+				<span>your token is <pre><span id="showUserToken">{{ foo }}</span></pre></span>
+				<p></p>
+				<span>mpEZTrack is <em>active on all pages</em></span>
+			</div>
+			<div class="statusText" id="statusTextOff">
+				<span>mpEZTrack is inactive on all pages in all tabs</span>
+			</div>
+		</div>
+		<div id="footer">
+			<a id="docs" href="https://github.com/ak--47/mpEZTrack#mpeztrack-" target="_blank">📕 DOCS</a>
+		</div>
+		<div id="lastTokenText" class="hidden">
+			<span>your last used token was <code id="lastToken"></code></span>
+		</div>
+
+		<script src="app.js"></script>
+</body>
+
+</html>

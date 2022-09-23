@@ -14,11 +14,14 @@
 	"128" : "icon.png"
   },
   "browser_action": {
-    "default_title": "mpEZTrack!"
+    "default_title": "mpEZTrack!",
+	"default_popup": "index.html" 
   },
+  "web_accessible_resources": ["injectOnce.js", "messageback.js"],
   "permissions": [
     "https://*/*",
     "http://*/*",
-    "tabs"
+    "tabs",
+	"storage"
   ]
 }

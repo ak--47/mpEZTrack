@@ -4081,15 +4081,18 @@
       "alt": "desc",
       "class": "class (full)"
     };
-    for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
-      att = atts[i];
-      let keySuffix = mapReplace(att.name, replaceAttrs);
-      let keyName = `${label} \u2192 ${keySuffix}`;
-      let val = att.value?.trim();
-      if (boolAttrs.some((attr) => attr === att.name))
-        val = true;
-      result[keyName] = val;
-    }
+    loopAttributes:
+      for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
+        att = atts[i];
+        let keySuffix = mapReplace(att.name, replaceAttrs);
+        if (keySuffix?.toLowerCase()?.includes("pass"))
+          continue loopAttributes;
+        let keyName = `${label} \u2192 ${keySuffix}`;
+        let val = att.value?.trim();
+        if (boolAttrs.some((attr) => attr === att.name))
+          val = true;
+        result[keyName] = val;
+      }
     return result;
   }
   function conditionalFields(el, label = "ELEM") {
@@ -4178,6 +4181,7 @@
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
     domElementsTracked: [],
+    host: document.location.host,
     bind: bindTrackers,
     query: querySelectorAllDeep,
     spa: beSpaAware,
@@ -4191,6 +4195,7 @@
     clicks: trackClicks,
     youtube: trackYoutubeVideos,
     window: trackWindowStuff,
+    error: trackErrors,
     clipboard: trackClipboard,
     profiles: createUserProfiles,
     defaultOpts: getDefaultOptions
@@ -4215,6 +4220,8 @@ https://developer.mixpanel.com/reference/project-token`);
         if (typeof opts[key] === "number")
           opts[key] = 0;
       }
+      if (forceTrue === "nodebug")
+        opts.debug = false;
     }
     this.opts = Object.freeze(opts);
     try {
@@ -4227,13 +4234,18 @@ https://developer.mixpanel.com/reference/project-token`);
         ignore_dnt: true,
         batch_flush_interval_ms: opts.refresh,
         loaded: (mp) => {
-          if (opts.superProps) {
-            mp.register({
-              ...SUPER_PROPS,
-              ...this.priorVisit(token)
-            }, { persistent: false });
+          if (opts.superProps)
+            mp.register(SUPER_PROPS, { persistent: false });
+          if (opts.firstPage)
+            mp.register(this.priorVisit(token, opts), { persistent: false });
+          try {
+            this.bind(mp, opts);
+          } catch (e) {
+            if (opts.debug) {
+              console.error("mpEZTrack failed bind to the DOM!");
+              console.log(e);
+            }
           }
-          this.bind(mp, opts);
         }
       }, "ez");
       if (opts.extend)
@@ -4262,6 +4274,8 @@ https://developer.mixpanel.com/reference/project-token`);
       youtube: false,
       window: false,
       clipboard: false,
+      firstPage: false,
+      error: false,
       logProps: false,
       spa: "none"
     };
@@ -4288,6 +4302,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.youtube(mp, opts);
       if (opts.window)
         this.window(mp, opts);
+      if (opts.error)
+        this.error(mp, opts);
       if (opts.clipboard)
         this.clipboard(mp, opts);
       if (opts.spa)
@@ -4308,14 +4324,22 @@ https://developer.mixpanel.com/reference/project-token`);
       "PAGE \u2192 scroll (%)": Number(scrollPercent.toFixed(2))
     };
   }
-  function firstVisitChecker(token) {
-    const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
-    if (isFirstVisit === null) {
-      localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
-      this.isFirstVisit = false;
-      return { "SESSION \u2192 is first page?": true };
+  function firstVisitChecker(token, opts = { firstPage: false }) {
+    if (opts.firstPage) {
+      try {
+        const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
+        if (isFirstVisit === null) {
+          localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
+          this.isFirstVisit = false;
+          return { "SESSION \u2192 is first page?": true };
+        } else {
+          return { "SESSION \u2192 is first page?": false };
+        }
+      } catch (e) {
+        return { "SESSION \u2192 is first page?": false };
+      }
     } else {
-      return { "SESSION \u2192 is first page?": false };
+      return {};
     }
   }
   function trackPageViews(mp, opts) {
@@ -4339,7 +4363,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("button click", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("BUTTON CLICK");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4358,9 +4383,23 @@ https://developer.mixpanel.com/reference/project-token`);
             ...LINK_FIELDS(ev.target),
             ...statefulProps()
           };
-          mp.track("link click", props);
+          let type;
+          if (props["LINK \u2192 href"]?.startsWith("#")) {
+            mp.track("navigation click", props);
+            type = `NAVIGATION`;
+          } else if (props["LINK \u2192 href"]?.includes(this.host)) {
+            mp.track("navigation click", props);
+            type = `NAVIGATION`;
+          } else if (!props["LINK \u2192 href"]) {
+            mp.track("navigation click", props);
+            type = `NAVIGATION`;
+          } else {
+            mp.track("link click", props);
+            type = `LINK`;
+          }
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log(`${type} CLICK`);
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4381,7 +4420,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("form submit", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("FORM SUBMIT");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4402,7 +4442,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("user selection", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("USER SELECTION");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4423,7 +4464,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("user entered text", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("USER ENTERED CONTENT");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4444,7 +4486,8 @@ https://developer.mixpanel.com/reference/project-token`);
           };
           mp.track("page click", props);
           if (opts.logProps)
-            console.log(JSON.stringify(props, null, 2));
+            console.log("PAGE CLICK");
+          console.log(JSON.stringify(props, null, 2));
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4532,19 +4575,6 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackWindowStuff(mp, opts) {
-    window.addEventListener("error", (errEv) => {
-      try {
-        const props = {
-          "ERROR \u2192 type": errEv.type,
-          "ERROR \u2192 message": errEv.message,
-          ...statefulProps()
-        };
-        mp.track("page error", props);
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-    }, LISTENER_OPTIONS);
     window.addEventListener("resize", (resizeEv) => {
       window.clearTimeout(ezTrack.resizeTimer);
       ezTrack.resizeTimer = window.setTimeout(() => {
@@ -4562,6 +4592,21 @@ https://developer.mixpanel.com/reference/project-token`);
           ...statefulProps()
         };
         mp.track("print", props);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+    }, LISTENER_OPTIONS);
+  }
+  function trackErrors(mp, opts) {
+    window.addEventListener("error", (errEv) => {
+      try {
+        const props = {
+          "ERROR \u2192 type": errEv.type,
+          "ERROR \u2192 message": errEv.message,
+          ...statefulProps()
+        };
+        mp.track("page error", props);
       } catch (e) {
         if (opts.debug)
           console.log(e);
