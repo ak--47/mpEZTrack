@@ -86,16 +86,18 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
 			loaded: (mp) => {
-				if (opts.superProps) {
-					mp.register({
-						...SUPER_PROPS,
-						...this.priorVisit(token) //check prior visits
-					}, { persistent: false });
+				if (opts.superProps) mp.register(SUPER_PROPS, { persistent: false });
+				if (opts.firstPage) mp.register(this.priorVisit(token, opts), { persistent: false });
 
+				try {
+					this.bind(mp, opts);
 				}
-
-				//add tracking
-				this.bind(mp, opts);
+				catch (e) {
+					if (opts.debug) {
+						console.error('mpEZTrack failed bind to the DOM!');
+						console.log(e);
+					}
+				}
 			}
 		}, "ez");
 
@@ -108,6 +110,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 	}
 }
 
+//ted says: more efficient as a const
 export function getDefaultOptions() {
 	return {
 		//meta
@@ -132,6 +135,7 @@ export function getDefaultOptions() {
 		youtube: false,
 		window: false,
 		clipboard: false,
+		firstPage: false,
 
 		//undocumented, for ez debugging
 		logProps: false,
@@ -184,18 +188,31 @@ export function statefulProps() {
 	};
 }
 
-export function firstVisitChecker(token) {
-	// @ted: is this an ok way to check for "is first page?"
-	const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
+//GDPR concerns? ... clearing cookies messes this up
+export function firstVisitChecker(token, opts = { firstPage: false }) {
+	if (opts.firstPage) {
+		try {
+			const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
 
-	if (isFirstVisit === null) {
-		localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
-		this.isFirstVisit = false; //side-effect, but not relied upon
-		return { "SESSION → is first page?": true };
+			if (isFirstVisit === null) {
+				localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
+				this.isFirstVisit = false; //side-effect, but not relied upon
+				return { "SESSION → is first page?": true };
+			}
+
+			else {
+				return { "SESSION → is first page?": false };
+			}
+
+		}
+
+		catch (e) {
+			return { "SESSION → is first page?": false };
+		}
 	}
 
 	else {
-		return { "SESSION → is first page?": false };
+		return {};
 	}
 }
 
@@ -262,7 +279,7 @@ export function trackLinkClicks(mp, opts) {
 					...statefulProps()
 				};
 				//@ted: should i make an assumption that links with a # href are actually "app nav"
-				mp.track('link click', props); 
+				mp.track('link click', props);
 				if (opts.logProps) console.log(JSON.stringify(props, null, 2));
 			}
 			catch (e) {
