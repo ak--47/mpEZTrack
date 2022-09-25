@@ -4041,11 +4041,12 @@
   var LINK_FIELDS = (el) => ({
     "LINK \u2192 text": squish(el.textContent),
     "LINK \u2192 target": el.target,
-    "LINK \u2192 child": el.innerHTML
+    "LINK \u2192 child": squish(el.innerHTML)
   });
   var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
   var BUTTON_FIELDS = (el) => ({
-    "BUTTON \u2192 text": squish(el.textContent)
+    "BUTTON \u2192 text": squish(el.textContent),
+    "BUTTON \u2192 child": squish(el.innerHTML)
   });
   var FORM_SELECTORS = String.raw`form`;
   var FORM_FIELDS = (el) => ({
@@ -4079,7 +4080,7 @@
       "data-": "DATA \u2192 ",
       "src": "source",
       "alt": "desc",
-      "class": "class (full)"
+      "class": "class (delete)"
     };
     loopAttributes:
       for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
@@ -4093,6 +4094,7 @@
           val = true;
         result[keyName] = val;
       }
+    delete result[`${label} \u2192 class (delete)`];
     return result;
   }
   function conditionalFields(el, label = "ELEM") {
@@ -4184,7 +4186,7 @@
     host: document.location.host,
     bind: bindTrackers,
     query: querySelectorAllDeep,
-    spa: beSpaAware,
+    spa: singlePageAppTracking,
     pageView: trackPageViews,
     pageExit: trackPageExits,
     buttons: trackButtonClicks,
@@ -4220,8 +4222,11 @@ https://developer.mixpanel.com/reference/project-token`);
         if (typeof opts[key] === "number")
           opts[key] = 0;
       }
+      opts.spa = false;
       if (forceTrue === "nodebug")
         opts.debug = false;
+      if (forceTrue === "spa")
+        opts.spa = true;
     }
     this.opts = Object.freeze(opts);
     try {
@@ -4277,7 +4282,7 @@ https://developer.mixpanel.com/reference/project-token`);
       firstPage: false,
       error: false,
       logProps: false,
-      spa: "none"
+      spa: false
     };
   }
   function bindTrackers(mp, opts) {
@@ -4286,30 +4291,32 @@ https://developer.mixpanel.com/reference/project-token`);
         this.pageView(mp, opts);
       if (opts.pageExit)
         this.pageExit(mp, opts);
-      if (opts.buttons)
-        this.buttons(mp, opts);
-      if (opts.forms)
-        this.forms(mp, opts);
-      if (opts.selectors)
-        this.selectors(mp, opts);
-      if (opts.inputs)
-        this.inputs(mp, opts);
-      if (opts.links)
-        this.links(mp, opts);
-      if (opts.profiles)
-        this.profiles(mp, opts);
-      if (opts.youtube)
-        this.youtube(mp, opts);
       if (opts.window)
         this.window(mp, opts);
       if (opts.error)
         this.error(mp, opts);
       if (opts.clipboard)
         this.clipboard(mp, opts);
-      if (opts.spa)
-        this.spa(opts.spa, mp, opts);
-      if (opts.clicks)
-        this.clicks(mp, opts);
+      if (opts.profiles)
+        this.profiles(mp, opts);
+      if (opts.spa) {
+        this.spa(mp, opts);
+      } else {
+        if (opts.buttons)
+          this.buttons(mp, opts);
+        if (opts.forms)
+          this.forms(mp, opts);
+        if (opts.selectors)
+          this.selectors(mp, opts);
+        if (opts.inputs)
+          this.inputs(mp, opts);
+        if (opts.links)
+          this.links(mp, opts);
+        if (opts.youtube)
+          this.youtube(mp, opts);
+        if (opts.clicks)
+          this.clicks(mp, opts);
+      }
     } catch (e) {
       if (opts.debug)
         console.log(e);
@@ -4474,7 +4481,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackClicks(mp, opts) {
-    let allThings = uniqueNodes(this.query(ALL_SELECTOR)).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true);
+    let allThings = uniqueNodes(
+      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true)
+    );
     for (const thing of allThings) {
       this.domElementsTracked.push(thing);
       thing.addEventListener("click", (ev) => {
@@ -4628,7 +4637,7 @@ https://developer.mixpanel.com/reference/project-token`);
         if (opts.debug)
           console.log(e);
       }
-    });
+    }, LISTENER_OPTIONS);
     window.addEventListener("copy", (clipEv) => {
       try {
         const props = {
@@ -4643,7 +4652,7 @@ https://developer.mixpanel.com/reference/project-token`);
         if (opts.debug)
           console.log(e);
       }
-    });
+    }, LISTENER_OPTIONS);
     window.addEventListener("paste", (clipEv) => {
       try {
         const props = {
@@ -4658,7 +4667,7 @@ https://developer.mixpanel.com/reference/project-token`);
         if (opts.debug)
           console.log(e);
       }
-    });
+    }, LISTENER_OPTIONS);
   }
   function createUserProfiles(mp, opts) {
     try {
@@ -4674,27 +4683,9 @@ https://developer.mixpanel.com/reference/project-token`);
         console.log(e);
     }
   }
-  function beSpaAware(typeOfSpa = "none", mp, opts) {
-    switch (typeOfSpa.toLowerCase()) {
-      case `react`:
-        break;
-      case `vue`:
-        break;
-      case `angular`:
-        break;
-      case `svelte`:
-        break;
-      case `backbone`:
-        break;
-      case `ember`:
-        break;
-      case `meteor`:
-        break;
-      case `polymer`:
-        break;
-      default:
-        break;
-    }
+  function singlePageAppTracking(mp, opts) {
+    window.addEventListener("click", (ev) => {
+    }, LISTENER_OPTIONS);
   }
   function uniqueNodes(arrayOfNodes) {
     return [...new Set(arrayOfNodes)];

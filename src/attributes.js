@@ -50,7 +50,7 @@ export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (el) => ({
 	"LINK → text": squish(el.textContent),
 	"LINK → target": el.target,
-	"LINK → child": el.innerHTML //QQ this is also sus
+	"LINK → child": squish(el.innerHTML)
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
 });
@@ -58,7 +58,9 @@ export const LINK_FIELDS = (el) => ({
 
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
 export const BUTTON_FIELDS = (el) => ({
-	"BUTTON → text": squish(el.textContent)
+	"BUTTON → text": squish(el.textContent),
+	"BUTTON → child": squish(el.innerHTML)
+
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
 });
@@ -122,7 +124,7 @@ export function enumNodeProps(el, label = "ELEM") {
 		'data-': 'DATA → ',
 		'src': 'source',
 		'alt': 'desc',
-		'class': 'class (full)'
+		'class': 'class (delete)'
 	};
 
 	loopAttributes: for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
@@ -137,6 +139,8 @@ export function enumNodeProps(el, label = "ELEM") {
 		result[keyName] = val;
 
 	}
+	//classes are tracked elsewhere
+	delete result[`${label} → class (delete)`]
 
 	return result;
 }

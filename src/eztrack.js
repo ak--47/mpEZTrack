@@ -71,7 +71,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
-		opts.spa === false;
+		opts.spa = false;
 		if (forceTrue === "nodebug") opts.debug = false;
 		if (forceTrue === "spa") opts.spa = true;
 	}
@@ -168,7 +168,7 @@ export function bindTrackers(mp, opts) {
 			if (opts.forms) this.forms(mp, opts);
 			if (opts.selectors) this.selectors(mp, opts);
 			if (opts.inputs) this.inputs(mp, opts);
-			if (opts.links) this.links(mp, opts);			
+			if (opts.links) this.links(mp, opts);
 			if (opts.youtube) this.youtube(mp, opts);
 			//this should always be last as it is the most general form of tracking for non spas
 			if (opts.clicks) this.clicks(mp, opts);
@@ -394,12 +394,15 @@ export function trackUserInput(mp, opts) {
 // 🚨 guard against password fields 🚨
 //default: off
 export function trackClicks(mp, opts) {
-	let allThings = uniqueNodes(this.query(ALL_SELECTOR))
-		.filter(node => node.childElementCount === 0) //most specific
-		.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
-		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
-		.filter(node => node.tagName !== 'LABEL') //not a label
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true); //not a password or hidden input
+	let allThings = uniqueNodes(
+		this.query(ALL_SELECTOR)
+			.filter(node => node.childElementCount === 0) //most specific
+			.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
+			.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
+			.filter(node => !this.domElementsTracked.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
+			.filter(node => node.tagName !== 'LABEL') //not a label
+			.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true)
+	); //not a password or hidden input
 
 	for (const thing of allThings) {
 		this.domElementsTracked.push(thing);
@@ -649,7 +652,32 @@ export function createUserProfiles(mp, opts) {
 
 //default: off
 export function singlePageAppTracking(mp, opts) {
-	window.addEventListener("click", listener, LISTENER_OPTIONS)
+	window.addEventListener("click", (ev) => {
+		figureOutWhatWasClicked(ev, mp, opts);
+	}, LISTENER_OPTIONS);
+}
+
+export function figureOutWhatWasClicked(ev, mp, opts) {
+	let mostSpecificNode = findMostSpecificRecursive(ev.target);
+	const lineage = ev.composedPath();
+	
+}
+
+export function findMostSpecificRecursive(node) {
+	let numChildren = node.childElementCount;
+	if (numChildren !== 0) {
+		let nextNode = node.firstElementChild;
+		if (!nextNode) nextNode = node.nextElementSibling;
+		if (!nextNode) nextNode = node.priorElementSibling;
+		if (!nextNode) return node
+		else {
+			return findMostSpecificRecursive(nextNode)
+		}		
+	}
+
+	else {
+		return node;
+	}
 }
 
 export function uniqueNodes(arrayOfNodes) {

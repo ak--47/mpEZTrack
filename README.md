@@ -219,7 +219,7 @@ these video events will contain event properties which describe the video being 
 ## tracking all clicks 🐁 <div id="clicks"></div>
 when tracking "every click on every element" on any webpage, in combination with some of the other options it is _possible_ to end up with 2 distinct click events in mixpanel that represent actually represent a single user click
 
-for example, consider the following HTML, which represents a button styled by an SVG:
+for example, consider the following HTML, which represents an invisible button styled by an SVG:
 ```html
 <button class="more-info">
         <svg width="24" height="24" viewBox="0 0 24 24" class="feather feather-more-horizontal">
@@ -240,21 +240,26 @@ however, i thought that this was a potentially common enough occurrence that i w
 for these reasons, "tracking all clicks" with the `clicks` option is **disabled by default**.
 
 ## security 🔓 <div  id="security"></div>
-many web applications may handle user-entered secrets (passwords, tokens, private keys). while all network requests are encrypted over HTTPS and mixpanel encrypts all user data in transit and at rest, **it's never a good idea to send or store secrets in plain text**
+many web applications may handle user-entered secrets (passwords, tokens, private keys, etc...). while all network requests made by `mixpanel-js` are encrypted in transit and at rest, **it's never a good idea to send or store secrets in plain text**
 
 `mpEZTrack` employs the following strategies to "ignore" sensitive fields:
 
-- *do not track* DOM elements of `<input type="password" />`
+- *do not track* DOM elements of *`<input type="password" />`*
 ```javascript
 this.query(INPUT_SELECTOR)
 	.filter(node  => (node.tagName ===  'INPUT') ? (node.type ===  "password"  ?  false  :  true) :  true);
-	// ^^^ not a standard password field;
 ```
-- *guard against sensitive user input* when tracking clicks and clipboard activity on general `<input />` fields:
+- *guard against sensitive user input* when tracking clicks and clipboard activity:
 ```javascript
-export  const  ANY_TAG_FIELDS  = (ev, guard = true) => ({
+export  const  INPUT_TEXT_FIELDS  = (ev, guard = true) => ({
 "ELEM → text": guard  ?  "******"  :  ev.target.textContent ||  ev.target.value,
 });
 ```
-while this covers most common cases, it is not a silver-bullet. if your web application _frequently_ displays highly sensitive data, `mpEZTrack` (or any other auto-capture product analytics tool) is probably not appropriate for your organization.
+
+- *do not* collect HTML attributes *that include `passw`*
+```javascript
+if (HTMLAttr?.toLowerCase()?.includes('passw')) continue loopAttributes;
+```
+
+if your web application _frequently_ displays highly sensitive data in non-standard ways, `mpEZTrack` (or any other auto-capture analytics tool) is probably not appropriate for you.
 
