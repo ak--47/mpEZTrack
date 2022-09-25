@@ -29,9 +29,7 @@ export const ezTrack = {
 	host: document.location.host,
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom	
-	spa: beSpaAware, // TODO
-
-	//elements + tracking
+	spa: singlePageAppTracking,
 	pageView: trackPageViews,
 	pageExit: trackPageExits,
 	buttons: trackButtonClicks,
@@ -73,7 +71,9 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
+		opts.spa === false;
 		if (forceTrue === "nodebug") opts.debug = false;
+		if (forceTrue === "spa") opts.spa = true;
 	}
 	this.opts = Object.freeze(opts);
 
@@ -143,29 +143,36 @@ export function getDefaultOptions() {
 		logProps: false,
 
 		//wips
-		spa: 'none'
+		spa: false
 
 	};
 }
 
 export function bindTrackers(mp, opts) {
 	try {
+		//these options work on all pages
 		if (opts.pageView) this.pageView(mp, opts);
 		if (opts.pageExit) this.pageExit(mp, opts);
-		if (opts.buttons) this.buttons(mp, opts);
-		if (opts.forms) this.forms(mp, opts);
-		if (opts.selectors) this.selectors(mp, opts);
-		if (opts.inputs) this.inputs(mp, opts);
-		if (opts.links) this.links(mp, opts);
-		if (opts.profiles) this.profiles(mp, opts);
-		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
 		if (opts.error) this.error(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
-		if (opts.spa) this.spa(opts.spa, mp, opts);
+		if (opts.profiles) this.profiles(mp, opts);
 
-		//this should always be last as it is the most general form of tracking
-		if (opts.clicks) this.clicks(mp, opts);
+		//SPA mode tracks all clicks and then figure out the elements
+		if (opts.spa) {
+			this.spa(mp, opts);
+		}
+		//Normal mode queries the DOM directly and sets up listeners on page loade
+		else {
+			if (opts.buttons) this.buttons(mp, opts);
+			if (opts.forms) this.forms(mp, opts);
+			if (opts.selectors) this.selectors(mp, opts);
+			if (opts.inputs) this.inputs(mp, opts);
+			if (opts.links) this.links(mp, opts);			
+			if (opts.youtube) this.youtube(mp, opts);
+			//this should always be last as it is the most general form of tracking for non spas
+			if (opts.clicks) this.clicks(mp, opts);
+		}
 	}
 	catch (e) {
 		if (opts.debug) console.log(e);
@@ -279,28 +286,28 @@ export function trackLinkClicks(mp, opts) {
 					...LINK_FIELDS(ev.target),
 					...statefulProps()
 				};
-				
+
 				let type;
 
 				// "links" can also be "navigation"
 				if (props["LINK → href"]?.startsWith('#')) {
 					mp.track('navigation click', props);
-					type = `NAVIGATION`
+					type = `NAVIGATION`;
 				}
 
 				else if (props["LINK → href"]?.includes(this.host)) {
 					mp.track('navigation click', props);
-					type = `NAVIGATION`
+					type = `NAVIGATION`;
 				}
 
 				else if (!props["LINK → href"]) {
 					mp.track('navigation click', props);
-					type = `NAVIGATION`
+					type = `NAVIGATION`;
 				}
 
 				else {
 					mp.track('link click', props);
-					type = `LINK`
+					type = `LINK`;
 				}
 
 				if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
@@ -584,7 +591,7 @@ export function trackClipboard(mp, opts) {
 		catch (e) {
 			if (opts.debug) console.log(e);
 		}
-	});
+	}, LISTENER_OPTIONS);
 
 	window.addEventListener('copy', (clipEv) => {
 		try {
@@ -599,7 +606,7 @@ export function trackClipboard(mp, opts) {
 		catch (e) {
 			if (opts.debug) console.log(e);
 		}
-	});
+	}, LISTENER_OPTIONS);
 
 	window.addEventListener('paste', (clipEv) => {
 		try {
@@ -614,7 +621,7 @@ export function trackClipboard(mp, opts) {
 		catch (e) {
 			if (opts.debug) console.log(e);
 		}
-	});
+	}, LISTENER_OPTIONS);
 
 }
 
@@ -640,36 +647,9 @@ export function createUserProfiles(mp, opts) {
 	}
 }
 
-export function beSpaAware(typeOfSpa = 'none', mp, opts) {
-	switch (typeOfSpa.toLowerCase()) {
-		case `react`:
-
-			break;
-		case `vue`:
-
-			break;
-		case `angular`:
-
-			break;
-		case `svelte`:
-
-			break;
-		case `backbone`:
-
-			break;
-		case `ember`:
-
-			break;
-		case `meteor`:
-
-			break;
-		case `polymer`:
-
-			break;
-
-		default:
-			break;
-	}
+//default: off
+export function singlePageAppTracking(mp, opts) {
+	window.addEventListener("click", listener, LISTENER_OPTIONS)
 }
 
 export function uniqueNodes(arrayOfNodes) {
