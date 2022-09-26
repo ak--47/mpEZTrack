@@ -333,7 +333,7 @@ export function trackLinkClick(ev, mp, opts) {
 		mp.track('navigation click', props);
 		type = `NAVIGATION`;
 	}
-	
+
 	else if (props["LINK → href"]?.startsWith('javascript')) {
 		mp.track('navigation click', props);
 		type = `NAVIGATION`;
@@ -709,8 +709,6 @@ export function singlePageAppTracking(mp, opts) {
 }
 
 export function figureOutWhatWasClicked(ev, mp, opts) {
-	//const lineage = [...ev.composedPath()];
-
 	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
 	if (ev.target.matches(BUTTON_SELECTORS)) {
 		this.spaPipe('button', ev, mp, opts);
@@ -724,21 +722,21 @@ export function figureOutWhatWasClicked(ev, mp, opts) {
 	else if (ev.target.matches(FORM_SELECTORS)) {
 		ev.target.addEventListener('submit', (submitEvent) => {
 			this.spaPipe('form', submitEvent, mp, opts);
-		});
+		}, { once: true, ...LISTENER_OPTIONS });
 		return true;
 	}
 	else if (ev.target.matches(DROPDOWN_SELECTOR)) {
 		ev.target.addEventListener('change', (changeEvent) => {
 			this.spaPipe('select', changeEvent, mp, opts);
-		});		
+		}, { once: true, ...LISTENER_OPTIONS });
 		return true;
 	}
 	else if (ev.target.matches(INPUT_SELECTOR)) {
-		ev.target.addEventListener('change', (changeEvent)=>{
+		ev.target.addEventListener('change', (changeEvent) => {
 			this.spaPipe('input', changeEvent, mp, opts);
-		})
+		}, { once: true, ...LISTENER_OPTIONS });
 		return true;
-		
+
 	}
 
 

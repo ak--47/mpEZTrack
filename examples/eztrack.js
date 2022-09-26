@@ -4725,17 +4725,17 @@ https://developer.mixpanel.com/reference/project-token`);
     } else if (ev.target.matches(FORM_SELECTORS)) {
       ev.target.addEventListener("submit", (submitEvent) => {
         this.spaPipe("form", submitEvent, mp, opts);
-      });
+      }, { once: true, ...LISTENER_OPTIONS });
       return true;
     } else if (ev.target.matches(DROPDOWN_SELECTOR)) {
       ev.target.addEventListener("change", (changeEvent) => {
         this.spaPipe("select", changeEvent, mp, opts);
-      });
+      }, { once: true, ...LISTENER_OPTIONS });
       return true;
     } else if (ev.target.matches(INPUT_SELECTOR)) {
       ev.target.addEventListener("change", (changeEvent) => {
         this.spaPipe("input", changeEvent, mp, opts);
-      });
+      }, { once: true, ...LISTENER_OPTIONS });
       return true;
     }
     let mostSpecificNode = findMostSpecificRecursive(ev.target);
