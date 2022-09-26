@@ -4034,19 +4034,18 @@
     [`${label} \u2192 height`]: el.offsetHeight,
     [`${label} \u2192 width`]: el.offsetWidth,
     [`${label} \u2192 tag (<>)`]: "".concat("<", el.tagName, ">"),
+    [`${label} \u2192 child`]: squish(el.innerHTML),
     ...enumNodeProps(el, label),
     ...conditionalFields(el, label)
   });
   var LINK_SELECTORS = String.raw`a`;
   var LINK_FIELDS = (el) => ({
     "LINK \u2192 text": squish(el.textContent),
-    "LINK \u2192 target": el.target,
-    "LINK \u2192 child": squish(el.innerHTML)
+    "LINK \u2192 target": el.target
   });
   var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
   var BUTTON_FIELDS = (el) => ({
-    "BUTTON \u2192 text": squish(el.textContent),
-    "BUTTON \u2192 child": squish(el.innerHTML)
+    "BUTTON \u2192 text": squish(el.textContent)
   });
   var FORM_SELECTORS = String.raw`form`;
   var FORM_FIELDS = (el) => ({
@@ -4187,14 +4186,21 @@
     bind: bindTrackers,
     query: querySelectorAllDeep,
     spa: singlePageAppTracking,
+    spaPipe: spaPipeline,
     pageView: trackPageViews,
     pageExit: trackPageExits,
-    buttons: trackButtonClicks,
-    links: trackLinkClicks,
-    forms: trackFormSubmits,
-    selectors: trackDropDowns,
-    inputs: trackUserInput,
-    clicks: trackClicks,
+    buttons: listenForButtonClicks,
+    buttonTrack: trackButtonClick,
+    links: listenForLinkClicks,
+    linkTrack: trackLinkClick,
+    forms: listenForFormSubmits,
+    formTrack: trackFormSubmit,
+    selectors: listenForDropDownChanges,
+    selectTrack: trackDropDownChange,
+    inputs: listenForUserInput,
+    inputTrack: trackInputChange,
+    clicks: listenForAllClicks,
+    clickTrack: trackAnyClick,
     youtube: trackYoutubeVideos,
     window: trackWindowStuff,
     error: trackErrors,
@@ -4357,21 +4363,13 @@ https://developer.mixpanel.com/reference/project-token`);
       mp.track("page exit", { ...statefulProps() }, { transport: "sendBeacon", send_immediately: true });
     });
   }
-  function trackButtonClicks(mp, opts) {
+  function listenForButtonClicks(mp, opts) {
     const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const button of buttons) {
       this.domElementsTracked.push(button);
       button.addEventListener("click", (ev) => {
         try {
-          const props = {
-            ...STANDARD_FIELDS(ev.target, "BUTTON"),
-            ...BUTTON_FIELDS(ev.target),
-            ...statefulProps()
-          };
-          mp.track("button click", props);
-          if (opts.logProps)
-            console.log("BUTTON CLICK");
-          console.log(JSON.stringify(props, null, 2));
+          this.buttonTrack(ev, mp, opts);
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4379,34 +4377,24 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackLinkClicks(mp, opts) {
+  function trackButtonClick(ev, mp, opts) {
+    const props = {
+      ...STANDARD_FIELDS(ev.target, "BUTTON"),
+      ...BUTTON_FIELDS(ev.target),
+      ...statefulProps()
+    };
+    mp.track("button click", props);
+    if (opts.logProps)
+      console.log("BUTTON CLICK");
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function listenForLinkClicks(mp, opts) {
     const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const link of links) {
       this.domElementsTracked.push(link);
       link.addEventListener("click", (ev) => {
         try {
-          const props = {
-            ...STANDARD_FIELDS(ev.target, "LINK"),
-            ...LINK_FIELDS(ev.target),
-            ...statefulProps()
-          };
-          let type;
-          if (props["LINK \u2192 href"]?.startsWith("#")) {
-            mp.track("navigation click", props);
-            type = `NAVIGATION`;
-          } else if (props["LINK \u2192 href"]?.includes(this.host)) {
-            mp.track("navigation click", props);
-            type = `NAVIGATION`;
-          } else if (!props["LINK \u2192 href"]) {
-            mp.track("navigation click", props);
-            type = `NAVIGATION`;
-          } else {
-            mp.track("link click", props);
-            type = `LINK`;
-          }
-          if (opts.logProps)
-            console.log(`${type} CLICK`);
-          console.log(JSON.stringify(props, null, 2));
+          this.linkTrack(ev, mp, opts);
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4414,21 +4402,40 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackFormSubmits(mp, opts) {
+  function trackLinkClick(ev, mp, opts) {
+    const props = {
+      ...STANDARD_FIELDS(ev.target, "LINK"),
+      ...LINK_FIELDS(ev.target),
+      ...statefulProps()
+    };
+    let type;
+    if (props["LINK \u2192 href"]?.startsWith("#")) {
+      mp.track("navigation click", props);
+      type = `NAVIGATION`;
+    } else if (props["LINK \u2192 href"]?.includes(this.host)) {
+      mp.track("navigation click", props);
+      type = `NAVIGATION`;
+    } else if (!props["LINK \u2192 href"]) {
+      mp.track("navigation click", props);
+      type = `NAVIGATION`;
+    } else if (props["LINK \u2192 href"]?.startsWith("javascript")) {
+      mp.track("navigation click", props);
+      type = `NAVIGATION`;
+    } else {
+      mp.track("link click", props);
+      type = `LINK`;
+    }
+    if (opts.logProps)
+      console.log(`${type} CLICK`);
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function listenForFormSubmits(mp, opts) {
     const forms = uniqueNodes(this.query(FORM_SELECTORS));
     for (const form of forms) {
       this.domElementsTracked.push(form);
       form.addEventListener("submit", (ev) => {
         try {
-          const props = {
-            ...STANDARD_FIELDS(ev.target, "FORM"),
-            ...FORM_FIELDS(ev.target),
-            ...statefulProps()
-          };
-          mp.track("form submit", props);
-          if (opts.logProps)
-            console.log("FORM SUBMIT");
-          console.log(JSON.stringify(props, null, 2));
+          this.formTrack(ev, mp, opts);
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4436,21 +4443,24 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackDropDowns(mp, opts) {
+  function trackFormSubmit(ev, mp, opts) {
+    const props = {
+      ...STANDARD_FIELDS(ev.target, "FORM"),
+      ...FORM_FIELDS(ev.target),
+      ...statefulProps()
+    };
+    mp.track("form submit", props);
+    if (opts.logProps)
+      console.log("FORM SUBMIT");
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function listenForDropDownChanges(mp, opts) {
     let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const dropdown of allDropdowns) {
       this.domElementsTracked.push(dropdown);
       dropdown.addEventListener("change", (ev) => {
         try {
-          const props = {
-            ...STANDARD_FIELDS(ev.target, "OPTION"),
-            ...DROPDOWN_FIELDS(ev.target),
-            ...statefulProps()
-          };
-          mp.track("user selection", props);
-          if (opts.logProps)
-            console.log("USER SELECTION");
-          console.log(JSON.stringify(props, null, 2));
+          this.selectTrack(ev, mp, opts);
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4458,21 +4468,24 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackUserInput(mp, opts) {
+  function trackDropDownChange(ev, mp, opts) {
+    const props = {
+      ...STANDARD_FIELDS(ev.target, "OPTION"),
+      ...DROPDOWN_FIELDS(ev.target),
+      ...statefulProps()
+    };
+    mp.track("user selection", props);
+    if (opts.logProps)
+      console.log("USER SELECTION");
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function listenForUserInput(mp, opts) {
     let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const input of inputElements) {
       this.domElementsTracked.push(input);
       input.addEventListener("change", (ev) => {
         try {
-          const props = {
-            ...STANDARD_FIELDS(ev.target, "CONTENT"),
-            ...INPUT_FIELDS(ev.target),
-            ...statefulProps()
-          };
-          mp.track("user entered text", props);
-          if (opts.logProps)
-            console.log("USER ENTERED CONTENT");
-          console.log(JSON.stringify(props, null, 2));
+          this.inputTrack(ev, mp, opts);
         } catch (e) {
           if (opts.debug)
             console.log(e);
@@ -4480,7 +4493,18 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackClicks(mp, opts) {
+  function trackInputChange(ev, mp, opts) {
+    const props = {
+      ...STANDARD_FIELDS(ev.target, "CONTENT"),
+      ...INPUT_FIELDS(ev.target),
+      ...statefulProps()
+    };
+    mp.track("user entered text", props);
+    if (opts.logProps)
+      console.log("USER ENTERED CONTENT");
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function listenForAllClicks(mp, opts) {
     let allThings = uniqueNodes(
       this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true)
     );
@@ -4488,21 +4512,24 @@ https://developer.mixpanel.com/reference/project-token`);
       this.domElementsTracked.push(thing);
       thing.addEventListener("click", (ev) => {
         try {
-          const props = {
-            ...STANDARD_FIELDS(ev.target),
-            ...ANY_TAG_FIELDS(ev.target),
-            ...statefulProps()
-          };
-          mp.track("page click", props);
-          if (opts.logProps)
-            console.log("PAGE CLICK");
-          console.log(JSON.stringify(props, null, 2));
+          this.clickTrack(ev, mp, opts);
         } catch (e) {
           if (opts.debug)
             console.log(e);
         }
       }, LISTENER_OPTIONS);
     }
+  }
+  function trackAnyClick(ev, mp, opts) {
+    const props = {
+      ...STANDARD_FIELDS(ev.target),
+      ...ANY_TAG_FIELDS(ev.target),
+      ...statefulProps()
+    };
+    mp.track("page click", props);
+    if (opts.logProps)
+      console.log("PAGE CLICK");
+    console.log(JSON.stringify(props, null, 2));
   }
   function trackYoutubeVideos(mp, opts) {
     const tag = document.createElement("script");
@@ -4685,7 +4712,77 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function singlePageAppTracking(mp, opts) {
     window.addEventListener("click", (ev) => {
+      figureOutWhatWasClicked.call(ezTrack, ev, mp, opts);
     }, LISTENER_OPTIONS);
+  }
+  function figureOutWhatWasClicked(ev, mp, opts) {
+    if (ev.target.matches(BUTTON_SELECTORS)) {
+      this.spaPipe("button", ev, mp, opts);
+      return true;
+    } else if (ev.target.matches(LINK_SELECTORS)) {
+      this.spaPipe("link", ev, mp, opts);
+      return true;
+    } else if (ev.target.matches(FORM_SELECTORS)) {
+      ev.target.addEventListener("submit", (submitEvent) => {
+        this.spaPipe("form", submitEvent, mp, opts);
+      });
+      return true;
+    } else if (ev.target.matches(DROPDOWN_SELECTOR)) {
+      ev.target.addEventListener("change", (changeEvent) => {
+        this.spaPipe("select", changeEvent, mp, opts);
+      });
+      return true;
+    } else if (ev.target.matches(INPUT_SELECTOR)) {
+      ev.target.addEventListener("change", (changeEvent) => {
+        this.spaPipe("input", changeEvent, mp, opts);
+      });
+      return true;
+    }
+    let mostSpecificNode = findMostSpecificRecursive(ev.target);
+    if (ev.target.matches(ALL_SELECTOR) && mostSpecificNode === ev.target) {
+      this.spaPipe("all", ev, mp, opts);
+      return true;
+    } else {
+      return false;
+    }
+  }
+  function spaPipeline(directive = "none", ev, mp, opts) {
+    if (opts.buttons && directive === "button")
+      this.buttonTrack(ev, mp, opts);
+    else if (opts.links && directive === "link")
+      this.linkTrack(ev, mp, opts);
+    else if (opts.forms && directive === "form")
+      this.formTrack(ev, mp, opts);
+    else if (opts.selectors && directive === "select")
+      this.selectTrack(ev, mp, opts);
+    else if (opts.inputs && directive === "input")
+      this.inputTrack(ev, mp, opts);
+    else if (opts.clicks && directive === "all")
+      this.clickTrack(ev, mp, opts);
+  }
+  function findMostSpecificRecursive(node) {
+    let numChildren = node.childElementCount;
+    if (numChildren !== 0) {
+      let nextNode = node.firstElementChild;
+      if (!nextNode)
+        nextNode = node.nextElementSibling;
+      if (!nextNode)
+        nextNode = node.priorElementSibling;
+      if (!nextNode)
+        return node;
+      else {
+        return findMostSpecificRecursive(nextNode);
+      }
+    } else {
+      return node;
+    }
+  }
+  function getAllParents(elem) {
+    var parents = [];
+    for (; elem && elem !== document.body; elem = elem.parentNode) {
+      parents.push(elem);
+    }
+    return parents;
   }
   function uniqueNodes(arrayOfNodes) {
     return [...new Set(arrayOfNodes)];

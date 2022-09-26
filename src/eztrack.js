@@ -30,14 +30,28 @@ export const ezTrack = {
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom	
 	spa: singlePageAppTracking,
+	spaPipe: spaPipeline,
 	pageView: trackPageViews,
 	pageExit: trackPageExits,
-	buttons: trackButtonClicks,
-	links: trackLinkClicks,
-	forms: trackFormSubmits,
-	selectors: trackDropDowns,
-	inputs: trackUserInput,
-	clicks: trackClicks,
+
+	buttons: listenForButtonClicks,
+	buttonTrack: trackButtonClick,
+
+	links: listenForLinkClicks,
+	linkTrack: trackLinkClick,
+
+	forms: listenForFormSubmits,
+	formTrack: trackFormSubmit,
+
+	selectors: listenForDropDownChanges,
+	selectTrack: trackDropDownChange,
+
+	inputs: listenForUserInput,
+	inputTrack: trackInputChange,
+
+	clicks: listenForAllClicks,
+	clickTrack: trackAnyClick,
+
 	youtube: trackYoutubeVideos,
 
 	// meta
@@ -246,7 +260,7 @@ export function trackPageExits(mp, opts) {
 }
 
 //default: on
-export function trackButtonClicks(mp, opts) {
+export function listenForButtonClicks(mp, opts) {
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
 		.filter(node => node.tagName !== 'LABEL') //button is not a label
@@ -256,14 +270,7 @@ export function trackButtonClicks(mp, opts) {
 		this.domElementsTracked.push(button);
 		button.addEventListener('click', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "BUTTON"),
-					...BUTTON_FIELDS(ev.target),
-					...statefulProps()
-				};
-
-				mp.track('button click', props);
-				if (opts.logProps) console.log('BUTTON CLICK'); console.log(JSON.stringify(props, null, 2));
+				this.buttonTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -272,8 +279,20 @@ export function trackButtonClicks(mp, opts) {
 	}
 }
 
+export function trackButtonClick(ev, mp, opts) {
+	const props = {
+		...STANDARD_FIELDS(ev.target, "BUTTON"),
+		...BUTTON_FIELDS(ev.target),
+		...statefulProps()
+	};
+
+	mp.track('button click', props);
+	if (opts.logProps) console.log('BUTTON CLICK'); console.log(JSON.stringify(props, null, 2));
+}
+
+
 //default: on
-export function trackLinkClicks(mp, opts) {
+export function listenForLinkClicks(mp, opts) {
 	const links = uniqueNodes(this.query(LINK_SELECTORS))
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
@@ -281,36 +300,7 @@ export function trackLinkClicks(mp, opts) {
 		this.domElementsTracked.push(link);
 		link.addEventListener('click', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "LINK"),
-					...LINK_FIELDS(ev.target),
-					...statefulProps()
-				};
-
-				let type;
-
-				// "links" can also be "navigation"
-				if (props["LINK → href"]?.startsWith('#')) {
-					mp.track('navigation click', props);
-					type = `NAVIGATION`;
-				}
-
-				else if (props["LINK → href"]?.includes(this.host)) {
-					mp.track('navigation click', props);
-					type = `NAVIGATION`;
-				}
-
-				else if (!props["LINK → href"]) {
-					mp.track('navigation click', props);
-					type = `NAVIGATION`;
-				}
-
-				else {
-					mp.track('link click', props);
-					type = `LINK`;
-				}
-
-				if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
+				this.linkTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -319,20 +309,52 @@ export function trackLinkClicks(mp, opts) {
 	}
 }
 
+export function trackLinkClick(ev, mp, opts) {
+	const props = {
+		...STANDARD_FIELDS(ev.target, "LINK"),
+		...LINK_FIELDS(ev.target),
+		...statefulProps()
+	};
+
+	let type;
+
+	// "links" can also be "navigation"
+	if (props["LINK → href"]?.startsWith('#')) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else if (props["LINK → href"]?.includes(this.host)) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else if (!props["LINK → href"]) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+	
+	else if (props["LINK → href"]?.startsWith('javascript')) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else {
+		mp.track('link click', props);
+		type = `LINK`;
+	}
+
+	if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
+}
+
 //default: on
-export function trackFormSubmits(mp, opts) {
+export function listenForFormSubmits(mp, opts) {
 	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
 		this.domElementsTracked.push(form);
 		form.addEventListener('submit', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "FORM"),
-					...FORM_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('form submit', props);
-				if (opts.logProps) console.log("FORM SUBMIT"); console.log(JSON.stringify(props, null, 2));
+				this.formTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -341,8 +363,18 @@ export function trackFormSubmits(mp, opts) {
 	}
 }
 
+export function trackFormSubmit(ev, mp, opts) {
+	const props = {
+		...STANDARD_FIELDS(ev.target, "FORM"),
+		...FORM_FIELDS(ev.target),
+		...statefulProps()
+	};
+	mp.track('form submit', props);
+	if (opts.logProps) console.log("FORM SUBMIT"); console.log(JSON.stringify(props, null, 2));
+}
+
 //default: on
-export function trackDropDowns(mp, opts) {
+export function listenForDropDownChanges(mp, opts) {
 	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
@@ -351,13 +383,7 @@ export function trackDropDowns(mp, opts) {
 		this.domElementsTracked.push(dropdown);
 		dropdown.addEventListener('change', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "OPTION"),
-					...DROPDOWN_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('user selection', props);
-				if (opts.logProps) console.log('USER SELECTION'); console.log(JSON.stringify(props, null, 2));
+				this.selectTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -366,8 +392,18 @@ export function trackDropDowns(mp, opts) {
 	}
 }
 
+export function trackDropDownChange(ev, mp, opts) {
+	const props = {
+		...STANDARD_FIELDS(ev.target, "OPTION"),
+		...DROPDOWN_FIELDS(ev.target),
+		...statefulProps()
+	};
+	mp.track('user selection', props);
+	if (opts.logProps) console.log('USER SELECTION'); console.log(JSON.stringify(props, null, 2));
+}
+
 //default: off
-export function trackUserInput(mp, opts) {
+export function listenForUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
@@ -376,13 +412,7 @@ export function trackUserInput(mp, opts) {
 		this.domElementsTracked.push(input);
 		input.addEventListener('change', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "CONTENT"),
-					...INPUT_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('user entered text', props);
-				if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
+				this.inputTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -391,9 +421,19 @@ export function trackUserInput(mp, opts) {
 	}
 }
 
+export function trackInputChange(ev, mp, opts) {
+	const props = {
+		...STANDARD_FIELDS(ev.target, "CONTENT"),
+		...INPUT_FIELDS(ev.target),
+		...statefulProps()
+	};
+	mp.track('user entered text', props);
+	if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
+}
+
 // 🚨 guard against password fields 🚨
 //default: off
-export function trackClicks(mp, opts) {
+export function listenForAllClicks(mp, opts) {
 	let allThings = uniqueNodes(
 		this.query(ALL_SELECTOR)
 			.filter(node => node.childElementCount === 0) //most specific
@@ -408,19 +448,23 @@ export function trackClicks(mp, opts) {
 		this.domElementsTracked.push(thing);
 		thing.addEventListener('click', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target),
-					...ANY_TAG_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('page click', props);
-				if (opts.logProps) console.log('PAGE CLICK'); console.log(JSON.stringify(props, null, 2));
+				this.clickTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
 			}
 		}, LISTENER_OPTIONS);
 	}
+}
+
+export function trackAnyClick(ev, mp, opts) {
+	const props = {
+		...STANDARD_FIELDS(ev.target),
+		...ANY_TAG_FIELDS(ev.target),
+		...statefulProps()
+	};
+	mp.track('page click', props);
+	if (opts.logProps) console.log('PAGE CLICK'); console.log(JSON.stringify(props, null, 2));
 }
 
 //default: off
@@ -629,9 +673,9 @@ export function trackClipboard(mp, opts) {
 }
 
 /*
--------
-HELPERS
--------
+--------
+PROFILES
+--------
 */
 
 //default: on
@@ -650,18 +694,81 @@ export function createUserProfiles(mp, opts) {
 	}
 }
 
+/*
+----
+SPAS
+-----
+*/
+
+
 //default: off
 export function singlePageAppTracking(mp, opts) {
 	window.addEventListener("click", (ev) => {
-		figureOutWhatWasClicked(ev, mp, opts);
+		figureOutWhatWasClicked.call(ezTrack, ev, mp, opts);
 	}, LISTENER_OPTIONS);
 }
 
 export function figureOutWhatWasClicked(ev, mp, opts) {
+	//const lineage = [...ev.composedPath()];
+
+	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
+	if (ev.target.matches(BUTTON_SELECTORS)) {
+		this.spaPipe('button', ev, mp, opts);
+		return true;
+	}
+	else if (ev.target.matches(LINK_SELECTORS)) {
+		this.spaPipe('link', ev, mp, opts);
+		return true;
+	}
+
+	else if (ev.target.matches(FORM_SELECTORS)) {
+		ev.target.addEventListener('submit', (submitEvent) => {
+			this.spaPipe('form', submitEvent, mp, opts);
+		});
+		return true;
+	}
+	else if (ev.target.matches(DROPDOWN_SELECTOR)) {
+		ev.target.addEventListener('change', (changeEvent) => {
+			this.spaPipe('select', changeEvent, mp, opts);
+		});		
+		return true;
+	}
+	else if (ev.target.matches(INPUT_SELECTOR)) {
+		ev.target.addEventListener('change', (changeEvent)=>{
+			this.spaPipe('input', changeEvent, mp, opts);
+		})
+		return true;
+		
+	}
+
+
 	let mostSpecificNode = findMostSpecificRecursive(ev.target);
-	const lineage = ev.composedPath();
-	
+	if (ev.target.matches(ALL_SELECTOR) && mostSpecificNode === ev.target) {
+		this.spaPipe('all', ev, mp, opts);
+		return true;
+	}
+
+	else {
+		return false; //click was not tracked
+	}
+
 }
+
+export function spaPipeline(directive = 'none', ev, mp, opts) {
+	if (opts.buttons && directive === 'button') this.buttonTrack(ev, mp, opts);
+	else if (opts.links && directive === 'link') this.linkTrack(ev, mp, opts);
+	else if (opts.forms && directive === 'form') this.formTrack(ev, mp, opts);
+	else if (opts.selectors && directive === 'select') this.selectTrack(ev, mp, opts);
+	else if (opts.inputs && directive === 'input') this.inputTrack(ev, mp, opts);
+	//this should always be last as it is the most general form of tracking
+	else if (opts.clicks && directive === 'all') this.clickTrack(ev, mp, opts);
+}
+
+/*
+-------
+HELPERS
+-------
+*/
 
 export function findMostSpecificRecursive(node) {
 	let numChildren = node.childElementCount;
@@ -669,16 +776,33 @@ export function findMostSpecificRecursive(node) {
 		let nextNode = node.firstElementChild;
 		if (!nextNode) nextNode = node.nextElementSibling;
 		if (!nextNode) nextNode = node.priorElementSibling;
-		if (!nextNode) return node
+		if (!nextNode) return node;
 		else {
-			return findMostSpecificRecursive(nextNode)
-		}		
+			return findMostSpecificRecursive(nextNode);
+		}
 	}
 
 	else {
 		return node;
 	}
 }
+
+export function getAllParents(elem) {
+
+	// Set up a parent array
+	var parents = [];
+
+	// Push each parent element to the array
+	for (; elem && elem !== document.body; elem = elem.parentNode) {
+		parents.push(elem);
+	}
+
+	// Return our parent array
+	return parents;
+
+};
+
+
 
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];

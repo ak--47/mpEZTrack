@@ -38,6 +38,7 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	[`${label} → height`]: el.offsetHeight,
 	[`${label} → width`]: el.offsetWidth,
 	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
+	[`${label} → child`]: squish(el.innerHTML),
 	...enumNodeProps(el, label),
 	...conditionalFields(el, label)
 
@@ -49,8 +50,7 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (el) => ({
 	"LINK → text": squish(el.textContent),
-	"LINK → target": el.target,
-	"LINK → child": squish(el.innerHTML)
+	"LINK → target": el.target
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
 });
@@ -58,8 +58,7 @@ export const LINK_FIELDS = (el) => ({
 
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
 export const BUTTON_FIELDS = (el) => ({
-	"BUTTON → text": squish(el.textContent),
-	"BUTTON → child": squish(el.innerHTML)
+	"BUTTON → text": squish(el.textContent)
 
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
