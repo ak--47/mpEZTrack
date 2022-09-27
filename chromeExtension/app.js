@@ -78,6 +78,7 @@ const app = {
 				chrome.storage.local.get(['lastToken'], (result) => {
 					if (result.lastToken) {
 						this.dom.lastToken.textContent = result.lastToken;
+						this.dom.tokenEntered.value = result.lastToken;
 						this.reset(result.lastToken);
 					}
 

@@ -1,6 +1,7 @@
 import mixpanel from 'mixpanel-browser';
 import { querySelectorAllDeep } from 'query-selector-shadow-dom';
 import {
+	BLACKLIST_ELEMENTS,
 	SUPER_PROPS, STANDARD_FIELDS,
 	LINK_SELECTORS, LINK_FIELDS,
 	BUTTON_SELECTORS, BUTTON_FIELDS,
@@ -394,8 +395,9 @@ export function listenForAllClicks(mp, opts) {
 			.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
 			.filter(node => !this.domElementsTracked.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
 			.filter(node => node.tagName !== 'LABEL') //not a label
-			.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true)
+			.filter(node => (!node.matches(BLACKLIST_ELEMENTS))) //isn't classified as sensitive
 	);
+
 
 	for (const thing of allThings) {
 		this.domElementsTracked.push(thing);
@@ -778,6 +780,12 @@ HELPERS
 
 export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
+	
+	// no sensitive fields
+	if (elem.matches(BLACKLIST_ELEMENTS)) {
+		return false;
+	}
+
 	if (elem.matches(BUTTON_SELECTORS)) {
 		this.spaPipe('button', ev, mp, opts);
 		return true;
@@ -814,7 +822,7 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 			return node.matches(matchSelector);
 		});
 
-		return matched.some(v => v);
+		return matched.some(bool => bool);
 
 	});
 

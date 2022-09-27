@@ -4026,6 +4026,7 @@
     "DEVICE \u2192 is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
     "$source": "mpEZTrack"
   };
+  var BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes]`;
   var LISTENER_OPTIONS = {
     "passive": true
   };
@@ -4062,14 +4063,20 @@
   });
   var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
   var INPUT_FIELDS = (el) => ({
-    "CONTENT \u2192 user content": el.value,
+    "CONTENT \u2192 user content": isSensitiveData(el.value) ? "******" : el.value,
     "CONTENT \u2192 labels": [...el.labels].map((label) => squish(label.textContent))
   });
   var ALL_SELECTOR = String.raw`*:not(script):not(title):not(meta):not(link):not([type="password"])`;
-  var ANY_TAG_FIELDS = (el, guard = false) => ({
-    "ELEM \u2192 text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
-    "ELEM \u2192 is editable?": el.isContentEditable
-  });
+  var ANY_TAG_FIELDS = (el, guard = false) => {
+    const fields = {
+      "ELEM \u2192 text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
+      "ELEM \u2192 is editable?": el.isContentEditable
+    };
+    if (isSensitiveData(fields["ELEM \u2192 text"])) {
+      fields["ELEM \u2192 text"] = "******";
+    }
+    return fields;
+  };
   var YOUTUBE_SELECTOR = String.raw`iframe`;
   function enumNodeProps(el, label = "ELEM") {
     const result = {};
@@ -4132,7 +4139,17 @@
         findLabelRecursively(el);
       }
     }
+    if (typeof el.checked === "boolean") {
+      results[`${label} \u2192 checked`] = el.checked;
+    }
     return results;
+  }
+  function isSensitiveData(text) {
+    const sensitiveTests = [isCreditCardNo, isSSN];
+    const tests = sensitiveTests.map((testFn) => {
+      return testFn(text);
+    });
+    return tests.some((bool) => bool);
   }
   function escape(text) {
     return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
@@ -4168,6 +4185,29 @@
       return params;
     } catch (e) {
       return {};
+    }
+  }
+  function isCreditCardNo(cardNo = "") {
+    var s = 0;
+    var doubleDigit = false;
+    for (var i = cardNo.length - 1; i >= 0; i--) {
+      var digit = +cardNo[i];
+      if (doubleDigit) {
+        digit *= 2;
+        if (digit > 9)
+          digit -= 9;
+      }
+      s += digit;
+      doubleDigit = !doubleDigit;
+    }
+    return s % 10 == 0;
+  }
+  function isSSN(ssn = "") {
+    var regexp = /^(?!000|666)[0-8][0-9]{2}-(?!00)[0-9]{2}-(?!0000)[0-9]{4}$/;
+    if (regexp.test(ssn)) {
+      return true;
+    } else {
+      return false;
     }
   }
 
@@ -4459,7 +4499,7 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function listenForAllClicks(mp, opts) {
     let allThings = uniqueNodes(
-      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true)
+      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => !node.matches(BLACKLIST_ELEMENTS))
     );
     for (const thing of allThings) {
       this.domElementsTracked.push(thing);
@@ -4760,6 +4800,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function figureOutWhatWasClicked(elem, ev, mp, opts) {
+    if (elem.matches(BLACKLIST_ELEMENTS)) {
+      return false;
+    }
     if (elem.matches(BUTTON_SELECTORS)) {
       this.spaPipe("button", ev, mp, opts);
       return true;
@@ -4787,7 +4830,7 @@ https://developer.mixpanel.com/reference/project-token`);
       let matched = possibleMatches.map((matchSelector) => {
         return node.matches(matchSelector);
       });
-      return matched.some((v) => v);
+      return matched.some((bool) => bool);
     });
     if (matchingParents.length > 0) {
       figureOutWhatWasClicked.call(ezTrack, matchingParents[0], ev, mp, opts);
