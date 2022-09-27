@@ -4177,31 +4177,34 @@
     loadTimeUTC: Date.now(),
     numActions: 0,
     isFirstVisit: true,
+    token: "",
     priorVisit: firstVisitChecker,
     debug: () => {
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
     domElementsTracked: [],
+    superProps: {},
     host: document.location.host,
     bind: bindTrackers,
     query: querySelectorAllDeep,
+    getProps: getSuperProperties,
     spa: singlePageAppTracking,
     spaPipe: spaPipeline,
-    pageView: trackPageViews,
-    pageExit: trackPageExits,
     buttons: listenForButtonClicks,
-    buttonTrack: trackButtonClick,
     links: listenForLinkClicks,
-    linkTrack: trackLinkClick,
     forms: listenForFormSubmits,
-    formTrack: trackFormSubmit,
     selectors: listenForDropDownChanges,
-    selectTrack: trackDropDownChange,
     inputs: listenForUserInput,
-    inputTrack: trackInputChange,
     clicks: listenForAllClicks,
+    buttonTrack: trackButtonClick,
+    linkTrack: trackLinkClick,
+    formTrack: trackFormSubmit,
+    selectTrack: trackDropDownChange,
+    inputTrack: trackInputChange,
     clickTrack: trackAnyClick,
     youtube: trackYoutubeVideos,
+    pageView: trackPageViews,
+    pageExit: trackPageExits,
     window: trackWindowStuff,
     error: trackErrors,
     clipboard: trackClipboard,
@@ -4219,6 +4222,7 @@ double check your mixpanel project token and try again!
 https://developer.mixpanel.com/reference/project-token`);
       throw new Error(`BAD TOKEN! TRY AGAIN`);
     }
+    this.token = token;
     const defaultOpts = this.defaultOpts();
     const opts = { ...defaultOpts, ...userSuppliedOptions };
     if (forceTrue) {
@@ -4245,10 +4249,17 @@ https://developer.mixpanel.com/reference/project-token`);
         ignore_dnt: true,
         batch_flush_interval_ms: opts.refresh,
         loaded: (mp) => {
-          if (opts.superProps)
-            mp.register(SUPER_PROPS, { persistent: false });
-          if (opts.firstPage)
-            mp.register(this.priorVisit(token, opts), { persistent: false });
+          try {
+            const superProps = this.getProps(token, opts);
+            if (opts.debug)
+              this.superProps = superProps;
+            mp.register(superProps, { persistent: false });
+          } catch (e) {
+            if (opts.debug) {
+              console.error("mpEZTrack failed to setup super properties!");
+              console.log(e);
+            }
+          }
           try {
             this.bind(mp, opts);
           } catch (e) {
@@ -4290,6 +4301,14 @@ https://developer.mixpanel.com/reference/project-token`);
       logProps: false,
       spa: false
     };
+  }
+  function getSuperProperties(token = this.token, opts = this.opts) {
+    let result = {};
+    if (opts.superProps)
+      result = { ...SUPER_PROPS, ...result };
+    if (opts.firstPage)
+      result = { ...this.priorVisit(token, opts), ...result };
+    return result;
   }
   function bindTrackers(mp, opts) {
     try {
@@ -4337,19 +4356,24 @@ https://developer.mixpanel.com/reference/project-token`);
       "PAGE \u2192 scroll (%)": Number(scrollPercent.toFixed(2))
     };
   }
-  function firstVisitChecker(token, opts = { firstPage: false }) {
+  function firstVisitChecker(token = this.token, opts = this.opts, timeoutMins = 30) {
     if (opts.firstPage) {
       try {
-        const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
-        if (isFirstVisit === null) {
-          localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
-          this.isFirstVisit = false;
-          return { "SESSION \u2192 is first page?": true };
+        const firstVisitTime = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
+        const timeout = 6e4 * timeoutMins;
+        if (firstVisitTime === null) {
+          localStorage.setItem(`MPEZTrack_First_Page_${token}`, this.loadTimeUTC);
+          return { "DEVICE \u2192 first visit?": true };
+        } else if (this.loadTimeUTC - firstVisitTime <= timeout) {
+          return { "DEVICE \u2192 first visit?": true };
         } else {
-          return { "SESSION \u2192 is first page?": false };
+          this.isFirstVisit = false;
+          return { "DEVICE \u2192 first visit?": false };
         }
       } catch (e) {
-        return { "SESSION \u2192 is first page?": false };
+        if (opts.debug)
+          console.log(e);
+        return { "DEVICE \u2192 first visit?": "unknown" };
       }
     } else {
       return {};
@@ -4377,17 +4401,6 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackButtonClick(ev, mp, opts) {
-    const props = {
-      ...STANDARD_FIELDS(ev.target, "BUTTON"),
-      ...BUTTON_FIELDS(ev.target),
-      ...statefulProps()
-    };
-    mp.track("button click", props);
-    if (opts.logProps)
-      console.log("BUTTON CLICK");
-    console.log(JSON.stringify(props, null, 2));
-  }
   function listenForLinkClicks(mp, opts) {
     const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const link of links) {
@@ -4402,10 +4415,100 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
-  function trackLinkClick(ev, mp, opts) {
+  function listenForFormSubmits(mp, opts) {
+    const forms = uniqueNodes(this.query(FORM_SELECTORS));
+    for (const form of forms) {
+      this.domElementsTracked.push(form);
+      form.addEventListener("submit", (ev) => {
+        try {
+          this.formTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
+  function listenForDropDownChanges(mp, opts) {
+    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
+    for (const dropdown of allDropdowns) {
+      this.domElementsTracked.push(dropdown);
+      dropdown.addEventListener("change", (ev) => {
+        try {
+          this.selectTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
+  function listenForUserInput(mp, opts) {
+    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
+    for (const input of inputElements) {
+      this.domElementsTracked.push(input);
+      input.addEventListener("change", (ev) => {
+        try {
+          this.inputTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
+  function listenForAllClicks(mp, opts) {
+    let allThings = uniqueNodes(
+      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true)
+    );
+    for (const thing of allThings) {
+      this.domElementsTracked.push(thing);
+      thing.addEventListener("click", (ev) => {
+        try {
+          this.clickTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
+  function singlePageAppTracking(mp, opts) {
+    window.addEventListener("click", (ev) => {
+      figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
+    }, LISTENER_OPTIONS);
+  }
+  function spaPipeline(directive = "none", ev, mp, opts) {
+    if (opts.buttons && directive === "button")
+      this.buttonTrack(ev, mp, opts);
+    else if (opts.links && directive === "link")
+      this.linkTrack(ev, mp, opts);
+    else if (opts.forms && directive === "form")
+      this.formTrack(ev, mp, opts);
+    else if (opts.selectors && directive === "select")
+      this.selectTrack(ev, mp, opts);
+    else if (opts.inputs && directive === "input")
+      this.inputTrack(ev, mp, opts);
+    else if (opts.clicks && directive === "all")
+      this.clickTrack(ev, mp, opts);
+  }
+  function trackButtonClick(evOrEl, mp, opts) {
+    const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(ev.target, "LINK"),
-      ...LINK_FIELDS(ev.target),
+      ...STANDARD_FIELDS(src, "BUTTON"),
+      ...BUTTON_FIELDS(src),
+      ...statefulProps()
+    };
+    mp.track("button click", props);
+    if (opts.logProps)
+      console.log("BUTTON CLICK");
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function trackLinkClick(evOrEl, mp, opts) {
+    const src = evOrEl.target || evOrEl;
+    const props = {
+      ...STANDARD_FIELDS(src, "LINK"),
+      ...LINK_FIELDS(src),
       ...statefulProps()
     };
     let type;
@@ -4429,24 +4532,11 @@ https://developer.mixpanel.com/reference/project-token`);
       console.log(`${type} CLICK`);
     console.log(JSON.stringify(props, null, 2));
   }
-  function listenForFormSubmits(mp, opts) {
-    const forms = uniqueNodes(this.query(FORM_SELECTORS));
-    for (const form of forms) {
-      this.domElementsTracked.push(form);
-      form.addEventListener("submit", (ev) => {
-        try {
-          this.formTrack(ev, mp, opts);
-        } catch (e) {
-          if (opts.debug)
-            console.log(e);
-        }
-      }, LISTENER_OPTIONS);
-    }
-  }
-  function trackFormSubmit(ev, mp, opts) {
+  function trackFormSubmit(evOrEl, mp, opts) {
+    const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(ev.target, "FORM"),
-      ...FORM_FIELDS(ev.target),
+      ...STANDARD_FIELDS(src, "FORM"),
+      ...FORM_FIELDS(src),
       ...statefulProps()
     };
     mp.track("form submit", props);
@@ -4454,24 +4544,11 @@ https://developer.mixpanel.com/reference/project-token`);
       console.log("FORM SUBMIT");
     console.log(JSON.stringify(props, null, 2));
   }
-  function listenForDropDownChanges(mp, opts) {
-    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
-    for (const dropdown of allDropdowns) {
-      this.domElementsTracked.push(dropdown);
-      dropdown.addEventListener("change", (ev) => {
-        try {
-          this.selectTrack(ev, mp, opts);
-        } catch (e) {
-          if (opts.debug)
-            console.log(e);
-        }
-      }, LISTENER_OPTIONS);
-    }
-  }
-  function trackDropDownChange(ev, mp, opts) {
+  function trackDropDownChange(evOrEl, mp, opts) {
+    const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(ev.target, "OPTION"),
-      ...DROPDOWN_FIELDS(ev.target),
+      ...STANDARD_FIELDS(src, "OPTION"),
+      ...DROPDOWN_FIELDS(src),
       ...statefulProps()
     };
     mp.track("user selection", props);
@@ -4479,24 +4556,11 @@ https://developer.mixpanel.com/reference/project-token`);
       console.log("USER SELECTION");
     console.log(JSON.stringify(props, null, 2));
   }
-  function listenForUserInput(mp, opts) {
-    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
-    for (const input of inputElements) {
-      this.domElementsTracked.push(input);
-      input.addEventListener("change", (ev) => {
-        try {
-          this.inputTrack(ev, mp, opts);
-        } catch (e) {
-          if (opts.debug)
-            console.log(e);
-        }
-      }, LISTENER_OPTIONS);
-    }
-  }
-  function trackInputChange(ev, mp, opts) {
+  function trackInputChange(evOrEl, mp, opts) {
+    const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(ev.target, "CONTENT"),
-      ...INPUT_FIELDS(ev.target),
+      ...STANDARD_FIELDS(src, "CONTENT"),
+      ...INPUT_FIELDS(src),
       ...statefulProps()
     };
     mp.track("user entered text", props);
@@ -4504,111 +4568,17 @@ https://developer.mixpanel.com/reference/project-token`);
       console.log("USER ENTERED CONTENT");
     console.log(JSON.stringify(props, null, 2));
   }
-  function listenForAllClicks(mp, opts) {
-    let allThings = uniqueNodes(
-      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => node.tagName === "INPUT" ? node.type === "password" || node.type === "hidden" ? false : true : true)
-    );
-    for (const thing of allThings) {
-      this.domElementsTracked.push(thing);
-      thing.addEventListener("click", (ev) => {
-        try {
-          this.clickTrack(ev, mp, opts);
-        } catch (e) {
-          if (opts.debug)
-            console.log(e);
-        }
-      }, LISTENER_OPTIONS);
-    }
-  }
-  function trackAnyClick(ev, mp, opts) {
+  function trackAnyClick(evOrEl, mp, opts) {
+    const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(ev.target),
-      ...ANY_TAG_FIELDS(ev.target),
+      ...STANDARD_FIELDS(src),
+      ...ANY_TAG_FIELDS(src),
       ...statefulProps()
     };
     mp.track("page click", props);
     if (opts.logProps)
       console.log("PAGE CLICK");
     console.log(JSON.stringify(props, null, 2));
-  }
-  function trackYoutubeVideos(mp, opts) {
-    const tag = document.createElement("script");
-    tag.id = "mixpanel-iframe-tracker";
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName("script")[0] || document.getElementsByTagName("body")[0].children[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter((frame) => frame.src.includes("youtube.com/embed"));
-    for (video of videos) {
-      this.domElementsTracked.push(video);
-      if (!video.id) {
-        video.id = new URL(video.src).pathname.replace("/embed/", "");
-      }
-      if (!video.src.includes("enablejsapi")) {
-        const newSRC = new URL(video.src);
-        newSRC.searchParams.delete("enablejsapi");
-        newSRC.searchParams.append("enablejsapi", 1);
-        video.src = newSRC.toString();
-      }
-    }
-    window.onYouTubeIframeAPIReady = function() {
-      const videos2 = ezTrack.query(YOUTUBE_SELECTOR).filter((frame) => frame.src.includes("youtube.com/embed"));
-      for (const video2 of videos2) {
-        bindTrackingToVideo(video2.id);
-      }
-    };
-    function bindTrackingToVideo(videoId) {
-      const player = new YT.Player(videoId, {
-        events: {
-          "onReady": onPlayerReady,
-          "onStateChange": onPlayerStateChange
-        }
-      });
-    }
-    function getVideoInfo(player) {
-      const videoInfo = player.getVideoData();
-      const videoProps = {
-        "VIDEO \u2192 quality": player.getPlaybackQuality(),
-        "VIDEO \u2192 length (sec)": player.getDuration(),
-        "VIDEO \u2192 ellapsed (sec)": player.getCurrentTime(),
-        "VIDEO \u2192 url": player.getVideoUrl(),
-        "VIDEO \u2192 title": videoInfo.title,
-        "VIDEO \u2192 id": videoInfo.video_id,
-        "VIDEO \u2192 author": videoInfo.author,
-        "VIDEO \u2192 fullscreen": !(document.fullscreenElement === null)
-      };
-      return videoProps;
-    }
-    function onPlayerReady(event) {
-      const videoInfo = getVideoInfo(event.target);
-      mp.track("youtube player load", videoInfo);
-      mp.time_event("youtube video started");
-    }
-    function onPlayerStateChange(event) {
-      trackPlayerChanges(event.data, event.target);
-    }
-    function trackPlayerChanges(playerStatus, player) {
-      const videoInfo = getVideoInfo(player);
-      switch (playerStatus) {
-        case -1:
-          break;
-        case 0:
-          mp.track("youtube video finish", { ...videoInfo, ...statefulProps() });
-          break;
-        case 1:
-          mp.track("youtube video play", { ...videoInfo, ...statefulProps() });
-          mp.time_event("youtube video finish");
-          break;
-        case 2:
-          mp.track("youtube video pause", { ...videoInfo, ...statefulProps() });
-          break;
-        case 3:
-          break;
-        case 5:
-          break;
-        default:
-          break;
-      }
-    }
   }
   function trackWindowStuff(mp, opts) {
     window.addEventListener("resize", (resizeEv) => {
@@ -4710,58 +4680,129 @@ https://developer.mixpanel.com/reference/project-token`);
         console.log(e);
     }
   }
-  function singlePageAppTracking(mp, opts) {
-    window.addEventListener("click", (ev) => {
-      figureOutWhatWasClicked.call(ezTrack, ev, mp, opts);
-    }, LISTENER_OPTIONS);
+  function trackYoutubeVideos(mp, opts) {
+    const tag = document.createElement("script");
+    tag.id = "mixpanel-iframe-tracker";
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName("script")[0] || document.getElementsByTagName("body")[0].children[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter((frame) => frame.src.includes("youtube.com/embed"));
+    for (video of videos) {
+      this.domElementsTracked.push(video);
+      if (!video.id) {
+        video.id = new URL(video.src).pathname.replace("/embed/", "");
+      }
+      if (!video.src.includes("enablejsapi")) {
+        const newSRC = new URL(video.src);
+        newSRC.searchParams.delete("enablejsapi");
+        newSRC.searchParams.append("enablejsapi", 1);
+        video.src = newSRC.toString();
+      }
+    }
+    window.onYouTubeIframeAPIReady = function() {
+      const videos2 = ezTrack.query(YOUTUBE_SELECTOR).filter((frame) => frame.src.includes("youtube.com/embed"));
+      for (const video2 of videos2) {
+        bindTrackingToVideo(video2.id);
+      }
+    };
+    function bindTrackingToVideo(videoId) {
+      const player = new YT.Player(videoId, {
+        events: {
+          "onReady": onPlayerReady,
+          "onStateChange": onPlayerStateChange
+        }
+      });
+    }
+    function getVideoInfo(player) {
+      const videoInfo = player.getVideoData();
+      const videoProps = {
+        "VIDEO \u2192 quality": player.getPlaybackQuality(),
+        "VIDEO \u2192 length (sec)": player.getDuration(),
+        "VIDEO \u2192 ellapsed (sec)": player.getCurrentTime(),
+        "VIDEO \u2192 url": player.getVideoUrl(),
+        "VIDEO \u2192 title": videoInfo.title,
+        "VIDEO \u2192 id": videoInfo.video_id,
+        "VIDEO \u2192 author": videoInfo.author,
+        "VIDEO \u2192 fullscreen": !(document.fullscreenElement === null)
+      };
+      return videoProps;
+    }
+    function onPlayerReady(event) {
+      const videoInfo = getVideoInfo(event.target);
+      mp.track("youtube player load", videoInfo);
+      mp.time_event("youtube video started");
+    }
+    function onPlayerStateChange(event) {
+      trackPlayerChanges(event.data, event.target);
+    }
+    function trackPlayerChanges(playerStatus, player) {
+      const videoInfo = getVideoInfo(player);
+      switch (playerStatus) {
+        case -1:
+          break;
+        case 0:
+          mp.track("youtube video finish", { ...videoInfo, ...statefulProps() });
+          break;
+        case 1:
+          mp.track("youtube video play", { ...videoInfo, ...statefulProps() });
+          mp.time_event("youtube video finish");
+          break;
+        case 2:
+          mp.track("youtube video pause", { ...videoInfo, ...statefulProps() });
+          break;
+        case 3:
+          break;
+        case 5:
+          break;
+        default:
+          break;
+      }
+    }
   }
-  function figureOutWhatWasClicked(ev, mp, opts) {
-    if (ev.target.matches(BUTTON_SELECTORS)) {
+  function figureOutWhatWasClicked(elem, ev, mp, opts) {
+    if (elem.matches(BUTTON_SELECTORS)) {
       this.spaPipe("button", ev, mp, opts);
       return true;
-    } else if (ev.target.matches(LINK_SELECTORS)) {
+    } else if (elem.matches(LINK_SELECTORS)) {
       this.spaPipe("link", ev, mp, opts);
       return true;
-    } else if (ev.target.matches(FORM_SELECTORS)) {
-      ev.target.addEventListener("submit", (submitEvent) => {
+    } else if (elem.matches(FORM_SELECTORS)) {
+      elem.addEventListener("submit", (submitEvent) => {
         this.spaPipe("form", submitEvent, mp, opts);
       }, { once: true, ...LISTENER_OPTIONS });
       return true;
-    } else if (ev.target.matches(DROPDOWN_SELECTOR)) {
-      ev.target.addEventListener("change", (changeEvent) => {
+    } else if (elem.matches(DROPDOWN_SELECTOR)) {
+      elem.addEventListener("change", (changeEvent) => {
         this.spaPipe("select", changeEvent, mp, opts);
       }, { once: true, ...LISTENER_OPTIONS });
       return true;
-    } else if (ev.target.matches(INPUT_SELECTOR)) {
-      ev.target.addEventListener("change", (changeEvent) => {
+    } else if (elem.matches(INPUT_SELECTOR)) {
+      elem.addEventListener("change", (changeEvent) => {
         this.spaPipe("input", changeEvent, mp, opts);
       }, { once: true, ...LISTENER_OPTIONS });
       return true;
     }
-    let mostSpecificNode = findMostSpecificRecursive(ev.target);
-    if (ev.target.matches(ALL_SELECTOR) && mostSpecificNode === ev.target) {
+    const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
+    const matchingParents = getAllParents(elem).filter((node) => {
+      let matched = possibleMatches.map((matchSelector) => {
+        return node.matches(matchSelector);
+      });
+      return matched.some((v) => v);
+    });
+    if (matchingParents.length > 0) {
+      figureOutWhatWasClicked.call(ezTrack, matchingParents[0], ev, mp, opts);
+      return true;
+    }
+    const mostSpecificNode = findMostSpecificRecursive(elem);
+    if (elem.matches(ALL_SELECTOR) && mostSpecificNode === elem) {
       this.spaPipe("all", ev, mp, opts);
       return true;
     } else {
       return false;
     }
   }
-  function spaPipeline(directive = "none", ev, mp, opts) {
-    if (opts.buttons && directive === "button")
-      this.buttonTrack(ev, mp, opts);
-    else if (opts.links && directive === "link")
-      this.linkTrack(ev, mp, opts);
-    else if (opts.forms && directive === "form")
-      this.formTrack(ev, mp, opts);
-    else if (opts.selectors && directive === "select")
-      this.selectTrack(ev, mp, opts);
-    else if (opts.inputs && directive === "input")
-      this.inputTrack(ev, mp, opts);
-    else if (opts.clicks && directive === "all")
-      this.clickTrack(ev, mp, opts);
-  }
   function findMostSpecificRecursive(node) {
-    let numChildren = node.childElementCount;
+    const numChildren = node.childElementCount;
     if (numChildren !== 0) {
       let nextNode = node.firstElementChild;
       if (!nextNode)
