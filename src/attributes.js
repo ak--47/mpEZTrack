@@ -26,6 +26,7 @@ export const SUPER_PROPS = {
 	"$source": "mpEZTrack"
 };
 
+export const BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes]`;
 
 export const LISTENER_OPTIONS = {
 	"passive": true
@@ -38,6 +39,7 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	[`${label} → height`]: el.offsetHeight,
 	[`${label} → width`]: el.offsetWidth,
 	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
+	[`${label} → child`]: squish(el.innerHTML),
 	...enumNodeProps(el, label),
 	...conditionalFields(el, label)
 
@@ -49,8 +51,7 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (el) => ({
 	"LINK → text": squish(el.textContent),
-	"LINK → target": el.target,
-	"LINK → child": el.innerHTML //QQ this is also sus
+	"LINK → target": el.target
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
 });
@@ -59,6 +60,7 @@ export const LINK_FIELDS = (el) => ({
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
 export const BUTTON_FIELDS = (el) => ({
 	"BUTTON → text": squish(el.textContent)
+
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
 });
@@ -78,7 +80,7 @@ export const FORM_FIELDS = (el) => ({
 export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
 export const DROPDOWN_FIELDS = (el) => ({
 	"OPTION → selected": el.value,
-	"OPTION → choices": el.innerText.split('\n'), //QQ suss ... but .textContent looks weird...
+	"OPTION → choices": el.innerText.split('\n'),
 	"OPTION → labels": [...el.labels].map(label => label.textContent?.trim())
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
@@ -88,19 +90,27 @@ export const DROPDOWN_FIELDS = (el) => ({
 
 export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
 export const INPUT_FIELDS = (el) => ({
-	"CONTENT → user content": el.value,
+	"CONTENT → user content": isSensitiveData(el.value) ? "******" : el.value,
 	"CONTENT → labels": [...el.labels].map(label => squish(label.textContent))
 
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input
 });
 
-// 🚨 guard against password fields 🚨
+// 🚨 guard against sensitive fields 🚨
 export const ALL_SELECTOR = String.raw`*:not(script):not(title):not(meta):not(link):not([type="password"])`;
-export const ANY_TAG_FIELDS = (el, guard = false) => ({
-	"ELEM → text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
-	"ELEM → is editable?": el.isContentEditable
-});
+export const ANY_TAG_FIELDS = (el, guard = false) => {
+	const fields = {
+		"ELEM → text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
+		"ELEM → is editable?": el.isContentEditable
+	};
+
+	if (isSensitiveData(fields["ELEM → text"])) {
+		fields["ELEM → text"] = "******";
+	}
+
+	return fields;
+};
 
 export const YOUTUBE_SELECTOR = String.raw`iframe`;
 
@@ -122,7 +132,7 @@ export function enumNodeProps(el, label = "ELEM") {
 		'data-': 'DATA → ',
 		'src': 'source',
 		'alt': 'desc',
-		'class': 'class (full)'
+		'class': 'class (delete)'
 	};
 
 	loopAttributes: for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
@@ -137,6 +147,8 @@ export function enumNodeProps(el, label = "ELEM") {
 		result[keyName] = val;
 
 	}
+	//classes are tracked elsewhere
+	delete result[`${label} → class (delete)`];
 
 	return result;
 }
@@ -191,6 +203,11 @@ export function conditionalFields(el, label = "ELEM") {
 
 	}
 
+	// CHECKBOXES
+	if (typeof el.checked === 'boolean') {
+		results[`${label} → checked`] = el.checked;
+	}
+
 
 	return results;
 };
@@ -200,6 +217,15 @@ export function conditionalFields(el, label = "ELEM") {
 HELPERS
 -------
 */
+
+export function isSensitiveData(text) {
+	const sensitiveTests = [isCreditCardNo, isSSN];
+	const tests = sensitiveTests.map((testFn) => {
+		return testFn(text);
+	});
+
+	return tests.some(bool => bool);
+}
 
 export function escape(text) {
 	return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
@@ -248,6 +274,35 @@ export function qsToObj(queryString) {
 
 	catch (e) {
 		return {};
+	}
+}
+
+// https://stackoverflow.com/a/30727110
+export function isCreditCardNo(cardNo = "") {
+	var s = 0;
+	var doubleDigit = false;
+	for (var i = cardNo.length - 1; i >= 0; i--) {
+		var digit = +cardNo[i];
+		if (doubleDigit) {
+			digit *= 2;
+			if (digit > 9)
+				digit -= 9;
+		}
+		s += digit;
+		doubleDigit = !doubleDigit;
+	}
+	return s % 10 == 0;
+}
+
+// https://www.w3resource.com/javascript-exercises/javascript-regexp-exercise-15.php
+export function isSSN(ssn = "") {
+	var regexp = /^(?!000|666)[0-8][0-9]{2}-(?!00)[0-9]{2}-(?!0000)[0-9]{4}$/;
+
+	if (regexp.test(ssn)) {
+		return true;
+	}
+	else {
+		return false;
 	}
 }
 

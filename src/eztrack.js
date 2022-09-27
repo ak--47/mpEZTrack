@@ -1,6 +1,7 @@
 import mixpanel from 'mixpanel-browser';
 import { querySelectorAllDeep } from 'query-selector-shadow-dom';
 import {
+	BLACKLIST_ELEMENTS,
 	SUPER_PROPS, STANDARD_FIELDS,
 	LINK_SELECTORS, LINK_FIELDS,
 	BUTTON_SELECTORS, BUTTON_FIELDS,
@@ -16,39 +17,54 @@ export const ezTrack = {
 	// entry
 	init: entryPoint,
 
-
-	// stateful props
+	// stateful stuff
 	loadTimeUTC: Date.now(),
 	numActions: 0,
 	isFirstVisit: true,
+	token: "",
 	priorVisit: firstVisitChecker,
 	debug: () => { mixpanel.ez.set_config({ debug: true }); },
 
 	// dom stuff
 	domElementsTracked: [],
+	superProps: {},
 	host: document.location.host,
 	bind: bindTrackers,
-	query: querySelectorAllDeep, //this guy can pierce the shadow dom	
-	spa: beSpaAware, // TODO
+	query: querySelectorAllDeep, //this guy can pierce the shadow dom		
+	getProps: getSuperProperties,
 
-	//elements + tracking
-	pageView: trackPageViews,
-	pageExit: trackPageExits,
-	buttons: trackButtonClicks,
-	links: trackLinkClicks,
-	forms: trackFormSubmits,
-	selectors: trackDropDowns,
-	inputs: trackUserInput,
-	clicks: trackClicks,
+	// spa stuff
+	spa: singlePageAppTracking,
+	spaPipe: spaPipeline,
+
+	// dom query stuff
+	buttons: listenForButtonClicks,
+	links: listenForLinkClicks,
+	forms: listenForFormSubmits,
+	selectors: listenForDropDownChanges,
+	inputs: listenForUserInput,
+	clicks: listenForAllClicks,
+
+	// tracking stuff
+	buttonTrack: trackButtonClick,
+	linkTrack: trackLinkClick,
+	formTrack: trackFormSubmit,
+	selectTrack: trackDropDownChange,
+	inputTrack: trackInputChange,
+	clickTrack: trackAnyClick,
+
+	// video stuff
 	youtube: trackYoutubeVideos,
 
-	// meta
+	// window stuff
+	pageView: trackPageViews,
+	pageExit: trackPageExits,
 	window: trackWindowStuff,
 	error: trackErrors,
 	clipboard: trackClipboard,
 	profiles: createUserProfiles,
 
-	// DEFAULTS!
+	// default stuff
 	defaultOpts: getDefaultOptions
 };
 
@@ -64,17 +80,23 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 		console.error(`EZTrack: Bad Token!\n\ngot: "${token}"\nexpected 32 char string\n\ndouble check your mixpanel project token and try again!\nhttps://developer.mixpanel.com/reference/project-token`);
 		throw new Error(`BAD TOKEN! TRY AGAIN`);
 	}
+	this.token = token;
 
 	// gather options
 	const defaultOpts = this.defaultOpts();
 	const opts = { ...defaultOpts, ...userSuppliedOptions };
+
+	// overloading init()
 	if (forceTrue) {
 		for (let key in opts) {
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
+		opts.spa = false;
 		if (forceTrue === "nodebug") opts.debug = false;
+		if (forceTrue === "spa") opts.spa = true;
 	}
+
 	this.opts = Object.freeze(opts);
 
 	// do mixpanel
@@ -88,8 +110,18 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
 			loaded: (mp) => {
-				if (opts.superProps) mp.register(SUPER_PROPS, { persistent: false });
-				if (opts.firstPage) mp.register(this.priorVisit(token, opts), { persistent: false });
+				//props on every event
+				try {
+					const superProps = this.getProps(token, opts);
+					if (opts.debug) this.superProps = superProps;
+					mp.register(superProps, { persistent: false });
+				}
+				catch (e) {
+					if (opts.debug) {
+						console.error('mpEZTrack failed to setup super properties!');
+						console.log(e);
+					}
+				}
 
 				try {
 					this.bind(mp, opts);
@@ -143,29 +175,44 @@ export function getDefaultOptions() {
 		logProps: false,
 
 		//wips
-		spa: 'none'
+		spa: false
 
 	};
 }
 
+export function getSuperProperties(token = this.token, opts = this.opts) {
+	let result = {};
+	if (opts.superProps) result = { ...SUPER_PROPS, ...result };
+	if (opts.firstPage) result = { ...this.priorVisit(token, opts), ...result };
+	return result;
+
+}
+
 export function bindTrackers(mp, opts) {
 	try {
+		//these options work on all pages
 		if (opts.pageView) this.pageView(mp, opts);
 		if (opts.pageExit) this.pageExit(mp, opts);
-		if (opts.buttons) this.buttons(mp, opts);
-		if (opts.forms) this.forms(mp, opts);
-		if (opts.selectors) this.selectors(mp, opts);
-		if (opts.inputs) this.inputs(mp, opts);
-		if (opts.links) this.links(mp, opts);
-		if (opts.profiles) this.profiles(mp, opts);
-		if (opts.youtube) this.youtube(mp, opts);
 		if (opts.window) this.window(mp, opts);
 		if (opts.error) this.error(mp, opts);
 		if (opts.clipboard) this.clipboard(mp, opts);
-		if (opts.spa) this.spa(opts.spa, mp, opts);
+		if (opts.profiles) this.profiles(mp, opts);
 
-		//this should always be last as it is the most general form of tracking
-		if (opts.clicks) this.clicks(mp, opts);
+		//SPA mode tracks all clicks and then figure out the elements
+		if (opts.spa) {
+			this.spa(mp, opts);
+		}
+		//Normal mode queries the DOM directly and sets up listeners on page loade
+		else {
+			if (opts.buttons) this.buttons(mp, opts);
+			if (opts.forms) this.forms(mp, opts);
+			if (opts.selectors) this.selectors(mp, opts);
+			if (opts.inputs) this.inputs(mp, opts);
+			if (opts.links) this.links(mp, opts);
+			if (opts.youtube) this.youtube(mp, opts);
+			//this should always be last as it is the most general form of tracking for non spas
+			if (opts.clicks) this.clicks(mp, opts);
+		}
 	}
 	catch (e) {
 		if (opts.debug) console.log(e);
@@ -192,25 +239,32 @@ export function statefulProps() {
 }
 
 //default: off
-export function firstVisitChecker(token, opts = { firstPage: false }) {
+export function firstVisitChecker(token = this.token, opts = this.opts, timeoutMins = 30) {
 	if (opts.firstPage) {
 		try {
-			const isFirstVisit = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
+			const firstVisitTime = localStorage.getItem(`MPEZTrack_First_Visit_${token}`);
+			const timeout = 60000 * timeoutMins;
 
-			if (isFirstVisit === null) {
-				localStorage.setItem(`MPEZTrack_First_Page_${token}`, false);
-				this.isFirstVisit = false; //side-effect, but not relied upon
-				return { "SESSION → is first page?": true };
+			if (firstVisitTime === null) {
+				localStorage.setItem(`MPEZTrack_First_Page_${token}`, this.loadTimeUTC);
+				return { "DEVICE → first visit?": true };
+			}
+
+			// 30 minute timeout
+			else if (this.loadTimeUTC - firstVisitTime <= timeout) {
+				return { "DEVICE → first visit?": true };
 			}
 
 			else {
-				return { "SESSION → is first page?": false };
+				this.isFirstVisit = false;
+				return { "DEVICE → first visit?": false };
 			}
 
 		}
 
 		catch (e) {
-			return { "SESSION → is first page?": false };
+			if (opts.debug) console.log(e);
+			return { "DEVICE → first visit?": "unknown" };
 		}
 	}
 
@@ -239,7 +293,7 @@ export function trackPageExits(mp, opts) {
 }
 
 //default: on
-export function trackButtonClicks(mp, opts) {
+export function listenForButtonClicks(mp, opts) {
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
 		.filter(node => node.tagName !== 'LABEL') //button is not a label
@@ -249,14 +303,7 @@ export function trackButtonClicks(mp, opts) {
 		this.domElementsTracked.push(button);
 		button.addEventListener('click', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "BUTTON"),
-					...BUTTON_FIELDS(ev.target),
-					...statefulProps()
-				};
-
-				mp.track('button click', props);
-				if (opts.logProps) console.log('BUTTON CLICK'); console.log(JSON.stringify(props, null, 2));
+				this.buttonTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -265,8 +312,9 @@ export function trackButtonClicks(mp, opts) {
 	}
 }
 
+
 //default: on
-export function trackLinkClicks(mp, opts) {
+export function listenForLinkClicks(mp, opts) {
 	const links = uniqueNodes(this.query(LINK_SELECTORS))
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
 
@@ -274,36 +322,7 @@ export function trackLinkClicks(mp, opts) {
 		this.domElementsTracked.push(link);
 		link.addEventListener('click', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "LINK"),
-					...LINK_FIELDS(ev.target),
-					...statefulProps()
-				};
-				
-				let type;
-
-				// "links" can also be "navigation"
-				if (props["LINK → href"]?.startsWith('#')) {
-					mp.track('navigation click', props);
-					type = `NAVIGATION`
-				}
-
-				else if (props["LINK → href"]?.includes(this.host)) {
-					mp.track('navigation click', props);
-					type = `NAVIGATION`
-				}
-
-				else if (!props["LINK → href"]) {
-					mp.track('navigation click', props);
-					type = `NAVIGATION`
-				}
-
-				else {
-					mp.track('link click', props);
-					type = `LINK`
-				}
-
-				if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
+				this.linkTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -312,20 +331,15 @@ export function trackLinkClicks(mp, opts) {
 	}
 }
 
+
 //default: on
-export function trackFormSubmits(mp, opts) {
+export function listenForFormSubmits(mp, opts) {
 	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
 		this.domElementsTracked.push(form);
 		form.addEventListener('submit', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "FORM"),
-					...FORM_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('form submit', props);
-				if (opts.logProps) console.log("FORM SUBMIT"); console.log(JSON.stringify(props, null, 2));
+				this.formTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -335,7 +349,7 @@ export function trackFormSubmits(mp, opts) {
 }
 
 //default: on
-export function trackDropDowns(mp, opts) {
+export function listenForDropDownChanges(mp, opts) {
 	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
@@ -344,13 +358,7 @@ export function trackDropDowns(mp, opts) {
 		this.domElementsTracked.push(dropdown);
 		dropdown.addEventListener('change', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "OPTION"),
-					...DROPDOWN_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('user selection', props);
-				if (opts.logProps) console.log('USER SELECTION'); console.log(JSON.stringify(props, null, 2));
+				this.selectTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -360,7 +368,7 @@ export function trackDropDowns(mp, opts) {
 }
 
 //default: off
-export function trackUserInput(mp, opts) {
+export function listenForUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
 		.filter(node => node.tagName !== 'LABEL') //not a label
 		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
@@ -369,13 +377,7 @@ export function trackUserInput(mp, opts) {
 		this.domElementsTracked.push(input);
 		input.addEventListener('change', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target, "CONTENT"),
-					...INPUT_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('user entered text', props);
-				if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
+				this.inputTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -384,27 +386,24 @@ export function trackUserInput(mp, opts) {
 	}
 }
 
-// 🚨 guard against password fields 🚨
-//default: off
-export function trackClicks(mp, opts) {
-	let allThings = uniqueNodes(this.query(ALL_SELECTOR))
-		.filter(node => node.childElementCount === 0) //most specific
-		.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
-		.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
-		.filter(node => node.tagName !== 'LABEL') //not a label
-		.filter(node => (node.tagName === 'INPUT') ? (node.type === "password" || node.type === "hidden" ? false : true) : true); //not a password or hidden input
+//default: off  🚨 guard against sensitive fields 🚨
+export function listenForAllClicks(mp, opts) {
+	let allThings = uniqueNodes(
+		this.query(ALL_SELECTOR)
+			.filter(node => node.childElementCount === 0) //most specific
+			.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
+			.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
+			.filter(node => !this.domElementsTracked.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
+			.filter(node => node.tagName !== 'LABEL') //not a label
+			.filter(node => (!node.matches(BLACKLIST_ELEMENTS))) //isn't classified as sensitive
+	);
+
 
 	for (const thing of allThings) {
 		this.domElementsTracked.push(thing);
 		thing.addEventListener('click', (ev) => {
 			try {
-				const props = {
-					...STANDARD_FIELDS(ev.target),
-					...ANY_TAG_FIELDS(ev.target),
-					...statefulProps()
-				};
-				mp.track('page click', props);
-				if (opts.logProps) console.log('PAGE CLICK'); console.log(JSON.stringify(props, null, 2));
+				this.clickTrack(ev, mp, opts);
 			}
 			catch (e) {
 				if (opts.debug) console.log(e);
@@ -412,6 +411,267 @@ export function trackClicks(mp, opts) {
 		}, LISTENER_OPTIONS);
 	}
 }
+
+/*
+----
+SPAS
+-----
+*/
+
+//default: off
+export function singlePageAppTracking(mp, opts) {
+	window.addEventListener("click", (ev) => {
+		figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
+	}, LISTENER_OPTIONS);
+}
+
+export function spaPipeline(directive = 'none', ev, mp, opts) {
+	if (opts.buttons && directive === 'button') this.buttonTrack(ev, mp, opts);
+	else if (opts.links && directive === 'link') this.linkTrack(ev, mp, opts);
+	else if (opts.forms && directive === 'form') this.formTrack(ev, mp, opts);
+	else if (opts.selectors && directive === 'select') this.selectTrack(ev, mp, opts);
+	else if (opts.inputs && directive === 'input') this.inputTrack(ev, mp, opts);
+	//this should always be last as it is the most general form of tracking
+	else if (opts.clicks && directive === 'all') this.clickTrack(ev, mp, opts);
+}
+
+
+/*
+---------
+TRACKERS
+--------
+*/
+
+
+export function trackButtonClick(evOrEl, mp, opts) {
+	const src = evOrEl.target || evOrEl;
+	const props = {
+		...STANDARD_FIELDS(src, "BUTTON"),
+		...BUTTON_FIELDS(src),
+		...statefulProps()
+	};
+
+	mp.track('button click', props);
+	if (opts.logProps) console.log('BUTTON CLICK'); console.log(JSON.stringify(props, null, 2));
+}
+
+export function trackLinkClick(evOrEl, mp, opts) {
+	const src = evOrEl.target || evOrEl;
+	const props = {
+		...STANDARD_FIELDS(src, "LINK"),
+		...LINK_FIELDS(src),
+		...statefulProps()
+	};
+
+	let type;
+
+	// "links" can also be "navigation"
+	if (props["LINK → href"]?.startsWith('#')) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else if (props["LINK → href"]?.includes(this.host)) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else if (!props["LINK → href"]) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else if (props["LINK → href"]?.startsWith('javascript')) {
+		mp.track('navigation click', props);
+		type = `NAVIGATION`;
+	}
+
+	else {
+		mp.track('link click', props);
+		type = `LINK`;
+	}
+
+	if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
+}
+
+export function trackFormSubmit(evOrEl, mp, opts) {
+	const src = evOrEl.target || evOrEl;
+	const props = {
+		...STANDARD_FIELDS(src, "FORM"),
+		...FORM_FIELDS(src),
+		...statefulProps()
+	};
+	mp.track('form submit', props);
+	if (opts.logProps) console.log("FORM SUBMIT"); console.log(JSON.stringify(props, null, 2));
+}
+
+export function trackDropDownChange(evOrEl, mp, opts) {
+	const src = evOrEl.target || evOrEl;
+	const props = {
+		...STANDARD_FIELDS(src, "OPTION"),
+		...DROPDOWN_FIELDS(src),
+		...statefulProps()
+	};
+	mp.track('user selection', props);
+	if (opts.logProps) console.log('USER SELECTION'); console.log(JSON.stringify(props, null, 2));
+}
+
+export function trackInputChange(evOrEl, mp, opts) {
+	const src = evOrEl.target || evOrEl;
+	const props = {
+		...STANDARD_FIELDS(src, "CONTENT"),
+		...INPUT_FIELDS(src),
+		...statefulProps()
+	};
+	mp.track('user entered text', props);
+	if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
+}
+
+export function trackAnyClick(evOrEl, mp, opts) {
+	const src = evOrEl.target || evOrEl;
+	const props = {
+		...STANDARD_FIELDS(src),
+		...ANY_TAG_FIELDS(src),
+		...statefulProps()
+	};
+	mp.track('page click', props);
+	if (opts.logProps) console.log('PAGE CLICK'); console.log(JSON.stringify(props, null, 2));
+}
+
+
+/*
+----------------
+WINDOW BEHAVIOR
+----------------
+*/
+
+//default: off
+export function trackWindowStuff(mp, opts) {
+
+	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
+	window.addEventListener('resize', (resizeEv) => {
+		window.clearTimeout(ezTrack.resizeTimer);
+		ezTrack.resizeTimer = window.setTimeout(() => {
+			const props = {
+				"PAGE → height": window.innerHeight,
+				"PAGE → width": window.innerWidth,
+				...statefulProps()
+			};
+			mp.track('page resize', props);
+		}, 3000);
+
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('beforeprint', (printEv) => {
+		try {
+			const props = {
+				...statefulProps()
+			};
+			mp.track('print', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+}
+
+//default: off
+export function trackErrors(mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
+	window.addEventListener('error', (errEv) => {
+		try {
+			const props = {
+				"ERROR → type": errEv.type,
+				"ERROR → message": errEv.message,
+				...statefulProps()
+			};
+			mp.track('page error', props);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+}
+
+//default: off 🚨 guard against sensitive clipboards 🚨
+export function trackClipboard(mp, opts) {
+
+	window.addEventListener('cut', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
+			};
+			mp.track('cut', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('copy', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
+			};
+			mp.track('copy', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+	window.addEventListener('paste', (clipEv) => {
+		try {
+			const props = {
+				...statefulProps(),
+				...STANDARD_FIELDS(clipEv.target),
+				...ANY_TAG_FIELDS(clipEv.target, true)
+			};
+			mp.track('paste', props);
+			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+	}, LISTENER_OPTIONS);
+
+}
+
+/*
+--------
+PROFILES
+--------
+*/
+
+//default: on
+export function createUserProfiles(mp, opts) {
+	try {
+		mp.identify(mp.get_distinct_id());
+		mp.people.set({
+			"USER → last page viewed": window.location.href,
+			"USER → language": window.navigator.language
+		});
+		mp.people.increment("total # pages");
+		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+	}
+	catch (e) {
+		if (opts.debug) console.log(e);
+	}
+}
+
+/*
+-----
+VIDEO
+-----
+*/
+
 
 //default: off
 export function trackYoutubeVideos(mp, opts) {
@@ -511,112 +771,6 @@ export function trackYoutubeVideos(mp, opts) {
 	}
 }
 
-/*
------------------
-BROWSER BEHAVIORS
------------------
-*/
-
-//default: off
-export function trackWindowStuff(mp, opts) {
-
-	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
-	window.addEventListener('resize', (resizeEv) => {
-		window.clearTimeout(ezTrack.resizeTimer);
-		ezTrack.resizeTimer = window.setTimeout(() => {
-			const props = {
-				"PAGE → height": window.innerHeight,
-				"PAGE → width": window.innerWidth,
-				...statefulProps()
-			};
-			mp.track('page resize', props);
-		}, 3000);
-
-	}, LISTENER_OPTIONS);
-
-	window.addEventListener('beforeprint', (printEv) => {
-		try {
-			const props = {
-				...statefulProps()
-			};
-			mp.track('print', props);
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	}, LISTENER_OPTIONS);
-}
-
-//default: off
-export function trackErrors(mp, opts) {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Window#events
-	window.addEventListener('error', (errEv) => {
-		try {
-			const props = {
-				"ERROR → type": errEv.type,
-				"ERROR → message": errEv.message,
-				...statefulProps()
-			};
-			mp.track('page error', props);
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	}, LISTENER_OPTIONS);
-
-}
-
-
-// 🚨 guard against clipboard passwords 🚨
-//default: off
-export function trackClipboard(mp, opts) {
-
-	window.addEventListener('cut', (clipEv) => {
-		try {
-			const props = {
-				...statefulProps(),
-				...STANDARD_FIELDS(clipEv.target),
-				...ANY_TAG_FIELDS(clipEv.target, true)
-			};
-			mp.track('cut', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	});
-
-	window.addEventListener('copy', (clipEv) => {
-		try {
-			const props = {
-				...statefulProps(),
-				...STANDARD_FIELDS(clipEv.target),
-				...ANY_TAG_FIELDS(clipEv.target, true)
-			};
-			mp.track('copy', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	});
-
-	window.addEventListener('paste', (clipEv) => {
-		try {
-			const props = {
-				...statefulProps(),
-				...STANDARD_FIELDS(clipEv.target),
-				...ANY_TAG_FIELDS(clipEv.target, true)
-			};
-			mp.track('paste', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
-	});
-
-}
 
 /*
 -------
@@ -624,53 +778,102 @@ HELPERS
 -------
 */
 
-//default: on
-export function createUserProfiles(mp, opts) {
-	try {
-		mp.identify(mp.get_distinct_id());
-		mp.people.set({
-			"USER → last page viewed": window.location.href,
-			"USER → language": window.navigator.language
+export function figureOutWhatWasClicked(elem, ev, mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
+	
+	// no sensitive fields
+	if (elem.matches(BLACKLIST_ELEMENTS)) {
+		return false;
+	}
+
+	if (elem.matches(BUTTON_SELECTORS)) {
+		this.spaPipe('button', ev, mp, opts);
+		return true;
+	}
+	else if (elem.matches(LINK_SELECTORS)) {
+		this.spaPipe('link', ev, mp, opts);
+		return true;
+	}
+
+	else if (elem.matches(FORM_SELECTORS)) {
+		elem.addEventListener('submit', (submitEvent) => {
+			this.spaPipe('form', submitEvent, mp, opts);
+		}, { once: true, ...LISTENER_OPTIONS });
+		return true;
+	}
+	else if (elem.matches(DROPDOWN_SELECTOR)) {
+		elem.addEventListener('change', (changeEvent) => {
+			this.spaPipe('select', changeEvent, mp, opts);
+		}, { once: true, ...LISTENER_OPTIONS });
+		return true;
+	}
+	else if (elem.matches(INPUT_SELECTOR)) {
+		elem.addEventListener('change', (changeEvent) => {
+			this.spaPipe('input', changeEvent, mp, opts);
+		}, { once: true, ...LISTENER_OPTIONS });
+		return true;
+
+	}
+
+	//check parents
+	const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
+	const matchingParents = getAllParents(elem).filter((node) => {
+		let matched = possibleMatches.map((matchSelector) => {
+			return node.matches(matchSelector);
 		});
-		mp.people.increment("total # pages");
-		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+
+		return matched.some(bool => bool);
+
+	});
+
+	if (matchingParents.length > 0) {
+		figureOutWhatWasClicked.call(ezTrack, matchingParents[0], ev, mp, opts);
+		return true;
 	}
-	catch (e) {
-		if (opts.debug) console.log(e);
+
+	const mostSpecificNode = findMostSpecificRecursive(elem);
+	if (elem.matches(ALL_SELECTOR) && mostSpecificNode === elem) {
+		this.spaPipe('all', ev, mp, opts);
+		return true;
+	}
+
+	else {
+		return false; //click was not tracked
+	}
+
+}
+
+export function findMostSpecificRecursive(node) {
+	const numChildren = node.childElementCount;
+	if (numChildren !== 0) {
+		let nextNode = node.firstElementChild;
+		if (!nextNode) nextNode = node.nextElementSibling;
+		if (!nextNode) nextNode = node.priorElementSibling;
+		if (!nextNode) return node;
+		else {
+			return findMostSpecificRecursive(nextNode);
+		}
+	}
+
+	else {
+		return node;
 	}
 }
 
-export function beSpaAware(typeOfSpa = 'none', mp, opts) {
-	switch (typeOfSpa.toLowerCase()) {
-		case `react`:
+export function getAllParents(elem) {
 
-			break;
-		case `vue`:
+	// Set up a parent array
+	var parents = [];
 
-			break;
-		case `angular`:
-
-			break;
-		case `svelte`:
-
-			break;
-		case `backbone`:
-
-			break;
-		case `ember`:
-
-			break;
-		case `meteor`:
-
-			break;
-		case `polymer`:
-
-			break;
-
-		default:
-			break;
+	// Push each parent element to the array
+	for (; elem && elem !== document.body; elem = elem.parentNode) {
+		parents.push(elem);
 	}
-}
+
+	// Return our parent array
+	return parents;
+
+};
 
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];
