@@ -281,7 +281,7 @@ many web applications may handle user-entered secrets (passwords, tokens, privat
 
 - *do not track* (blacklist) DOM elements of selectors matching `<input type="password" />` and other well-known sensitive fields:
 ```javascript
-BLACKLIST_ELEMENTS  =  `*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes]`;
+const BLACKLIST_ELEMENTS  =  `*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes]`;
 ```
 - *redact clipboard text* when tracking clipboard activity:
 ```javascript
