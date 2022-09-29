@@ -233,8 +233,8 @@ export function bindTrackers(mp, opts) {
 
 }
 
-export function statefulProps() {
-	ezTrack.numActions += 1;
+export function statefulProps(increment = true, includeTime = true, includeScroll = true) {
+	if (increment) ezTrack.numActions += 1;
 
 	//https://stackoverflow.com/a/8028584
 	const scrollPercent =
@@ -244,11 +244,15 @@ export function statefulProps() {
 		)
 		|| 0;
 
-	return {
-		"SESSION → time on page (sec)": (Date.now() - ezTrack.loadTimeUTC) / 1000,
+	const stateful = {
 		"PAGE → # actions": ezTrack.numActions,
-		"PAGE → scroll (%)": Number(scrollPercent.toFixed(2))
 	};
+
+	if (includeTime) stateful["SESSION → time on page (sec)"] = (Date.now() - ezTrack.loadTimeUTC) / 1000;
+	if (includeScroll) stateful["PAGE → scroll (%)"] = Number(scrollPercent.toFixed(2));
+
+	return stateful;
+
 }
 
 //default: off
@@ -294,8 +298,7 @@ HTML ELEMENTS
 
 //default: on
 export function trackPageViews(mp, opts) {
-	mp.track('page enter', { ...statefulProps() });
-	// if (opts.pageExit) mp.time_event('page exit');
+	mp.track('page enter', { ...statefulProps(true, false, false) });
 }
 
 //default: on
@@ -561,14 +564,14 @@ WINDOW BEHAVIOR
 //default: off
 export function trackWindowStuff(mp, opts) {
 
-	//resize events happy in fast succession; we wait 3 sec before sending a single resize event
+	//resize events happen in fast succession; we wait 3 sec before sending a single resize event
 	window.addEventListener('resize', (resizeEv) => {
 		window.clearTimeout(ezTrack.resizeTimer);
 		ezTrack.resizeTimer = window.setTimeout(() => {
 			const props = {
 				"PAGE → height": window.innerHeight,
 				"PAGE → width": window.innerWidth,
-				...statefulProps()
+				...statefulProps(false)
 			};
 			mp.track('page resize', props);
 		}, 3000);
@@ -586,6 +589,19 @@ export function trackWindowStuff(mp, opts) {
 			if (opts.debug) console.log(e);
 		}
 	}, LISTENER_OPTIONS);
+
+
+	document.addEventListener('visibilitychange', function (event) {
+		const props = {
+			...statefulProps(false)
+		};
+		if (document.hidden) {
+			mp.track('page lost focus', props);
+		} else {
+			mp.track('page regained focus', props);
+		}
+	});
+
 }
 
 //default: off
@@ -596,7 +612,7 @@ export function trackErrors(mp, opts) {
 			const props = {
 				"ERROR → type": errEv.type,
 				"ERROR → message": errEv.message,
-				...statefulProps()
+				...statefulProps(false)
 			};
 			mp.track('page error', props);
 		}

@@ -4017,7 +4017,7 @@
     "PAGE \u2192 height": window.innerHeight,
     "PAGE \u2192 width": window.innerWidth,
     "PAGE \u2192 title": document.title,
-    "SESSION \u2192 # page": window.history.length,
+    "SESSION \u2192 # pages": window.history.length,
     "DEVICE \u2192 pixel ratio": window.devicePixelRatio,
     "DEVICE \u2192 language": window.navigator.language,
     "DEVICE \u2192 bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
@@ -4397,14 +4397,18 @@ https://developer.mixpanel.com/reference/project-token`);
         console.log(e);
     }
   }
-  function statefulProps() {
-    ezTrack.numActions += 1;
+  function statefulProps(increment = true, includeTime = true, includeScroll = true) {
+    if (increment)
+      ezTrack.numActions += 1;
     const scrollPercent = (document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100 || 0;
-    return {
-      "SESSION \u2192 time on page (sec)": (Date.now() - ezTrack.loadTimeUTC) / 1e3,
-      "PAGE \u2192 # actions": ezTrack.numActions,
-      "PAGE \u2192 scroll (%)": Number(scrollPercent.toFixed(2))
+    const stateful = {
+      "PAGE \u2192 # actions": ezTrack.numActions
     };
+    if (includeTime)
+      stateful["SESSION \u2192 time on page (sec)"] = (Date.now() - ezTrack.loadTimeUTC) / 1e3;
+    if (includeScroll)
+      stateful["PAGE \u2192 scroll (%)"] = Number(scrollPercent.toFixed(2));
+    return stateful;
   }
   function firstVisitChecker(token = this.token, opts = this.opts, timeoutMins = 30) {
     if (opts.firstPage) {
@@ -4430,7 +4434,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function trackPageViews(mp, opts) {
-    mp.track("page enter", { ...statefulProps() });
+    mp.track("page enter", { ...statefulProps(true, false, false) });
   }
   function trackPageExits(mp, opts) {
     window.addEventListener("beforeunload", () => {
@@ -4637,7 +4641,7 @@ https://developer.mixpanel.com/reference/project-token`);
         const props = {
           "PAGE \u2192 height": window.innerHeight,
           "PAGE \u2192 width": window.innerWidth,
-          ...statefulProps()
+          ...statefulProps(false)
         };
         mp.track("page resize", props);
       }, 3e3);
@@ -4653,6 +4657,16 @@ https://developer.mixpanel.com/reference/project-token`);
           console.log(e);
       }
     }, LISTENER_OPTIONS);
+    document.addEventListener("visibilitychange", function(event) {
+      const props = {
+        ...statefulProps(false)
+      };
+      if (document.hidden) {
+        mp.track("page lost focus", props);
+      } else {
+        mp.track("page regained focus", props);
+      }
+    });
   }
   function trackErrors(mp, opts) {
     window.addEventListener("error", (errEv) => {
@@ -4660,7 +4674,7 @@ https://developer.mixpanel.com/reference/project-token`);
         const props = {
           "ERROR \u2192 type": errEv.type,
           "ERROR \u2192 message": errEv.message,
-          ...statefulProps()
+          ...statefulProps(false)
         };
         mp.track("page error", props);
       } catch (e) {
