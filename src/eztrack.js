@@ -135,8 +135,21 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			}
 		}, "ez");
 
-		//expose mixpanel globally
-		if (opts.extend) window.mixpanel = mixpanel;
+		//expose mixpanel globally; let consumers know it's ready
+		if (opts.extend) {
+			window.mixpanel = mixpanel;
+
+			try {
+				const loadedEvent = new Event('mpEZTrackLoaded');
+				window.dispatchEvent(loadedEvent);
+			}
+			catch (e) {
+				if (opts.debug) {
+					console.error('mpEZTrack failed to dispatch loaded event!');
+					console.log(e);
+				}
+			}
+		}
 	}
 
 	catch (e) {
@@ -780,7 +793,7 @@ HELPERS
 
 export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
-	
+
 	// no sensitive fields
 	if (elem.matches(BLACKLIST_ELEMENTS)) {
 		return false;

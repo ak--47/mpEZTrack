@@ -4310,8 +4310,18 @@ https://developer.mixpanel.com/reference/project-token`);
           }
         }
       }, "ez");
-      if (opts.extend)
+      if (opts.extend) {
         window.mixpanel = import_mixpanel_browser.default;
+        try {
+          const loadedEvent = new Event("mpEZTrackLoaded");
+          window.dispatchEvent(loadedEvent);
+        } catch (e) {
+          if (opts.debug) {
+            console.error("mpEZTrack failed to dispatch loaded event!");
+            console.log(e);
+          }
+        }
+      }
     } catch (e) {
       if (opts.debug)
         console.log(e);

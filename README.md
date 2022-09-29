@@ -74,15 +74,15 @@ in the table below, you will find all the options exposed by this module; **if y
 
 ## `init()` recipes 🍳 <div  id="recipes"></div>
 
-- track embedded youtube videos
+- track embedded youtube videos; don't track button clicks
 ```javascript
-mpEZTrack.init('YOUR-PROJECT-TOKEN', {youtube: true})
+mpEZTrack.init('YOUR-PROJECT-TOKEN', {youtube: true, buttons: false})
 ```
-- track all clicks (in addition to defaults)
+- track user input fields and all clicks (in addition to defaults)
 ```javascript
-mpEZTrack.init('YOUR-PROJECT-TOKEN', {clicks: true})
+mpEZTrack.init('YOUR-PROJECT-TOKEN', {inputs: true, clicks: true})
 ```
-- use `mixpanel` debug mode, flush queue every second, expose implementation as `mixpanel.ez` 
+- use `mixpanel` debug mode, flush queue every second, expose `mixpanel` as `mixpanel.ez` 
 ```javascript
 mpEZTrack.init('YOUR-PROJECT-TOKEN', {debug: true, refresh: 1000, expose: true})
 ```
@@ -178,15 +178,15 @@ if you are using the `{ profiles : true }`  option (or the defaults), you may no
 
 <img src="https://aktunes.neocities.org/anon.png" alt="ez track user profile" width=150/>
 
-this is expected behavior.
+this is **expected behavior**.
 
-if your application can supply a **canonical unique user identifier** you can `extend` the `EZTrack` implementation and call _any_ [Mixpanel SDK methods](https://developer.mixpanel.com/docs/javascript-full-api-reference) under the `ez` namespace. when doing this, it is recommended to turn `profiles` off... 
+if your application can supply a **canonical unique user identifier** you can `extend` the `EZTrack` implementation and call _any_ [Mixpanel SDK methods](https://developer.mixpanel.com/docs/javascript-full-api-reference) under the `mixpanel.ez` namespace. when doing this, it is recommended to turn `profiles` off... 
 
 an example implementation of custom identity management might look like this:
 ```javascript
-mpEZTrack.init('token', { extend: true, profiles: false }); // expose the mixpanel object
-mixpanel.ez.identify(currentUser.id);     // tell mixpanel who the user is
-mixpanel.ez.track('log in');      // precision-track any events
+mpEZTrack.init('project-token', { extend: true, profiles: false }); // expose the mixpanel object
+mixpanel.ez.identify(currentUser.id);    // tell mixpanel who the user is
+mixpanel.ez.track('log in');      		// precision-track any events
 
 //set any other props on the user
 mixpanel.ez.people.set({$name: currentUser.name, $email: currentUser.name, plan: currentUser.planType})
@@ -201,6 +201,19 @@ where `currentUser` has the following shape:
   email: "ak@notmixpanel.com",
   plan: "blue"
 }
+```
+when using the `{extend: true}` configuration, `mpEZTrack` will also broadcast a `mpEZTrackLoaded` event on the window; this makes it possible to "listen" for completion of the library's `init()` method in other script files:
+
+```javascript
+// analytics.js
+mpEZTrack.init('project-token', { extend: true });
+
+
+// someOtherFile.js
+window.addEvenetListener('mpEZTrackLoaded', ()=>{
+	// mixpanel.ez is always available in this scope
+	mixpanel.ez.people.set({$name: currentUser.name})
+})
 ```
 
 future versions of this module may improve upon this API. please [submit an enhancement](https://github.com/ak--47/mpEZTrack/issues) if you have (an idea or suggestion) about how this should work.
