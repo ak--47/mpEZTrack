@@ -60,7 +60,7 @@ in the table below, you will find all the options exposed by this module; **if y
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements as `form submit`                 |
 | `selectors`          | `boolean` | `true`   | track all changes to `<select>`, `[type=radio]`, `[type=checkbox]`, and other drop-down elements as `user selection`
 | `profiles`         | `boolean` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
-| -----------	| -----------	| --------		| --------------------------------------	|
+| -----------	| --------	| ----		| --------------------------------------	|
 | `inputs`          | `boolean` | `false`   | track all `<input>` text fields as `user entered text` [(see note)](#security)                 |
 | `clicks`            | `boolean` | `false`  | track all clicks on  _other_ page elements as `page click` [(see note)](#clicks)                     |
 | `spa`	|`boolean`	| `false` | **for single page applications** where page elements are rendered dynamically [(see note)](#spa)
