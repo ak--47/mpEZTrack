@@ -18,20 +18,25 @@ export const ezTrack = {
 	init: entryPoint,
 
 	// stateful stuff
+	token: "",
+	tabId: null,
+	tabTrack: generateTabId,
 	loadTimeUTC: Date.now(),
 	numActions: 0,
 	isFirstVisit: true,
-	token: "",
 	priorVisit: firstVisitChecker,
+	hasVisibilityChanged: false,
+	superProps: {},
+	getProps: getSuperProperties,
+	clearQueue: clearExistingMixpanelQueue,
+
 	debug: () => { mixpanel.ez.set_config({ debug: true }); },
 
 	// dom stuff
 	domElementsTracked: [],
-	superProps: {},
 	host: document.location.host,
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom		
-	getProps: getSuperProperties,
 
 	// spa stuff
 	spa: singlePageAppTracking,
@@ -99,8 +104,12 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 
 	this.opts = Object.freeze(opts);
 
+	//this is sketchy; basically don't send 'page lost focus' events if they are in the queue from a prior visit
+	if (opts.window) this.clearQueue(token, opts);
+	
 	// do mixpanel
 	try {
+
 		mixpanel.init(token, {
 			debug: opts.debug,
 			cross_subdomain_cookie: true,
@@ -110,6 +119,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
 			loaded: (mp) => {
+
 				//props on every event
 				try {
 					const superProps = this.getProps(token, opts);
@@ -166,7 +176,7 @@ export function getDefaultOptions() {
 		location: true,
 
 		//default on
-		superProps: true,
+		deviceProps: true,
 		pageView: true,
 		pageExit: true,
 		links: true,
@@ -176,6 +186,7 @@ export function getDefaultOptions() {
 		selectors: true,
 
 		//default off
+		spa: false,
 		inputs: false,
 		clicks: false,
 		youtube: false,
@@ -183,20 +194,19 @@ export function getDefaultOptions() {
 		clipboard: false,
 		firstPage: false,
 		error: false,
+		tabs: false,
 
 		//undocumented, for ez debugging
-		logProps: false,
-
-		//wips
-		spa: false
+		logProps: false
 
 	};
 }
 
 export function getSuperProperties(token = this.token, opts = this.opts) {
 	let result = {};
-	if (opts.superProps) result = { ...SUPER_PROPS, ...result };
+	if (opts.deviceProps) result = { ...SUPER_PROPS, ...result };
 	if (opts.firstPage) result = { ...this.priorVisit(token, opts), ...result };
+	if (opts.tabs) result = { ...this.tabTrack(token), ...result };
 	return result;
 
 }
@@ -299,11 +309,14 @@ HTML ELEMENTS
 //default: on
 export function trackPageViews(mp, opts) {
 	mp.track('page enter', { ...statefulProps(true, false, false) });
+	if (opts.logProps) console.log("PAGE VIEW"); console.log(JSON.stringify({ ...statefulProps(true, false, false) }, null, 2));
 }
 
 //default: on
-export function trackPageExits(mp, opts) {
+export function trackPageExits(mp) {
 	window.addEventListener('beforeunload', () => {
+		//page exist should be last event
+		this.hasVisibilityChanged = null;
 		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
 	});
 }
@@ -346,7 +359,6 @@ export function listenForLinkClicks(mp, opts) {
 		}, LISTENER_OPTIONS);
 	}
 }
-
 
 //default: on
 export function listenForFormSubmits(mp, opts) {
@@ -441,6 +453,72 @@ export function singlePageAppTracking(mp, opts) {
 	}, LISTENER_OPTIONS);
 }
 
+export function figureOutWhatWasClicked(elem, ev, mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
+
+	// no sensitive fields
+	if (elem.matches(BLACKLIST_ELEMENTS)) {
+		return false;
+	}
+
+	if (elem.matches(BUTTON_SELECTORS)) {
+		this.spaPipe('button', ev, mp, opts);
+		return true;
+	}
+	else if (elem.matches(LINK_SELECTORS)) {
+		this.spaPipe('link', ev, mp, opts);
+		return true;
+	}
+
+	else if (elem.matches(FORM_SELECTORS)) {
+		elem.addEventListener('submit', (submitEvent) => {
+			this.spaPipe('form', submitEvent, mp, opts);
+		}, { once: true, ...LISTENER_OPTIONS });
+		return true;
+	}
+	else if (elem.matches(DROPDOWN_SELECTOR)) {
+		elem.addEventListener('change', (changeEvent) => {
+			this.spaPipe('select', changeEvent, mp, opts);
+		}, { once: true, ...LISTENER_OPTIONS });
+		return true;
+	}
+	else if (elem.matches(INPUT_SELECTOR)) {
+		elem.addEventListener('change', (changeEvent) => {
+			this.spaPipe('input', changeEvent, mp, opts);
+		}, { once: true, ...LISTENER_OPTIONS });
+		return true;
+
+	}
+
+	//check parents
+	const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
+	const matchingParents = getAllParents(elem).filter((node) => {
+		let matched = possibleMatches.map((matchSelector) => {
+			return node.matches(matchSelector);
+		});
+
+		return matched.some(bool => bool);
+
+	});
+
+	if (matchingParents.length > 0) {
+		figureOutWhatWasClicked.call(ezTrack, matchingParents[0], ev, mp, opts);
+		return true;
+	}
+
+	// guard against double tracking due to bubbling
+	const mostSpecificNode = findMostSpecificRecursive(elem);
+	if (elem.matches(ALL_SELECTOR) && mostSpecificNode === elem) {
+		this.spaPipe('all', ev, mp, opts);
+		return true;
+	}
+
+	else {
+		return false; //click was not tracked
+	}
+
+}
+
 export function spaPipeline(directive = 'none', ev, mp, opts) {
 	if (opts.buttons && directive === 'button') this.buttonTrack(ev, mp, opts);
 	else if (opts.links && directive === 'link') this.linkTrack(ev, mp, opts);
@@ -450,6 +528,36 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 	//this should always be last as it is the most general form of tracking
 	else if (opts.clicks && directive === 'all') this.clickTrack(ev, mp, opts);
 }
+
+
+export function findMostSpecificRecursive(node) {
+	const numChildren = node.childElementCount;
+	if (numChildren !== 0) {
+		let nextNode = node.firstElementChild;
+		if (!nextNode) nextNode = node.nextElementSibling;
+		if (!nextNode) nextNode = node.priorElementSibling;
+		if (!nextNode) return node;
+		else {
+			return findMostSpecificRecursive(nextNode);
+		}
+	}
+
+	else {
+		return node;
+	}
+}
+
+export function getAllParents(elem) {
+	const parents = [];
+
+	//move up toward the body
+	for (; elem && elem !== document.body; elem = elem.parentNode) {
+		parents.push(elem);
+	}
+
+	return parents;
+}
+
 
 
 /*
@@ -565,7 +673,7 @@ WINDOW BEHAVIOR
 export function trackWindowStuff(mp, opts) {
 
 	//resize events happen in fast succession; we wait 3 sec before sending a single resize event
-	window.addEventListener('resize', (resizeEv) => {
+	window.addEventListener('resize', () => {
 		window.clearTimeout(ezTrack.resizeTimer);
 		ezTrack.resizeTimer = window.setTimeout(() => {
 			const props = {
@@ -578,10 +686,10 @@ export function trackWindowStuff(mp, opts) {
 
 	}, LISTENER_OPTIONS);
 
-	window.addEventListener('beforeprint', (printEv) => {
+	window.addEventListener('beforeprint', () => {
 		try {
 			const props = {
-				...statefulProps()
+				...statefulProps(false)
 			};
 			mp.track('print', props);
 		}
@@ -591,14 +699,16 @@ export function trackWindowStuff(mp, opts) {
 	}, LISTENER_OPTIONS);
 
 
-	document.addEventListener('visibilitychange', function (event) {
+	window.addEventListener('visibilitychange', function () {
 		const props = {
 			...statefulProps(false)
 		};
-		if (document.hidden) {
+		if (document.hidden && this.hasVisibilityChanged !== null) {
 			mp.track('page lost focus', props);
+			this.hasVisibilityChanged = true;
 		} else {
-			mp.track('page regained focus', props);
+			//only called if page has lost focus
+			if (this.hasVisibilityChanged) mp.track('page regained focus', props);
 		}
 	});
 
@@ -629,12 +739,12 @@ export function trackClipboard(mp, opts) {
 	window.addEventListener('cut', (clipEv) => {
 		try {
 			const props = {
-				...statefulProps(),
+				...statefulProps(false),
 				...STANDARD_FIELDS(clipEv.target),
 				...ANY_TAG_FIELDS(clipEv.target, true)
 			};
 			mp.track('cut', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+			if (opts.logProps) console.log("CUT"); console.log(JSON.stringify(props, null, 2));
 		}
 		catch (e) {
 			if (opts.debug) console.log(e);
@@ -644,12 +754,12 @@ export function trackClipboard(mp, opts) {
 	window.addEventListener('copy', (clipEv) => {
 		try {
 			const props = {
-				...statefulProps(),
+				...statefulProps(false),
 				...STANDARD_FIELDS(clipEv.target),
 				...ANY_TAG_FIELDS(clipEv.target, true)
 			};
 			mp.track('copy', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+			if (opts.logProps) console.log("COPY"); console.log(JSON.stringify(props, null, 2));
 		}
 		catch (e) {
 			if (opts.debug) console.log(e);
@@ -659,12 +769,12 @@ export function trackClipboard(mp, opts) {
 	window.addEventListener('paste', (clipEv) => {
 		try {
 			const props = {
-				...statefulProps(),
+				...statefulProps(false),
 				...STANDARD_FIELDS(clipEv.target),
 				...ANY_TAG_FIELDS(clipEv.target, true)
 			};
 			mp.track('paste', props);
-			if (opts.logProps) console.log(JSON.stringify(props, null, 2));
+			if (opts.logProps) console.log("PASTE"); console.log(JSON.stringify(props, null, 2));
 		}
 		catch (e) {
 			if (opts.debug) console.log(e);
@@ -703,7 +813,7 @@ VIDEO
 
 
 //default: off
-export function trackYoutubeVideos(mp, opts) {
+export function trackYoutubeVideos(mp) {
 	// enable youtube iframe API; callback to onYouTubeIframeAPIReady
 	const tag = document.createElement('script');
 	tag.id = 'mixpanel-iframe-tracker';
@@ -713,7 +823,7 @@ export function trackYoutubeVideos(mp, opts) {
 
 	const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter(frame => frame.src.includes('youtube.com/embed'));
 
-	for (video of videos) {
+	for (const video of videos) {
 		this.domElementsTracked.push(video);
 		if (!video.id) {
 			video.id = new URL(video.src).pathname.replace("/embed/", "");
@@ -737,6 +847,7 @@ export function trackYoutubeVideos(mp, opts) {
 	};
 
 	function bindTrackingToVideo(videoId) {
+		// eslint-disable-next-line no-undef, no-unused-vars
 		const player = new YT.Player(videoId, {
 			events: {
 				'onReady': onPlayerReady,
@@ -773,20 +884,21 @@ export function trackYoutubeVideos(mp, opts) {
 	//player states: https://developers.google.com/youtube/iframe_api_reference#Playback_status
 	function trackPlayerChanges(playerStatus, player) {
 		const videoInfo = getVideoInfo(player);
+		const props = { ...videoInfo, ...statefulProps(false) };
 
 		switch (playerStatus) {
 			case -1:
 				//mp.track('youtube video unstarted but ready', videoInfo);   
 				break;
 			case 0:
-				mp.track('youtube video finish', { ...videoInfo, ...statefulProps() });
+				mp.track('youtube video finish', props);
 				break;
 			case 1:
-				mp.track('youtube video play', { ...videoInfo, ...statefulProps() });
+				mp.track('youtube video play', props);
 				mp.time_event('youtube video finish');
 				break;
 			case 2:
-				mp.track('youtube video pause', { ...videoInfo, ...statefulProps() });
+				mp.track('youtube video pause', props);
 				break;
 			case 3:
 				// mp.track('youtube video buffer', videoInfo);
@@ -807,105 +919,61 @@ HELPERS
 -------
 */
 
-export function figureOutWhatWasClicked(elem, ev, mp, opts) {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
-
-	// no sensitive fields
-	if (elem.matches(BLACKLIST_ELEMENTS)) {
-		return false;
-	}
-
-	if (elem.matches(BUTTON_SELECTORS)) {
-		this.spaPipe('button', ev, mp, opts);
-		return true;
-	}
-	else if (elem.matches(LINK_SELECTORS)) {
-		this.spaPipe('link', ev, mp, opts);
-		return true;
-	}
-
-	else if (elem.matches(FORM_SELECTORS)) {
-		elem.addEventListener('submit', (submitEvent) => {
-			this.spaPipe('form', submitEvent, mp, opts);
-		}, { once: true, ...LISTENER_OPTIONS });
-		return true;
-	}
-	else if (elem.matches(DROPDOWN_SELECTOR)) {
-		elem.addEventListener('change', (changeEvent) => {
-			this.spaPipe('select', changeEvent, mp, opts);
-		}, { once: true, ...LISTENER_OPTIONS });
-		return true;
-	}
-	else if (elem.matches(INPUT_SELECTOR)) {
-		elem.addEventListener('change', (changeEvent) => {
-			this.spaPipe('input', changeEvent, mp, opts);
-		}, { once: true, ...LISTENER_OPTIONS });
-		return true;
-
-	}
-
-	//check parents
-	const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
-	const matchingParents = getAllParents(elem).filter((node) => {
-		let matched = possibleMatches.map((matchSelector) => {
-			return node.matches(matchSelector);
-		});
-
-		return matched.some(bool => bool);
-
-	});
-
-	if (matchingParents.length > 0) {
-		figureOutWhatWasClicked.call(ezTrack, matchingParents[0], ev, mp, opts);
-		return true;
-	}
-
-	const mostSpecificNode = findMostSpecificRecursive(elem);
-	if (elem.matches(ALL_SELECTOR) && mostSpecificNode === elem) {
-		this.spaPipe('all', ev, mp, opts);
-		return true;
-	}
-
-	else {
-		return false; //click was not tracked
-	}
-
-}
-
-export function findMostSpecificRecursive(node) {
-	const numChildren = node.childElementCount;
-	if (numChildren !== 0) {
-		let nextNode = node.firstElementChild;
-		if (!nextNode) nextNode = node.nextElementSibling;
-		if (!nextNode) nextNode = node.priorElementSibling;
-		if (!nextNode) return node;
-		else {
-			return findMostSpecificRecursive(nextNode);
-		}
-	}
-
-	else {
-		return node;
-	}
-}
-
-export function getAllParents(elem) {
-
-	// Set up a parent array
-	var parents = [];
-
-	// Push each parent element to the array
-	for (; elem && elem !== document.body; elem = elem.parentNode) {
-		parents.push(elem);
-	}
-
-	// Return our parent array
-	return parents;
-
-};
 
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];
+}
+
+export function generateTabId(token, length = 32) {
+	try {
+		const existingId = window.sessionStorage.getItem(`MPEZTrack_Tab_${token}`);
+		if (existingId) {
+			this.tabId = existingId;
+			return { "SESSION → tab id": existingId };
+		}
+
+		//https://stackoverflow.com/a/1349426/4808195
+		const result = [];
+		const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		const charactersLength = characters.length;
+		for (var i = 0; i < length; i++) {
+			result.push(characters.charAt(Math.floor(Math.random() *
+				charactersLength)));
+		}
+		const uid = result.join('');
+		this.tabId = uid;
+		window.sessionStorage.setItem(`MPEZTrack_Tab_${token}`, uid);
+
+		return {
+			"SESSION → tab id": uid
+		};
+	}
+	catch (e) {
+		return {};
+	}
+}
+
+export function clearExistingMixpanelQueue(token, opts){
+	try {
+		const storageKey = `__mpq_${token}_ev`;
+		const existingQueue = localStorage.getItem(storageKey)
+		if (existingQueue) {
+			const cleanedQueue = JSON.parse(existingQueue).filter(q => q.payload.event !== 'page lost focus');
+			localStorage.setItem(storageKey, JSON.stringify(cleanedQueue));
+			if (opts.debug && opts.logProps) console.log('cleared events queue');
+			return true;
+		}
+
+		return false;
+		
+
+	}
+	catch (e) {
+		if (opts.debug && opts.logProps) console.log('failed to clear queue'); console.log(e);
+		return false;
+	}
+
+	
 }
 
 //put it in global namespace 🤠

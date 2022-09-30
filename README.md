@@ -44,32 +44,35 @@ one deployed on your website, look in your mixpanel project; you are now collect
 <img src="https://aktunes.neocities.org/manyUsefulEvents.png" alt="many useful events" width=500/>
 
 ## options 🎛 <div  id="options"></div> 
-you can choose to add a second `options` object to `.init()` to customize your implementation
+you can choose to add a second `options` object `{}` to `.init()` to customize your implementation
 
 in the table below, you will find all the options exposed by this module; **if you wish to use a `default` value for any particular option, it does not need to be explicitly passed**:
 
 | option                 | expected type    | default | notes                                                       |
 |------------------------|-------------------|----------|-------------------------------------------------------------|
-|`location` |  `boolean` | `true` | use mixpanel to resolve geo-location                              |
-| `superProps`           | `boolean` | `true`   | adds information about the client device to all events      |
+|`refresh`  | `integer`   | `5000`  | the frequency (ms) in which the queue will be flushed (sending events to mixpanel)                             |
+|`location` |  `boolean` | `true` | resolve the end-user's geo-location (country/region/state/city)                              |
+| `deviceProps`           | `boolean` | `true`   | add device information (extending [mixpanel defaults](https://help.mixpanel.com/hc/en-us/articles/115004613766-Default-Properties-Collected-by-Mixpanel)) about the client device      |
 | `pageView`            | `boolean` | `true`   | tracks all page views as `page enter`                                       |
 | `pageExit`            | `boolean` | `true`  | track all pages exits as `page exit` including `duration` and `scroll %` |
 | `links`           | `boolean` | `true`   | tracks all clicks on `<a>` elements as `link click` or `navigation click`                        
 | `buttons`           | `boolean` | `true`   | tracks all clicks on `<button>`-like elements as `button click`                         
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements as `form submit`                 |
-| `selectors`          | `boolean` | `true`   | track all changes to `<select>`, radios, checkboxes, and other drop-down style elements as `user selection`
+| `selectors`          | `boolean` | `true`   | track all changes to `<select>`, `[type=radio]`, `[type=checkbox]`, and other drop-down elements as `user selection`
 | `profiles`         | `boolean` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
-| `inputs`          | `boolean` | `false`   | track all user generated/user entered content as `user entered text` [(see note)](#security)                 |
-| `clicks`            | `boolean` | `false`  | tracks all clicks on any _other_ page elements as `page click` [(see note)](#clicks)                     |
+|	|	|		|	|
+| `inputs`          | `boolean` | `false`   | track all `<input>` text fields as `user entered text` [(see note)](#security)                 |
+| `clicks`            | `boolean` | `false`  | track all clicks on  _other_ page elements as `page click` [(see note)](#clicks)                     |
 | `spa`	|`boolean`	| `false` | **for single page applications** where page elements are rendered dynamically [(see note)](#spa)
-| `youtube`              | `boolean` | `false`  | tracks interactions with embedded youtube videos [(see note)](#youtube)            |
-| `window`              | `boolean` | `false`  | tracks interactions with the browser window (`resize`, `print`, etc... )             |
-| `error`              | `boolean` | `false`  | tracks any javascript errors thrown             |
-| `firstPage`              | `boolean` | `false`  | on each page, determine if it is the first page in the user's history (note: uses `localStorage`)           |
+| `youtube`              | `boolean` | `false`  | track interactions with embedded youtube videos [(see note)](#youtube)            |
+| `window`              | `boolean` | `false`  | track visibility of page (`page lost/regained focus`, `resize`, `print`, etc... )             |
+| `error`              | `boolean` | `false`  | tracks any javascript errors thrown as `page error`            |
 | `clipboard`              | `boolean` | `false`  | tracks interactions with the clipboard (`cut`, `copy`, `paste`)         |
+| `tabs`              | `boolean` | `false`  | generate a unique tabId for each window (note: uses `sessionStorage`)|
+| `firstPage`              | `boolean` | `false`  | determine if it is the first page in the user's history (note: uses `localStorage`)           |
 |`debug`  | `boolean`   | `false` | puts the `mixpanel` SDK in debug mode                          
-|`extend` | `boolean`   |`false`  | exposes the `mixpanel` object as a global and `EZTrack` as `mixpanel.ez`                              |
-|`refresh`  | `integer`   | `5000`  | the frequency (ms) in which the `.track()` queue will be flushed                             |
+|`extend` | `boolean`   |`false`  | exposes the `mixpanel` object as a global under the namespace `mixpanel.ez`                              |
+
 
 
 ## `init()` recipes 🍳 <div  id="recipes"></div>
@@ -86,9 +89,9 @@ mpEZTrack.init('YOUR-PROJECT-TOKEN', {inputs: true, clicks: true})
 ```javascript
 mpEZTrack.init('YOUR-PROJECT-TOKEN', {debug: true, refresh: 1000, expose: true})
 ```
-- don't set super properties or make user profiles
+- don't set device properties or make user profiles
 ```javascript
-mpEZTrack.init('YOUR-PROJECT-TOKEN', { superProps: false, profiles: false})
+mpEZTrack.init('YOUR-PROJECT-TOKEN', { deviceProps: false, profiles: false})
 ```
 - use [spa mode](#spa) (react, angular, vue, svelte, ember, etc...) and enable "first page, first visit" tracking
 ```javascript
@@ -97,7 +100,7 @@ mpEZTrack.init('YOUR-PROJECT-TOKEN', { spa: true, firstPage: true})
 
 - the default settings for all options
 ```javascript
-mpEZTrack.init('YOUR-PROJECT-TOKEN', {debug: false, extend: false, refresh: 5000, location: true, superProps: true, pageView: true, pageExit: true, links: true, buttons: true, forms: true, profiles: true, selectors: true, inputs: false, clicks: false, youtube: false, window: false, clipboard: false, firstPage: false, error: false, logProps: false, spa: false})
+mpEZTrack.init('YOUR-PROJECT-TOKEN', {debug: false, extend: false, refresh: 5000, location: true, superProps: true, pageView: true, pageExit: true, links: true, buttons: true, forms: true, profiles: true, selectors: true, inputs: false, clicks: false, youtube: false, window: false, clipboard: false, firstPage: false, error: false, spa: false, tabs: false})
 ```
 
 ## motivation 💬 <div  id="motivation"></div>
