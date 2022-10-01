@@ -451,7 +451,21 @@ SPAS
 //default: off
 export function singlePageAppTracking(mp, opts) {
 	window.addEventListener("click", (ev) => {
-		figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
+		try {
+			figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+
+		//bind any other trackers that don't depend on clicks
+		try {
+			if (opts.youtube) ezTrack.youtube(mp, opts);
+		}
+		catch (e) {
+			if (opts.debug) console.log(e);
+		}
+
 	}, LISTENER_OPTIONS);
 }
 

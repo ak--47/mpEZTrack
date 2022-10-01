@@ -4569,7 +4569,19 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function singlePageAppTracking(mp, opts) {
     window.addEventListener("click", (ev) => {
-      figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
+      try {
+        figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
+      try {
+        if (opts.youtube)
+          ezTrack.youtube(mp, opts);
+      } catch (e) {
+        if (opts.debug)
+          console.log(e);
+      }
     }, LISTENER_OPTIONS);
   }
   function figureOutWhatWasClicked(elem, ev, mp, opts) {
