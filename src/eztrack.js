@@ -31,6 +31,7 @@ export const ezTrack = {
 	clearQueue: clearExistingMixpanelQueue,
 
 	debug: () => { mixpanel.ez.set_config({ debug: true }); },
+	mpDefaults: ["$os", "$browser", "$referrer", "$referring_domain", "$current_url", "$browser_version", "$screen_height", "$screen_width", "$initial_referrer", "$initial_referring_domain"],
 
 	// dom stuff
 	domElementsTracked: [],
@@ -118,12 +119,12 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			ip: opts.location,
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
-			property_blacklist: ["$current_url"],
+			property_blacklist: this.mpDefaults,
 			loaded: (mp) => {
 
 				//props on every event
 				try {
-					const superProps = this.getProps(token, opts);
+					const superProps = this.getProps(token, opts, mixpanel);
 					if (opts.debug) this.superProps = superProps;
 					mp.register(superProps, { persistent: false });
 				}
@@ -203,9 +204,9 @@ export function getDefaultOptions() {
 	};
 }
 
-export function getSuperProperties(token = this.token, opts = this.opts) {
+export function getSuperProperties(token = this.token, opts = this.opts, mixpanelClass) {
 	let result = PAGE_PROPS;
-	if (opts.deviceProps) result = { ...DEVICE_PROPS, ...result };
+	if (opts.deviceProps) result = { ...DEVICE_PROPS(mixpanelClass), ...result };
 	if (opts.firstPage) result = { ...this.priorVisit(token, opts), ...result };
 	if (opts.tabs) result = { ...this.tabTrack(token), ...result };
 	return result;

@@ -4021,14 +4021,25 @@
     "SESSION \u2192 # pages": window.history.length,
     "$source": "mpEZTrack"
   };
-  var DEVICE_PROPS = {
-    "DEVICE \u2192 pixel ratio": window.devicePixelRatio,
-    "DEVICE \u2192 screen dim": `${window.screen?.width} x ${window.screen?.height}`,
-    "DEVICE \u2192 language": window.navigator.language,
-    "DEVICE \u2192 bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
-    "DEVICE \u2192 memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
-    "DEVICE \u2192 platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
-    "DEVICE \u2192 is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown"
+  var DEVICE_PROPS = (mixpanel2) => {
+    const { $os, $browser, $referrer, $referring_domain, $browser_version, $screen_height, $screen_width } = mixpanel2._.info.properties();
+    mixpanel2.ez.register_once({ "DEVICE \u2192 first referrer": $referrer, "DEVICE \u2192 first referring domain": $referring_domain });
+    return {
+      "DEVICE \u2192 operating system": $os,
+      "DEVICE \u2192 browser": $browser,
+      "DEVICE \u2192 browser version": $browser_version,
+      "DEVICE \u2192 last referrer": $referrer,
+      "DEVICE \u2192 last referring domain": $referring_domain,
+      "DEVICE \u2192 screen height (px)": $screen_height,
+      "DEVICE \u2192 screen width (px)": $screen_width,
+      "DEVICE \u2192 screen dim": `${window.screen?.width} x ${window.screen?.height}`,
+      "DEVICE \u2192 language": window.navigator.language,
+      "DEVICE \u2192 pixel ratio": window.devicePixelRatio,
+      "DEVICE \u2192 bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
+      "DEVICE \u2192 memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
+      "DEVICE \u2192 platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
+      "DEVICE \u2192 is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown"
+    };
   };
   var BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
   var LISTENER_OPTIONS = {
@@ -4156,7 +4167,9 @@
     }
     return results;
   }
-  function isSensitiveData(text) {
+  function isSensitiveData(text = "") {
+    if (!text)
+      return false;
     const sensitiveTests = [isCreditCardNo, isSSN];
     const tests = sensitiveTests.map((testFn) => {
       return testFn(text);
@@ -4240,6 +4253,7 @@
     debug: () => {
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
+    mpDefaults: ["$os", "$browser", "$referrer", "$referring_domain", "$current_url", "$browser_version", "$screen_height", "$screen_width", "$initial_referrer", "$initial_referring_domain"],
     domElementsTracked: [],
     host: document.location.host,
     bind: bindTrackers,
@@ -4306,10 +4320,10 @@ https://developer.mixpanel.com/reference/project-token`);
         ip: opts.location,
         ignore_dnt: true,
         batch_flush_interval_ms: opts.refresh,
-        property_blacklist: ["$current_url"],
+        property_blacklist: this.mpDefaults,
         loaded: (mp) => {
           try {
-            const superProps = this.getProps(token, opts);
+            const superProps = this.getProps(token, opts, import_mixpanel_browser.default);
             if (opts.debug)
               this.superProps = superProps;
             mp.register(superProps, { persistent: false });
@@ -4372,10 +4386,10 @@ https://developer.mixpanel.com/reference/project-token`);
       logProps: false
     };
   }
-  function getSuperProperties(token = this.token, opts = this.opts) {
+  function getSuperProperties(token = this.token, opts = this.opts, mixpanelClass) {
     let result = PAGE_PROPS;
     if (opts.deviceProps)
-      result = { ...DEVICE_PROPS, ...result };
+      result = { ...DEVICE_PROPS(mixpanelClass), ...result };
     if (opts.firstPage)
       result = { ...this.priorVisit(token, opts), ...result };
     if (opts.tabs)

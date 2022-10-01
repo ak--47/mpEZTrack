@@ -17,14 +17,27 @@ export const PAGE_PROPS = {
 	"$source": "mpEZTrack"
 };
 
-export const DEVICE_PROPS = {
-	"DEVICE → pixel ratio": window.devicePixelRatio,
-	"DEVICE → screen dim": `${window.screen?.width} x ${window.screen?.height}`,
-	"DEVICE → language": window.navigator.language,
-	"DEVICE → bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
-	"DEVICE → memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
-	"DEVICE → platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
-	"DEVICE → is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
+export const DEVICE_PROPS = (mixpanel) => {
+	const { $os, $browser, $referrer, $referring_domain, $browser_version, $screen_height, $screen_width } = mixpanel._.info.properties();
+	//ugh side fx
+	mixpanel.ez.register_once({ "DEVICE → first referrer": $referrer, "DEVICE → first referring domain": $referring_domain });
+
+	return {
+		"DEVICE → operating system": $os,
+		"DEVICE → browser": $browser,
+		"DEVICE → browser version": $browser_version,
+		"DEVICE → last referrer": $referrer,
+		"DEVICE → last referring domain": $referring_domain,
+		"DEVICE → screen height (px)": $screen_height,
+		"DEVICE → screen width (px)": $screen_width,
+		"DEVICE → screen dim": `${window.screen?.width} x ${window.screen?.height}`,
+		"DEVICE → language": window.navigator.language,
+		"DEVICE → pixel ratio": window.devicePixelRatio,
+		"DEVICE → bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
+		"DEVICE → memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
+		"DEVICE → platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
+		"DEVICE → is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
+	};
 
 };
 
@@ -221,7 +234,8 @@ HELPERS
 -------
 */
 
-export function isSensitiveData(text) {
+export function isSensitiveData(text = "") {
+	if (!text) return false;
 	const sensitiveTests = [isCreditCardNo, isSSN];
 	const tests = sensitiveTests.map((testFn) => {
 		return testFn(text);
