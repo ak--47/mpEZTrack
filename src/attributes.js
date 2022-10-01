@@ -1,4 +1,39 @@
-/* eslint-disable no-inner-declarations */
+/*
+-----------------
+ENVIORMENT VALUES
+-----------------
+*/
+
+// always on
+export const PAGE_PROPS = {
+	"PAGE → full url (/)": decodeURIComponent(document.location.href),
+	"PAGE → short url (/)": decodeURIComponent(window.location.pathname),
+	"PAGE → hash (#)": window.location.hash,
+	"PAGE → url params (?)": qsToObj(window.location.search),
+	"PAGE → height": window.innerHeight,
+	"PAGE → width": window.innerWidth,
+	"PAGE → title": document.title,
+	"SESSION → # pages": window.history.length,
+	"$source": "mpEZTrack"
+};
+
+export const DEVICE_PROPS = {
+	"DEVICE → pixel ratio": window.devicePixelRatio,
+	"DEVICE → screen dim": `${window.screen?.width} x ${window.screen?.height}`,
+	"DEVICE → language": window.navigator.language,
+	"DEVICE → bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
+	"DEVICE → memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
+	"DEVICE → platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
+	"DEVICE → is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
+
+};
+
+export const BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
+
+export const LISTENER_OPTIONS = {
+	"passive": true
+};
+
 
 /*
 ------------------
@@ -7,36 +42,6 @@ SELECTORS + FIELDS
 */
 
 
-export const SUPER_PROPS = {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Window
-	"PAGE → url (/)": decodeURIComponent(window.location.pathname),
-	"PAGE → hash (#)": window.location.hash,
-	"PAGE → url params (?)": qsToObj(window.location.search),
-	"PAGE → height": window.innerHeight,
-	"PAGE → width": window.innerWidth,
-	"PAGE → title": document.title,
-	"SESSION → # pages": window.history.length,
-	"DEVICE → pixel ratio": window.devicePixelRatio,
-
-	// https://developer.mozilla.org/en-US/docs/Web/API/Window/screen
-	"DEVICE → screen dim": `${window.screen?.width} x ${window.screen?.height}`,
-
-	// https://developer.mozilla.org/en-US/docs/Web/API/Navigator
-	"DEVICE → language": window.navigator.language,
-	"DEVICE → bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
-	"DEVICE → memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
-	"DEVICE → platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
-	"DEVICE → is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
-	"$source": "mpEZTrack"
-};
-
-export const BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes]`;
-
-export const LISTENER_OPTIONS = {
-	"passive": true
-	// https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
-};
-
 export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	[`${label} → classes`]: [...el.classList],
 	[`${label} → height`]: el.offsetHeight,
@@ -44,20 +49,16 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
 	...enumNodeProps(el, label),
 	...conditionalFields(el, label)
-	// https://developer.mozilla.org/en-US/docs/Web/API/Node
-	// https://developer.mozilla.org/en-US/docs/Web/API/Element	
 });
 
 export const LINK_SELECTORS = String.raw`a`;
 export const LINK_FIELDS = (el) => ({
 	"LINK → text": squish(el.textContent)
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a
 });
 
-export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
+export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
 export const BUTTON_FIELDS = (el) => ({
 	"BUTTON → text": squish(el.textContent)
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
 });
 
 export const FORM_SELECTORS = String.raw`form`;
@@ -66,25 +67,19 @@ export const FORM_FIELDS = (el) => ({
 	"FORM → method": el.method,
 	"FORM → action": el.action,
 	"FORM → encoding": el.encoding
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
 });
 
-export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
+export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
 export const DROPDOWN_FIELDS = (el) => ({
 	"OPTION → selected": el.value,
 	"OPTION → choices": el.innerText.split('\n'),
 	"OPTION → labels": [...el.labels].map(label => label.textContent?.trim())
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/datalist
-
 });
 
 export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`;
 export const INPUT_FIELDS = (el) => ({
 	"CONTENT → user content": isSensitiveData(el.value) ? "******" : el.value,
 	"CONTENT → labels": [...el.labels].map(label => squish(label.textContent))
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea
-	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input
-	// https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/contentEditable
 });
 
 // 🚨 guard against sensitive fields 🚨
@@ -111,8 +106,7 @@ UTILITIES
 */
 
 
-export function enumNodeProps(el, label = "ELEM") {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes
+export function enumNodeProps(el, label = "ELEMENT") {
 	const result = {};
 	// https://meiert.com/en/blog/boolean-attributes-of-html/
 	const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
@@ -128,22 +122,34 @@ export function enumNodeProps(el, label = "ELEM") {
 	loopAttributes: for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
 		att = atts[i];
 		let keySuffix = mapReplace(att.name, replaceAttrs);
+
 		if (keySuffix?.toLowerCase()?.includes('pass')) continue loopAttributes; //no sneakily emedded password fields
+		if (keySuffix?.startsWith("on")) continue loopAttributes; //no inline js handlers
+		if (keySuffix === "nonce") continue loopAttributes; //get that crypto stuff outta here
+
+
 		let keyName = `${label} → ${keySuffix}`;
 		let val = att.value?.trim();
 
-		if (boolAttrs.some(attr => attr === att.name)) val = true; //attrs which have no value are "boolean" and therefore true when present
+		if (boolAttrs.some(attr => attr === att.name)) {
+			//attrs which have no value are "boolean" and therefore true when present
+			val = true;
+			keyName += "?";
+		}
 
 		result[keyName] = val;
 
 	}
-	//classes are tracked elsewhere
+
+	//tags to delete
 	delete result[`${label} → class (delete)`];
+	delete result[`${label} → style`];
+
 
 	return result;
 }
 
-export function conditionalFields(el, label = "ELEM") {
+export function conditionalFields(el, label = "ELEMENT") {
 	const results = {};
 
 	// LABELS
@@ -172,6 +178,7 @@ export function conditionalFields(el, label = "ELEM") {
 
 		// otherwise, recursively find the closest textContent by moving up the DOM
 		if (!results[`${label} → label`]) {
+			// eslint-disable-next-line no-inner-declarations
 			function findLabelRecursively(el) {
 				if (!el) {
 					return false;
@@ -196,10 +203,14 @@ export function conditionalFields(el, label = "ELEM") {
 		results[`${label} → checked`] = el.checked;
 	}
 
-	// CHILDREN
-	if (el.childElementCount > 0) {
-		results[`${label} → child`] = squish(el.innerHTML);
+	if (typeof el.required === 'boolean') {
+		results[`${label} → required?`] = el.checked;
 	}
+
+	// // CHILDREN
+	// if (el.childElementCount > 0) {
+	// 	results[`${label} → child`] = squish(el.innerHTML);
+	// }
 
 	return results;
 }
@@ -305,13 +316,18 @@ UNUSED
 */
 
 export function isHTML(str) {
-	// https://stackoverflow.com/a/15458968
-	var doc = new DOMParser().parseFromString(str, "text/html");
-	return Array.from(doc.body.childNodes).some(node => node.nodeType === 1);
+	try {
+		var doc = new DOMParser().parseFromString(str, "text/html");
+		return Array.from(doc.body.childNodes).some(node => node.nodeType === 1);
+	}
+
+	catch (e) {
+		return false;
+	}
 }
 
 export function parseDatasetAttrs(dataset) {
-	// https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/dataset
+
 	try {
 		return { ...dataset };
 	}

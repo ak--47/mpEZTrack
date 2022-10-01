@@ -2,7 +2,7 @@ import mixpanel from 'mixpanel-browser';
 import { querySelectorAllDeep } from 'query-selector-shadow-dom';
 import {
 	BLACKLIST_ELEMENTS,
-	SUPER_PROPS, STANDARD_FIELDS,
+	PAGE_PROPS, DEVICE_PROPS, STANDARD_FIELDS,
 	LINK_SELECTORS, LINK_FIELDS,
 	BUTTON_SELECTORS, BUTTON_FIELDS,
 	FORM_SELECTORS, FORM_FIELDS,
@@ -104,9 +104,9 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 
 	this.opts = Object.freeze(opts);
 
-	//this is sketchy; basically don't send 'page lost focus' events if they are in the queue from a prior visit
+	//don't send 'page lost focus' events if they are in the queue from a prior visit
 	if (opts.window) this.clearQueue(token, opts);
-	
+
 	// do mixpanel
 	try {
 
@@ -118,6 +118,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			ip: opts.location,
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
+			property_blacklist: ["$current_url"],
 			loaded: (mp) => {
 
 				//props on every event
@@ -203,8 +204,8 @@ export function getDefaultOptions() {
 }
 
 export function getSuperProperties(token = this.token, opts = this.opts) {
-	let result = {};
-	if (opts.deviceProps) result = { ...SUPER_PROPS, ...result };
+	let result = PAGE_PROPS;
+	if (opts.deviceProps) result = { ...DEVICE_PROPS, ...result };
 	if (opts.firstPage) result = { ...this.priorVisit(token, opts), ...result };
 	if (opts.tabs) result = { ...this.tabTrack(token), ...result };
 	return result;
@@ -325,8 +326,8 @@ export function trackPageExits(mp) {
 export function listenForButtonClicks(mp, opts) {
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
-		.filter(node => node.tagName !== 'LABEL') //button is not a label
-		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
+		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
+		.filter(node => !this.domElementsTracked.some(el => el === node));
 
 	for (const button of buttons) {
 		this.domElementsTracked.push(button);
@@ -345,7 +346,8 @@ export function listenForButtonClicks(mp, opts) {
 //default: on
 export function listenForLinkClicks(mp, opts) {
 	const links = uniqueNodes(this.query(LINK_SELECTORS))
-		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
+		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
+		.filter(node => !this.domElementsTracked.some(el => el === node));
 
 	for (const link of links) {
 		this.domElementsTracked.push(link);
@@ -379,8 +381,8 @@ export function listenForFormSubmits(mp, opts) {
 //default: on
 export function listenForDropDownChanges(mp, opts) {
 	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
-		.filter(node => node.tagName !== 'LABEL') //not a label
-		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
+		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
+		.filter(node => !this.domElementsTracked.some(el => el === node));
 
 	for (const dropdown of allDropdowns) {
 		this.domElementsTracked.push(dropdown);
@@ -398,8 +400,8 @@ export function listenForDropDownChanges(mp, opts) {
 //default: off
 export function listenForUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
-		.filter(node => node.tagName !== 'LABEL') //not a label
-		.filter(node => !this.domElementsTracked.some(el => el === node)); //not already tracked
+		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
+		.filter(node => !this.domElementsTracked.some(el => el === node));
 
 	for (const input of inputElements) {
 		this.domElementsTracked.push(input);
@@ -422,7 +424,6 @@ export function listenForAllClicks(mp, opts) {
 			.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
 			.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
 			.filter(node => !this.domElementsTracked.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
-			.filter(node => node.tagName !== 'LABEL') //not a label
 			.filter(node => (!node.matches(BLACKLIST_ELEMENTS))) //isn't classified as sensitive
 	);
 
@@ -698,7 +699,6 @@ export function trackWindowStuff(mp, opts) {
 		}
 	}, LISTENER_OPTIONS);
 
-
 	window.addEventListener('visibilitychange', function () {
 		const props = {
 			...statefulProps(false)
@@ -798,7 +798,7 @@ export function createUserProfiles(mp, opts) {
 			"USER → language": window.navigator.language
 		});
 		mp.people.increment("total # pages");
-		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+		mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString(), "$email": "anonymous", "$phone": "anonymous" });
 	}
 	catch (e) {
 		if (opts.debug) console.log(e);
@@ -919,7 +919,6 @@ HELPERS
 -------
 */
 
-
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];
 }
@@ -953,10 +952,10 @@ export function generateTabId(token, length = 32) {
 	}
 }
 
-export function clearExistingMixpanelQueue(token, opts){
+export function clearExistingMixpanelQueue(token, opts) {
 	try {
 		const storageKey = `__mpq_${token}_ev`;
-		const existingQueue = localStorage.getItem(storageKey)
+		const existingQueue = localStorage.getItem(storageKey);
 		if (existingQueue) {
 			const cleanedQueue = JSON.parse(existingQueue).filter(q => q.payload.event !== 'page lost focus');
 			localStorage.setItem(storageKey, JSON.stringify(cleanedQueue));
@@ -965,15 +964,12 @@ export function clearExistingMixpanelQueue(token, opts){
 		}
 
 		return false;
-		
-
 	}
+
 	catch (e) {
 		if (opts.debug && opts.logProps) console.log('failed to clear queue'); console.log(e);
 		return false;
 	}
-
-	
 }
 
 //put it in global namespace 🤠

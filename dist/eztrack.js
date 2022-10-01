@@ -4010,24 +4010,27 @@
   }
 
   // src/attributes.js
-  var SUPER_PROPS = {
-    "PAGE \u2192 url (/)": decodeURIComponent(window.location.pathname),
+  var PAGE_PROPS = {
+    "PAGE \u2192 full url (/)": decodeURIComponent(document.location.href),
+    "PAGE \u2192 short url (/)": decodeURIComponent(window.location.pathname),
     "PAGE \u2192 hash (#)": window.location.hash,
     "PAGE \u2192 url params (?)": qsToObj(window.location.search),
     "PAGE \u2192 height": window.innerHeight,
     "PAGE \u2192 width": window.innerWidth,
     "PAGE \u2192 title": document.title,
     "SESSION \u2192 # pages": window.history.length,
+    "$source": "mpEZTrack"
+  };
+  var DEVICE_PROPS = {
     "DEVICE \u2192 pixel ratio": window.devicePixelRatio,
     "DEVICE \u2192 screen dim": `${window.screen?.width} x ${window.screen?.height}`,
     "DEVICE \u2192 language": window.navigator.language,
     "DEVICE \u2192 bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
     "DEVICE \u2192 memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
     "DEVICE \u2192 platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
-    "DEVICE \u2192 is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
-    "$source": "mpEZTrack"
+    "DEVICE \u2192 is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown"
   };
-  var BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes]`;
+  var BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
   var LISTENER_OPTIONS = {
     "passive": true
   };
@@ -4043,7 +4046,7 @@
   var LINK_FIELDS = (el) => ({
     "LINK \u2192 text": squish(el.textContent)
   });
-  var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"]`;
+  var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
   var BUTTON_FIELDS = (el) => ({
     "BUTTON \u2192 text": squish(el.textContent)
   });
@@ -4054,7 +4057,7 @@
     "FORM \u2192 action": el.action,
     "FORM \u2192 encoding": el.encoding
   });
-  var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"]`;
+  var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
   var DROPDOWN_FIELDS = (el) => ({
     "OPTION \u2192 selected": el.value,
     "OPTION \u2192 choices": el.innerText.split("\n"),
@@ -4077,7 +4080,7 @@
     return fields;
   };
   var YOUTUBE_SELECTOR = String.raw`iframe`;
-  function enumNodeProps(el, label = "ELEM") {
+  function enumNodeProps(el, label = "ELEMENT") {
     const result = {};
     const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
     const replaceAttrs = {
@@ -4093,16 +4096,23 @@
         let keySuffix = mapReplace(att.name, replaceAttrs);
         if (keySuffix?.toLowerCase()?.includes("pass"))
           continue loopAttributes;
+        if (keySuffix?.startsWith("on"))
+          continue loopAttributes;
+        if (keySuffix === "nonce")
+          continue loopAttributes;
         let keyName = `${label} \u2192 ${keySuffix}`;
         let val = att.value?.trim();
-        if (boolAttrs.some((attr) => attr === att.name))
+        if (boolAttrs.some((attr) => attr === att.name)) {
           val = true;
+          keyName += "?";
+        }
         result[keyName] = val;
       }
     delete result[`${label} \u2192 class (delete)`];
+    delete result[`${label} \u2192 style`];
     return result;
   }
-  function conditionalFields(el, label = "ELEM") {
+  function conditionalFields(el, label = "ELEMENT") {
     const results = {};
     if (Array.from(el?.labels || "").length === 0) {
       if (el.previousElementSibling?.nodeName === `LABEL`) {
@@ -4141,8 +4151,8 @@
     if (typeof el.checked === "boolean") {
       results[`${label} \u2192 checked`] = el.checked;
     }
-    if (el.childElementCount > 0) {
-      results[`${label} \u2192 child`] = squish(el.innerHTML);
+    if (typeof el.required === "boolean") {
+      results[`${label} \u2192 required?`] = el.checked;
     }
     return results;
   }
@@ -4296,6 +4306,7 @@ https://developer.mixpanel.com/reference/project-token`);
         ip: opts.location,
         ignore_dnt: true,
         batch_flush_interval_ms: opts.refresh,
+        property_blacklist: ["$current_url"],
         loaded: (mp) => {
           try {
             const superProps = this.getProps(token, opts);
@@ -4362,9 +4373,9 @@ https://developer.mixpanel.com/reference/project-token`);
     };
   }
   function getSuperProperties(token = this.token, opts = this.opts) {
-    let result = {};
+    let result = PAGE_PROPS;
     if (opts.deviceProps)
-      result = { ...SUPER_PROPS, ...result };
+      result = { ...DEVICE_PROPS, ...result };
     if (opts.firstPage)
       result = { ...this.priorVisit(token, opts), ...result };
     if (opts.tabs)
@@ -4457,7 +4468,7 @@ https://developer.mixpanel.com/reference/project-token`);
     });
   }
   function listenForButtonClicks(mp, opts) {
-    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
+    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const button of buttons) {
       this.domElementsTracked.push(button);
       button.addEventListener("click", (ev) => {
@@ -4471,7 +4482,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForLinkClicks(mp, opts) {
-    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
+    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const link of links) {
       this.domElementsTracked.push(link);
       link.addEventListener("click", (ev) => {
@@ -4499,7 +4510,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForDropDownChanges(mp, opts) {
-    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
+    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const dropdown of allDropdowns) {
       this.domElementsTracked.push(dropdown);
       dropdown.addEventListener("change", (ev) => {
@@ -4513,7 +4524,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForUserInput(mp, opts) {
-    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => node.tagName !== "LABEL").filter((node) => !this.domElementsTracked.some((el) => el === node));
+    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
     for (const input of inputElements) {
       this.domElementsTracked.push(input);
       input.addEventListener("change", (ev) => {
@@ -4528,7 +4539,7 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function listenForAllClicks(mp, opts) {
     let allThings = uniqueNodes(
-      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => node.tagName !== "LABEL").filter((node) => !node.matches(BLACKLIST_ELEMENTS))
+      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => !node.matches(BLACKLIST_ELEMENTS))
     );
     for (const thing of allThings) {
       this.domElementsTracked.push(thing);
@@ -4827,7 +4838,7 @@ https://developer.mixpanel.com/reference/project-token`);
         "USER \u2192 language": window.navigator.language
       });
       mp.people.increment("total # pages");
-      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString() });
+      mp.people.set_once({ "$name": "anonymous", "$Created": new Date().toISOString(), "$email": "anonymous", "$phone": "anonymous" });
     } catch (e) {
       if (opts.debug)
         console.log(e);

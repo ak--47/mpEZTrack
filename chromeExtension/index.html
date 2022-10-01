@@ -48,7 +48,6 @@
 
 		em {
 			color: var(--red);
-			font-weight: bold;
 		}
 
 		code {
@@ -85,6 +84,15 @@
 		#token {
 			width: 234px;
 		}
+
+		#pageTitle {
+			color: var(--blue);
+			font-weight: 900;
+			font-family: monospace;
+			font-size: 18px;
+			font-style: initial;
+			line-height: 25px;
+		}
 	</style>
 </head>
 
@@ -119,12 +127,15 @@
 		<div>
 			<input type="text" name="token" id="token" placeholder="your mixpanel token!!!" maxlength="32"
 				minlength="32">
-			<button id="save">save</button>
-			<button id="reset" disabled>reset</button>
+			<button id="save">start</button>
+			<button id="reset" disabled>stop</button>
 			<div class="statusText hidden" id="statusTextOn">
-				<span>your token is <pre><span id="showUserToken">{{ foo }}</span></pre></span>
+				<span>your token is
+					<pre><span id="showUserToken">{{ foo }}</span></pre>
+				</span>
 				<p></p>
-				<span>mpEZTrack is <em>active on all pages in all tabs!!!</em></span>
+				<span>mpEZTrack is <em>active on all pages for tab:<br /><span id="pageTitle">{{this
+							tab}}</span></em></span>
 			</div>
 			<div class="statusText" id="statusTextOff">
 				<span>mpEZTrack is inactive on all pages in all tabs</span>

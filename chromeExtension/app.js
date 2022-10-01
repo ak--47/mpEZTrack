@@ -13,6 +13,7 @@ const app = {
 		this.dom.showToken = this.query('#showUserToken');
 		this.dom.lastTokenText = this.query('#lastTokenText');
 		this.dom.lastToken = this.query('#lastToken');
+		this.dom.pageTitle = this.query('#pageTitle');
 		this.listeners();
 		this.initView();
 	},
@@ -20,6 +21,15 @@ const app = {
 		this.port.postMessage("injectOnce");
 	},
 	listeners: function () {
+
+		// BACKGROUND.js
+		this.port.onMessage.addListener((msg) => {
+			if (msg?.status === 'persistent') {
+				this.dom.pageTitle.textContent = msg.tab.title;
+				chrome.storage.local.set({ "lastPage": msg.tab.title });
+			}
+		});
+
 		// INJECT
 		this.dom.injectButton.addEventListener('click', (ev) => {
 			this.injectOnce();
@@ -31,7 +41,8 @@ const app = {
 		// SAVE
 		this.dom.saveButton.addEventListener('click', (ev) => {
 			this.save();
-			this.port.postMessage("injectAlwaysOn", token);
+			this.port.postMessage("injectAlwaysOn");
+
 		});
 
 		// RESET
@@ -39,6 +50,7 @@ const app = {
 			this.reset(this.dom.tokenEntered.value);
 			this.port.postMessage("injectAlwaysOff");
 		});
+
 
 	},
 	// UI states
@@ -61,12 +73,11 @@ const app = {
 		}
 
 		chrome.storage.local.set({ "token": null });
+		chrome.storage.local.set({ "lastPage": null });
 		this.dom.showToken.textContent = "";
 		this.dom.resetButton.setAttribute('disabled', '');
 		this.dom.saveButton.removeAttribute('disabled');
 		this.dom.statusTextOn.classList.add('hidden');
-		
-
 	},
 	initView: function () {
 		chrome.storage.local.get(['token'], (result) => {
@@ -87,6 +98,12 @@ const app = {
 					}
 				});
 
+			}
+		});
+
+		chrome.storage.local.get(['lastPage'], (result) => {
+			if (result.lastPage) {
+				this.dom.pageTitle.textContent = result.lastPage;
 			}
 		});
 	}
