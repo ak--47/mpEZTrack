@@ -34,7 +34,7 @@ export const ezTrack = {
 	mpDefaults: ["$os", "$browser", "$referrer", "$referring_domain", "$current_url", "$browser_version", "$screen_height", "$screen_width", "$initial_referrer", "$initial_referring_domain"],
 
 	// dom stuff
-	domElementsTracked: [],
+	trackedElements: [],
 	host: document.location.host,
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom		
@@ -98,9 +98,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			if (typeof opts[key] === 'boolean') opts[key] = true;
 			if (typeof opts[key] === 'number') opts[key] = 0;
 		}
-		opts.spa = false;
 		if (forceTrue === "nodebug") opts.debug = false;
-		if (forceTrue === "spa") opts.spa = true;
 	}
 
 	this.opts = Object.freeze(opts);
@@ -186,9 +184,9 @@ export function getDefaultOptions() {
 		forms: true,
 		profiles: true,
 		selectors: true,
+		spa: true,
 
-		//default off
-		spa: false,
+		//default off		
 		inputs: false,
 		clicks: false,
 		youtube: false,
@@ -223,21 +221,18 @@ export function bindTrackers(mp, opts) {
 		if (opts.clipboard) this.clipboard(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 
-		//SPA mode tracks all clicks and then figure out the elements
-		if (opts.spa) {
-			this.spa(mp, opts);
-		}
-		//Normal mode queries the DOM directly and sets up listeners on page loade
-		else {
-			if (opts.buttons) this.buttons(mp, opts);
-			if (opts.forms) this.forms(mp, opts);
-			if (opts.selectors) this.selectors(mp, opts);
-			if (opts.inputs) this.inputs(mp, opts);
-			if (opts.links) this.links(mp, opts);
-			if (opts.youtube) this.youtube(mp, opts);
-			//this should always be last as it is the most general form of tracking for non spas
-			if (opts.clicks) this.clicks(mp, opts);
-		}
+		//query dom for all nodes eligible to be tracked
+		if (opts.buttons) this.buttons(mp, opts);
+		if (opts.forms) this.forms(mp, opts);
+		if (opts.selectors) this.selectors(mp, opts);
+		if (opts.inputs) this.inputs(mp, opts);
+		if (opts.links) this.links(mp, opts);
+		if (opts.youtube) this.youtube(mp, opts);
+		//this should always be last as it is the most general form of tracking for non spas
+		if (opts.clicks) this.clicks(mp, opts);
+		//cactch clicks on elements that are constructed after page is loaded
+		if (opts.spa) this.spa(mp, opts);
+
 	}
 	catch (e) {
 		if (opts.debug) console.log(e);
@@ -328,10 +323,10 @@ export function listenForButtonClicks(mp, opts) {
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.domElementsTracked.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node));
 
 	for (const button of buttons) {
-		this.domElementsTracked.push(button);
+		this.trackedElements.push(button);
 		button.addEventListener('click', (ev) => {
 			try {
 				this.buttonTrack(ev, mp, opts);
@@ -348,10 +343,10 @@ export function listenForButtonClicks(mp, opts) {
 export function listenForLinkClicks(mp, opts) {
 	const links = uniqueNodes(this.query(LINK_SELECTORS))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.domElementsTracked.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node));
 
 	for (const link of links) {
-		this.domElementsTracked.push(link);
+		this.trackedElements.push(link);
 		link.addEventListener('click', (ev) => {
 			try {
 				this.linkTrack(ev, mp, opts);
@@ -367,7 +362,7 @@ export function listenForLinkClicks(mp, opts) {
 export function listenForFormSubmits(mp, opts) {
 	const forms = uniqueNodes(this.query(FORM_SELECTORS));
 	for (const form of forms) {
-		this.domElementsTracked.push(form);
+		this.trackedElements.push(form);
 		form.addEventListener('submit', (ev) => {
 			try {
 				this.formTrack(ev, mp, opts);
@@ -383,10 +378,10 @@ export function listenForFormSubmits(mp, opts) {
 export function listenForDropDownChanges(mp, opts) {
 	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.domElementsTracked.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node));
 
 	for (const dropdown of allDropdowns) {
-		this.domElementsTracked.push(dropdown);
+		this.trackedElements.push(dropdown);
 		dropdown.addEventListener('change', (ev) => {
 			try {
 				this.selectTrack(ev, mp, opts);
@@ -402,10 +397,10 @@ export function listenForDropDownChanges(mp, opts) {
 export function listenForUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.domElementsTracked.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node));
 
 	for (const input of inputElements) {
-		this.domElementsTracked.push(input);
+		this.trackedElements.push(input);
 		input.addEventListener('change', (ev) => {
 			try {
 				this.inputTrack(ev, mp, opts);
@@ -422,15 +417,15 @@ export function listenForAllClicks(mp, opts) {
 	let allThings = uniqueNodes(
 		this.query(ALL_SELECTOR)
 			.filter(node => node.childElementCount === 0) //most specific
-			.filter(node => !this.domElementsTracked.some(el => el === node)) //not already tracked
-			.filter(node => !this.domElementsTracked.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
-			.filter(node => !this.domElementsTracked.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
+			.filter(node => !this.trackedElements.some(el => el === node)) //not already tracked
+			.filter(node => !this.trackedElements.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
+			.filter(node => !this.trackedElements.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
 			.filter(node => (!node.matches(BLACKLIST_ELEMENTS))) //isn't classified as sensitive
 	);
 
 
 	for (const thing of allThings) {
-		this.domElementsTracked.push(thing);
+		this.trackedElements.push(thing);
 		thing.addEventListener('click', (ev) => {
 			try {
 				this.clickTrack(ev, mp, opts);
@@ -448,10 +443,11 @@ SPAS
 -----
 */
 
-//default: off
+//default: on
 export function singlePageAppTracking(mp, opts) {
 	window.addEventListener("click", (ev) => {
 		try {
+			if (this.trackedElements.includes(ev.target)) return true;
 			figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
 		}
 		catch (e) {
@@ -506,7 +502,7 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 
 	}
 
-	//check parents
+	//the node didn't match any selectors; check it's parents
 	const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
 	const matchingParents = getAllParents(elem).filter((node) => {
 		let matched = possibleMatches.map((matchSelector) => {
@@ -536,13 +532,31 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 }
 
 export function spaPipeline(directive = 'none', ev, mp, opts) {
-	if (opts.buttons && directive === 'button') this.buttonTrack(ev, mp, opts);
-	else if (opts.links && directive === 'link') this.linkTrack(ev, mp, opts);
-	else if (opts.forms && directive === 'form') this.formTrack(ev, mp, opts);
-	else if (opts.selectors && directive === 'select') this.selectTrack(ev, mp, opts);
-	else if (opts.inputs && directive === 'input') this.inputTrack(ev, mp, opts);
+	if (opts.buttons && directive === 'button') {
+		this.trackedElements.push(ev.target);
+		this.buttonTrack(ev, mp, opts);
+	}
+	else if (opts.links && directive === 'link') {
+		this.trackedElements.push(ev.target);
+		this.linkTrack(ev, mp, opts);
+	}
+	else if (opts.forms && directive === 'form') {
+		this.trackedElements.push(ev.target);
+		this.formTrack(ev, mp, opts);
+	}
+	else if (opts.selectors && directive === 'select') {
+		this.trackedElements.push(ev.target);
+		this.selectTrack(ev, mp, opts);
+	}
+	else if (opts.inputs && directive === 'input') {
+		this.trackedElements.push(ev.target);
+		this.inputTrack(ev, mp, opts);
+	}
 	//this should always be last as it is the most general form of tracking
-	else if (opts.clicks && directive === 'all') this.clickTrack(ev, mp, opts);
+	else if (opts.clicks && directive === 'all') {
+		this.trackedElements.push(ev.target);
+		this.clickTrack(ev, mp, opts);
+	}
 }
 
 
@@ -839,7 +853,7 @@ export function trackYoutubeVideos(mp) {
 	const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter(frame => frame.src.includes('youtube.com/embed'));
 
 	for (const video of videos) {
-		this.domElementsTracked.push(video);
+		this.trackedElements.push(video);
 		if (!video.id) {
 			video.id = new URL(video.src).pathname.replace("/embed/", "");
 		}
