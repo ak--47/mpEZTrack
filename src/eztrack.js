@@ -468,23 +468,16 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 	}
 
 	else if (elem.matches(FORM_SELECTORS)) {
-		elem.addEventListener('submit', (submitEvent) => {
-			this.spaPipe('form', submitEvent, mp, opts);
-		}, { once: true, ...LISTENER_OPTIONS });
+		this.spaPipe('form', ev, mp, opts);
 		return true;
 	}
 	else if (elem.matches(DROPDOWN_SELECTOR)) {
-		elem.addEventListener('change', (changeEvent) => {
-			this.spaPipe('select', changeEvent, mp, opts);
-		}, { once: true, ...LISTENER_OPTIONS });
+		this.spaPipe('select', ev, mp, opts);
 		return true;
 	}
 	else if (elem.matches(INPUT_SELECTOR)) {
-		elem.addEventListener('change', (changeEvent) => {
-			this.spaPipe('input', changeEvent, mp, opts);
-		}, { once: true, ...LISTENER_OPTIONS });
+		this.spaPipe('input', ev, mp, opts);
 		return true;
-
 	}
 
 	//the node didn't match any selectors; check it's parents
@@ -517,30 +510,50 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 }
 
 export function spaPipeline(directive = 'none', ev, mp, opts) {
-	if (opts.buttons && directive === 'button') {
-		this.trackedElements.push(ev.target);
-		this.buttonTrack(ev, mp, opts);
-	}
-	else if (opts.links && directive === 'link') {
-		this.trackedElements.push(ev.target);
-		this.linkTrack(ev, mp, opts);
-	}
-	else if (opts.forms && directive === 'form') {
-		this.trackedElements.push(ev.target);
-		this.formTrack(ev, mp, opts);
-	}
-	else if (opts.selectors && directive === 'select') {
-		this.trackedElements.push(ev.target);
-		this.selectTrack(ev, mp, opts);
-	}
-	else if (opts.inputs && directive === 'input') {
-		this.trackedElements.push(ev.target);
-		this.inputTrack(ev, mp, opts);
-	}
-	//this should always be last as it is the most general form of tracking
-	else if (opts.clicks && directive === 'all') {
-		this.trackedElements.push(ev.target);
-		this.clickTrack(ev, mp, opts);
+	const isAlreadyTracked = this.trackedElements.includes(ev.target);
+	if (!isAlreadyTracked) {
+		if (opts.buttons && directive === 'button') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('click', (clickEv) => {
+				this.buttonTrack(clickEv, mp, opts);
+			}, LISTENER_OPTIONS);
+
+			this.buttonTrack(ev, mp, opts);
+		}
+		else if (opts.links && directive === 'link') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('click', (clickEv) => {
+				this.linkTrack(clickEv, mp, opts);
+			});
+
+			this.linkTrack(ev, mp, opts);
+		}
+		else if (opts.forms && directive === 'form') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('submit', (submitEv) => {
+				this.formTrack(submitEv, mp, opts);
+			}, LISTENER_OPTIONS);
+
+		}
+		else if (opts.selectors && directive === 'select') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('change', (changeEv) => {
+				this.selectTrack(changeEv, mp, opts);
+			}, LISTENER_OPTIONS);
+		}
+		else if (opts.inputs && directive === 'input') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('change', (changeEv) => {
+				this.inputTrack(changeEv, mp, opts);
+			}, LISTENER_OPTIONS);
+		}
+		//this should always be last as it is the most general form of tracking
+		else if (opts.clicks && directive === 'all') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('click', (clickEv) => {
+				this.clickTrack(clickEv, mp, opts);
+			}, LISTENER_OPTIONS);
+		}
 	}
 }
 
@@ -747,14 +760,14 @@ export function trackWindowStuff(mp, opts) {
 		const props = {
 			...statefulProps(false)
 		};
-		if (document.fullscreenElement) { 
-			mp.track("page fullscren: on", props)
+		if (document.fullscreenElement) {
+			mp.track("page fullscren: on", props);
 		}
 
 		else {
-			mp.track("page fullscren: off", props)
+			mp.track("page fullscren: off", props);
 		}
-	})
+	});
 
 }
 

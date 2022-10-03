@@ -84,7 +84,9 @@ chrome.extension.onConnect.addListener(function (port) {
 
 		}
 
-
+		if (msg === "openExtension") {
+			analyticsEvent(currentUser, "open extension")
+		}
 
 	});
 });

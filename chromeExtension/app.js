@@ -3,6 +3,7 @@ const app = {
 	query: document.querySelector.bind(document),
 	port: chrome.extension.connect({ name: "eztrack" }),
 	init: function () {
+		this.port.postMessage("openExtension")
 		this.dom.injectButton = this.query('#inject');
 		this.dom.tokenEntered = this.query('#token');
 		this.dom.saveButton = this.query('#save');
