@@ -139,6 +139,7 @@ export function enumNodeProps(el, label = "ELEMENT") {
 		if (keySuffix?.toLowerCase()?.includes('pass')) continue loopAttributes; //no sneakily emedded password fields
 		if (keySuffix?.startsWith("on")) continue loopAttributes; //no inline js handlers
 		if (keySuffix === "nonce") continue loopAttributes; //get that crypto stuff outta here
+		if (keySuffix === "d") continue loopAttributes; //no svg paths
 
 
 		let keyName = `${label} → ${keySuffix}`;

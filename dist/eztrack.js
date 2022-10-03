@@ -4111,6 +4111,8 @@
           continue loopAttributes;
         if (keySuffix === "nonce")
           continue loopAttributes;
+        if (keySuffix === "d")
+          continue loopAttributes;
         let keyName = `${label} \u2192 ${keySuffix}`;
         let val = att.value?.trim();
         if (boolAttrs.some((attr) => attr === att.name)) {
@@ -4254,7 +4256,7 @@
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
     mpDefaults: ["$os", "$browser", "$referrer", "$referring_domain", "$current_url", "$browser_version", "$screen_height", "$screen_width", "$initial_referrer", "$initial_referring_domain"],
-    domElementsTracked: [],
+    trackedElements: [],
     host: document.location.host,
     bind: bindTrackers,
     query: querySelectorAllDeep,
@@ -4302,11 +4304,8 @@ https://developer.mixpanel.com/reference/project-token`);
         if (typeof opts[key] === "number")
           opts[key] = 0;
       }
-      opts.spa = false;
       if (forceTrue === "nodebug")
         opts.debug = false;
-      if (forceTrue === "spa")
-        opts.spa = true;
     }
     this.opts = Object.freeze(opts);
     if (opts.window)
@@ -4374,7 +4373,7 @@ https://developer.mixpanel.com/reference/project-token`);
       forms: true,
       profiles: true,
       selectors: true,
-      spa: false,
+      spa: true,
       inputs: false,
       clicks: false,
       youtube: false,
@@ -4410,24 +4409,22 @@ https://developer.mixpanel.com/reference/project-token`);
         this.clipboard(mp, opts);
       if (opts.profiles)
         this.profiles(mp, opts);
-      if (opts.spa) {
+      if (opts.buttons)
+        this.buttons(mp, opts);
+      if (opts.forms)
+        this.forms(mp, opts);
+      if (opts.selectors)
+        this.selectors(mp, opts);
+      if (opts.inputs)
+        this.inputs(mp, opts);
+      if (opts.links)
+        this.links(mp, opts);
+      if (opts.youtube)
+        this.youtube(mp, opts);
+      if (opts.clicks)
+        this.clicks(mp, opts);
+      if (opts.spa)
         this.spa(mp, opts);
-      } else {
-        if (opts.buttons)
-          this.buttons(mp, opts);
-        if (opts.forms)
-          this.forms(mp, opts);
-        if (opts.selectors)
-          this.selectors(mp, opts);
-        if (opts.inputs)
-          this.inputs(mp, opts);
-        if (opts.links)
-          this.links(mp, opts);
-        if (opts.youtube)
-          this.youtube(mp, opts);
-        if (opts.clicks)
-          this.clicks(mp, opts);
-      }
     } catch (e) {
       if (opts.debug)
         console.log(e);
@@ -4469,22 +4466,10 @@ https://developer.mixpanel.com/reference/project-token`);
       return {};
     }
   }
-  function trackPageViews(mp, opts) {
-    mp.track("page enter", { ...statefulProps(true, false, false) });
-    if (opts.logProps)
-      console.log("PAGE VIEW");
-    console.log(JSON.stringify({ ...statefulProps(true, false, false) }, null, 2));
-  }
-  function trackPageExits(mp) {
-    window.addEventListener("beforeunload", () => {
-      this.hasVisibilityChanged = null;
-      mp.track("page exit", { ...statefulProps() }, { transport: "sendBeacon", send_immediately: true });
-    });
-  }
   function listenForButtonClicks(mp, opts) {
-    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
+    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
     for (const button of buttons) {
-      this.domElementsTracked.push(button);
+      this.trackedElements.push(button);
       button.addEventListener("click", (ev) => {
         try {
           this.buttonTrack(ev, mp, opts);
@@ -4496,9 +4481,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForLinkClicks(mp, opts) {
-    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
+    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
     for (const link of links) {
-      this.domElementsTracked.push(link);
+      this.trackedElements.push(link);
       link.addEventListener("click", (ev) => {
         try {
           this.linkTrack(ev, mp, opts);
@@ -4512,7 +4497,7 @@ https://developer.mixpanel.com/reference/project-token`);
   function listenForFormSubmits(mp, opts) {
     const forms = uniqueNodes(this.query(FORM_SELECTORS));
     for (const form of forms) {
-      this.domElementsTracked.push(form);
+      this.trackedElements.push(form);
       form.addEventListener("submit", (ev) => {
         try {
           this.formTrack(ev, mp, opts);
@@ -4524,9 +4509,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForDropDownChanges(mp, opts) {
-    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
+    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
     for (const dropdown of allDropdowns) {
-      this.domElementsTracked.push(dropdown);
+      this.trackedElements.push(dropdown);
       dropdown.addEventListener("change", (ev) => {
         try {
           this.selectTrack(ev, mp, opts);
@@ -4538,9 +4523,9 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForUserInput(mp, opts) {
-    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.domElementsTracked.some((el) => el === node));
+    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
     for (const input of inputElements) {
-      this.domElementsTracked.push(input);
+      this.trackedElements.push(input);
       input.addEventListener("change", (ev) => {
         try {
           this.inputTrack(ev, mp, opts);
@@ -4553,10 +4538,10 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function listenForAllClicks(mp, opts) {
     let allThings = uniqueNodes(
-      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.domElementsTracked.some((el) => el === node)).filter((node) => !this.domElementsTracked.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.domElementsTracked.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => !node.matches(BLACKLIST_ELEMENTS))
+      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.trackedElements.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.trackedElements.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => !node.matches(BLACKLIST_ELEMENTS))
     );
     for (const thing of allThings) {
-      this.domElementsTracked.push(thing);
+      this.trackedElements.push(thing);
       thing.addEventListener("click", (ev) => {
         try {
           this.clickTrack(ev, mp, opts);
@@ -4570,14 +4555,9 @@ https://developer.mixpanel.com/reference/project-token`);
   function singlePageAppTracking(mp, opts) {
     window.addEventListener("click", (ev) => {
       try {
+        if (this.trackedElements.includes(ev.target))
+          return true;
         figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
-      try {
-        if (opts.youtube)
-          ezTrack.youtube(mp, opts);
       } catch (e) {
         if (opts.debug)
           console.log(e);
@@ -4630,18 +4610,25 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function spaPipeline(directive = "none", ev, mp, opts) {
-    if (opts.buttons && directive === "button")
+    if (opts.buttons && directive === "button") {
+      this.trackedElements.push(ev.target);
       this.buttonTrack(ev, mp, opts);
-    else if (opts.links && directive === "link")
+    } else if (opts.links && directive === "link") {
+      this.trackedElements.push(ev.target);
       this.linkTrack(ev, mp, opts);
-    else if (opts.forms && directive === "form")
+    } else if (opts.forms && directive === "form") {
+      this.trackedElements.push(ev.target);
       this.formTrack(ev, mp, opts);
-    else if (opts.selectors && directive === "select")
+    } else if (opts.selectors && directive === "select") {
+      this.trackedElements.push(ev.target);
       this.selectTrack(ev, mp, opts);
-    else if (opts.inputs && directive === "input")
+    } else if (opts.inputs && directive === "input") {
+      this.trackedElements.push(ev.target);
       this.inputTrack(ev, mp, opts);
-    else if (opts.clicks && directive === "all")
+    } else if (opts.clicks && directive === "all") {
+      this.trackedElements.push(ev.target);
       this.clickTrack(ev, mp, opts);
+    }
   }
   function findMostSpecificRecursive(node) {
     const numChildren = node.childElementCount;
@@ -4666,6 +4653,21 @@ https://developer.mixpanel.com/reference/project-token`);
       parents.push(elem);
     }
     return parents;
+  }
+  function trackPageViews(mp, opts) {
+    mp.track("page enter", { ...statefulProps(false, false, false) });
+    if (opts.logProps)
+      console.log("PAGE ENTER");
+    console.log(JSON.stringify(PAGE_PROPS, null, 2));
+  }
+  function trackPageExits(mp, opts) {
+    window.addEventListener("beforeunload", () => {
+      this.hasVisibilityChanged = null;
+      mp.track("page exit", { ...statefulProps(false) }, { transport: "sendBeacon", send_immediately: true });
+      if (opts.logProps)
+        console.log("PAGE EXIT");
+      console.log(JSON.stringify({ ...statefulProps(false) }, null, 2));
+    });
   }
   function trackButtonClick(evOrEl, mp, opts) {
     const src = evOrEl.target || evOrEl;
@@ -4790,6 +4792,16 @@ https://developer.mixpanel.com/reference/project-token`);
           mp.track("page regained focus", props);
       }
     });
+    document.addEventListener("fullscreenchange", function() {
+      const props = {
+        ...statefulProps(false)
+      };
+      if (document.fullscreenElement) {
+        mp.track("page fullscren: on", props);
+      } else {
+        mp.track("page fullscren: off", props);
+      }
+    });
   }
   function trackErrors(mp, opts) {
     window.addEventListener("error", (errEv) => {
@@ -4878,7 +4890,7 @@ https://developer.mixpanel.com/reference/project-token`);
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     const videos = uniqueNodes(this.query(YOUTUBE_SELECTOR)).filter((frame) => frame.src.includes("youtube.com/embed"));
     for (const video of videos) {
-      this.domElementsTracked.push(video);
+      this.trackedElements.push(video);
       if (!video.id) {
         video.id = new URL(video.src).pathname.replace("/embed/", "");
       }
