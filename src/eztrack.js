@@ -1001,5 +1001,7 @@ export function clearExistingMixpanelQueue(token, opts) {
 	}
 }
 
+
+
 //put it in global namespace 🤠
 window.mpEZTrack = ezTrack;

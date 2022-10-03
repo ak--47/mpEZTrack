@@ -10,3 +10,5 @@ examples/*
 !examples/*.map
 !examples/*.md
 !/examples/mindfulSelfIndulgence.html
+eztrack-service-acct.json
+deploy.js
