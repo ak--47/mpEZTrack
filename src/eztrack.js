@@ -304,21 +304,6 @@ HTML ELEMENTS
 */
 
 //default: on
-export function trackPageViews(mp, opts) {
-	mp.track('page enter', { ...statefulProps(true, false, false) });
-	if (opts.logProps) console.log("PAGE VIEW"); console.log(JSON.stringify({ ...statefulProps(true, false, false) }, null, 2));
-}
-
-//default: on
-export function trackPageExits(mp) {
-	window.addEventListener('beforeunload', () => {
-		//page exist should be last event
-		this.hasVisibilityChanged = null;
-		mp.track('page exit', { ...statefulProps() }, { transport: 'sendBeacon', send_immediately: true });
-	});
-}
-
-//default: on
 export function listenForButtonClicks(mp, opts) {
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
@@ -454,13 +439,13 @@ export function singlePageAppTracking(mp, opts) {
 			if (opts.debug) console.log(e);
 		}
 
-		//bind any other trackers that don't depend on clicks
-		try {
-			if (opts.youtube) ezTrack.youtube(mp, opts);
-		}
-		catch (e) {
-			if (opts.debug) console.log(e);
-		}
+		// //bind any other trackers that don't depend on clicks
+		// try {
+		// 	if (opts.youtube) ezTrack.youtube(mp, opts);
+		// }
+		// catch (e) {
+		// 	if (opts.debug) console.log(e);
+		// }
 
 	}, LISTENER_OPTIONS);
 }
@@ -595,6 +580,22 @@ export function getAllParents(elem) {
 TRACKERS
 --------
 */
+
+//default: on
+export function trackPageViews(mp, opts) {
+	mp.track('page enter', { ...statefulProps(false, false, false) });
+	if (opts.logProps) console.log("PAGE ENTER"); console.log(JSON.stringify(PAGE_PROPS, null, 2));
+}
+
+//default: on
+export function trackPageExits(mp, opts) {
+	window.addEventListener('beforeunload', () => {
+		//page exist should be last event
+		this.hasVisibilityChanged = null;
+		mp.track('page exit', { ...statefulProps(false) }, { transport: 'sendBeacon', send_immediately: true });
+		if (opts.logProps) console.log("PAGE EXIT"); console.log(JSON.stringify({ ...statefulProps(false) }, null, 2));
+	});
+}
 
 
 export function trackButtonClick(evOrEl, mp, opts) {
@@ -740,6 +741,20 @@ export function trackWindowStuff(mp, opts) {
 			if (this.hasVisibilityChanged) mp.track('page regained focus', props);
 		}
 	});
+
+
+	document.addEventListener('fullscreenchange', function () {
+		const props = {
+			...statefulProps(false)
+		};
+		if (document.fullscreenElement) { 
+			mp.track("page fullscren: on", props)
+		}
+
+		else {
+			mp.track("page fullscren: off", props)
+		}
+	})
 
 }
 

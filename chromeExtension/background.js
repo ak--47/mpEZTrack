@@ -27,7 +27,7 @@ chrome.webNavigation.onCompleted.addListener(function (details) {
 		if (tab.id === details.tabId && tab.id === primaryTabId) {
 			chrome.storage.local.get(['token'], function (result) {
 				if (result.token) {
-					fetch('https://storage.googleapis.com/ez-track/v0.1b/eztrack.js')
+					fetch('https://storage.googleapis.com/ez-track/v0.1b/eztrack.js', {cache: "no-store"})
 						.then(res => res.text())
 						.then((text) => {
 							const script = text.concat(`if (!window.ezTrackInjected) mpEZTrack.init("${result.token}", {}, true); window.ezTrackInjected = true`);

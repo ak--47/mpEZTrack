@@ -6,7 +6,7 @@
   "scripts": {
     "watch": "npm-watch build",
     "serve": "./node_modules/.bin/serve ./examples",
-    "deploy": "nodemon deploy.js",
+    "deploy": "node deploy.js",
     "build": "npm run buildMin && npm run buildMax && npm run buildEx",
     "buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --target=es6 --outdir=./dist/ --out-extension:.js=.min.js",
     "buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/",

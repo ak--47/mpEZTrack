@@ -4111,6 +4111,8 @@
           continue loopAttributes;
         if (keySuffix === "nonce")
           continue loopAttributes;
+        if (keySuffix === "d")
+          continue loopAttributes;
         let keyName = `${label} \u2192 ${keySuffix}`;
         let val = att.value?.trim();
         if (boolAttrs.some((attr) => attr === att.name)) {
@@ -4464,18 +4466,6 @@ https://developer.mixpanel.com/reference/project-token`);
       return {};
     }
   }
-  function trackPageViews(mp, opts) {
-    mp.track("page enter", { ...statefulProps(true, false, false) });
-    if (opts.logProps)
-      console.log("PAGE VIEW");
-    console.log(JSON.stringify({ ...statefulProps(true, false, false) }, null, 2));
-  }
-  function trackPageExits(mp) {
-    window.addEventListener("beforeunload", () => {
-      this.hasVisibilityChanged = null;
-      mp.track("page exit", { ...statefulProps() }, { transport: "sendBeacon", send_immediately: true });
-    });
-  }
   function listenForButtonClicks(mp, opts) {
     const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
     for (const button of buttons) {
@@ -4572,13 +4562,6 @@ https://developer.mixpanel.com/reference/project-token`);
         if (opts.debug)
           console.log(e);
       }
-      try {
-        if (opts.youtube)
-          ezTrack.youtube(mp, opts);
-      } catch (e) {
-        if (opts.debug)
-          console.log(e);
-      }
     }, LISTENER_OPTIONS);
   }
   function figureOutWhatWasClicked(elem, ev, mp, opts) {
@@ -4670,6 +4653,21 @@ https://developer.mixpanel.com/reference/project-token`);
       parents.push(elem);
     }
     return parents;
+  }
+  function trackPageViews(mp, opts) {
+    mp.track("page enter", { ...statefulProps(false, false, false) });
+    if (opts.logProps)
+      console.log("PAGE ENTER");
+    console.log(JSON.stringify(PAGE_PROPS, null, 2));
+  }
+  function trackPageExits(mp, opts) {
+    window.addEventListener("beforeunload", () => {
+      this.hasVisibilityChanged = null;
+      mp.track("page exit", { ...statefulProps(false) }, { transport: "sendBeacon", send_immediately: true });
+      if (opts.logProps)
+        console.log("PAGE EXIT");
+      console.log(JSON.stringify({ ...statefulProps(false) }, null, 2));
+    });
   }
   function trackButtonClick(evOrEl, mp, opts) {
     const src = evOrEl.target || evOrEl;
@@ -4792,6 +4790,16 @@ https://developer.mixpanel.com/reference/project-token`);
       } else {
         if (this.hasVisibilityChanged)
           mp.track("page regained focus", props);
+      }
+    });
+    document.addEventListener("fullscreenchange", function() {
+      const props = {
+        ...statefulProps(false)
+      };
+      if (document.fullscreenElement) {
+        mp.track("page fullscren: on", props);
+      } else {
+        mp.track("page fullscren: off", props);
       }
     });
   }
