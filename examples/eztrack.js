@@ -4421,8 +4421,6 @@ https://developer.mixpanel.com/reference/project-token`);
         this.links(mp, opts);
       if (opts.youtube)
         this.youtube(mp, opts);
-      if (opts.clicks)
-        this.clicks(mp, opts);
       if (opts.spa)
         this.spa(mp, opts);
     } catch (e) {
@@ -4608,16 +4606,16 @@ https://developer.mixpanel.com/reference/project-token`);
     if (!isAlreadyTracked) {
       if (opts.buttons && directive === "button") {
         this.trackedElements.push(ev.target);
+        this.buttonTrack(ev, mp, opts);
         ev.target.addEventListener("click", (clickEv) => {
           this.buttonTrack(clickEv, mp, opts);
         }, LISTENER_OPTIONS);
-        this.buttonTrack(ev, mp, opts);
       } else if (opts.links && directive === "link") {
         this.trackedElements.push(ev.target);
+        this.linkTrack(ev, mp, opts);
         ev.target.addEventListener("click", (clickEv) => {
           this.linkTrack(clickEv, mp, opts);
         });
-        this.linkTrack(ev, mp, opts);
       } else if (opts.forms && directive === "form") {
         this.trackedElements.push(ev.target);
         ev.target.addEventListener("submit", (submitEv) => {
@@ -4635,6 +4633,7 @@ https://developer.mixpanel.com/reference/project-token`);
         }, LISTENER_OPTIONS);
       } else if (opts.clicks && directive === "all") {
         this.trackedElements.push(ev.target);
+        this.clickTrack(ev, mp, opts);
         ev.target.addEventListener("click", (clickEv) => {
           this.clickTrack(clickEv, mp, opts);
         }, LISTENER_OPTIONS);

@@ -17,10 +17,9 @@
     "default_title": "mpEZTrack!",
 	"default_popup": "index.html" 
   },
-  "web_accessible_resources": ["injectOnce.js", "messageback.js"],
+  "web_accessible_resources": ["injectOnce.js"],
   "permissions": [
-    "https://*/*",
-    "http://*/*",
+    "*://*/*",
     "tabs",
 	"storage",
 	"webNavigation"

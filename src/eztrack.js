@@ -213,7 +213,7 @@ export function getSuperProperties(token = this.token, opts = this.opts, mixpane
 
 export function bindTrackers(mp, opts) {
 	try {
-		//these options work on all pages
+		//bound on page load
 		if (opts.pageView) this.pageView(mp, opts);
 		if (opts.pageExit) this.pageExit(mp, opts);
 		if (opts.window) this.window(mp, opts);
@@ -221,15 +221,17 @@ export function bindTrackers(mp, opts) {
 		if (opts.clipboard) this.clipboard(mp, opts);
 		if (opts.profiles) this.profiles(mp, opts);
 
-		//query dom for all nodes eligible to be tracked
+		//dom elements: bound on page load
 		if (opts.buttons) this.buttons(mp, opts);
 		if (opts.forms) this.forms(mp, opts);
 		if (opts.selectors) this.selectors(mp, opts);
 		if (opts.inputs) this.inputs(mp, opts);
 		if (opts.links) this.links(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
-		//this should always be last as it is the most general form of tracking for non spas
-		if (opts.clicks) this.clicks(mp, opts);
+		
+		// //this should always be last as it is the most general form of tracking for non spas
+		// if (opts.clicks) this.clicks(mp, opts);
+		
 		//cactch clicks on elements that are constructed after page is loaded
 		if (opts.spa) this.spa(mp, opts);
 
@@ -299,7 +301,7 @@ export function firstVisitChecker(token = this.token, opts = this.opts, timeoutM
 
 /*
 -------------
-HTML ELEMENTS
+PAGELOAD LISTENERS
 -------------
 */
 
@@ -514,19 +516,25 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 	if (!isAlreadyTracked) {
 		if (opts.buttons && directive === 'button') {
 			this.trackedElements.push(ev.target);
+			this.buttonTrack(ev, mp, opts);
+			
+			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.buttonTrack(clickEv, mp, opts);
 			}, LISTENER_OPTIONS);
 
-			this.buttonTrack(ev, mp, opts);
+			
 		}
 		else if (opts.links && directive === 'link') {
 			this.trackedElements.push(ev.target);
+			this.linkTrack(ev, mp, opts);
+			
+			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.linkTrack(clickEv, mp, opts);
 			});
 
-			this.linkTrack(ev, mp, opts);
+			
 		}
 		else if (opts.forms && directive === 'form') {
 			this.trackedElements.push(ev.target);
@@ -550,6 +558,9 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 		//this should always be last as it is the most general form of tracking
 		else if (opts.clicks && directive === 'all') {
 			this.trackedElements.push(ev.target);
+			this.clickTrack(ev, mp, opts);
+			
+			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.clickTrack(clickEv, mp, opts);
 			}, LISTENER_OPTIONS);

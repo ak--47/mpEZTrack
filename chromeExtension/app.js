@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const app = {
 	dom: {},
 	query: document.querySelector.bind(document),
@@ -32,7 +33,7 @@ const app = {
 		});
 
 		// INJECT
-		this.dom.injectButton.addEventListener('click', (ev) => {
+		this.dom.injectButton.addEventListener('click', () => {
 			this.injectOnce();
 			this.dom.injectButton.setAttribute('disabled', '');
 			this.dom.injectButton.classList.add('hidden');
@@ -40,14 +41,14 @@ const app = {
 		});
 
 		// SAVE
-		this.dom.saveButton.addEventListener('click', (ev) => {
+		this.dom.saveButton.addEventListener('click', () => {
 			this.save();
 			this.port.postMessage("injectAlwaysOn");
 
 		});
 
 		// RESET
-		this.dom.resetButton.addEventListener('click', (ev) => {
+		this.dom.resetButton.addEventListener('click', () => {
 			this.reset(this.dom.tokenEntered.value);
 			this.port.postMessage("injectAlwaysOff");
 		});

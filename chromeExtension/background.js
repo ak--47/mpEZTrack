@@ -30,7 +30,13 @@ chrome.webNavigation.onCompleted.addListener(function (details) {
 					fetch('https://storage.googleapis.com/ez-track/v0.1b/eztrack.js', {cache: "no-store"})
 						.then(res => res.text())
 						.then((text) => {
-							const script = text.concat(`if (!window.ezTrackInjected) mpEZTrack.init("${result.token}", {}, true); window.ezTrackInjected = true`);
+							const scriptPrefix = String.raw`(function () {
+								if (window.ezTrackInjected) return true;
+								else {
+							  `							  
+							const scriptSuffix = String.raw`if (!window.ezTrackInjected) mpEZTrack.init("${result.token}", {}, true); window.ezTrackInjected = true }})();`
+							const script = ``.concat(scriptPrefix).concat(text).concat(scriptSuffix)
+							// const script = text.concat(`if (!window.ezTrackInjected) mpEZTrack.init("${result.token}", {}, true); window.ezTrackInjected = true`);
 							chrome.tabs.executeScript(details.tabId, {
 								code: script,
 								runAt: "document_idle"
