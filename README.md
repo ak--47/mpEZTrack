@@ -151,7 +151,7 @@ to facilitate this, this repo also includes **[a chrome extension](https://githu
  <img src="https://aktunes.neocities.org/ezTrack/dev_mode.png" />
  - Click **load unpacked** in the top left
  <img src="https://aktunes.neocities.org/ezTrack/load_unpacked.png" height=150 />
- - point the folder-picker pop-up at the the **extracted contents** of the [zip archive](https://github.com/ak--47/mpEZTrack/releases/) (or the directory `/mpEZTrack/chromeExtension/`); you will see the extension pop-up as installed
+ - point the folder-picker pop-up at the the **extracted contents** of the zip archive (or the directory in the repo); you will see the extension pop-up as installed
  <img src="https://aktunes.neocities.org/ezTrack/extInstalled.png" height=250 />
  - click the chrome puzzle icon 🧩 (top right) and then the thumbtack 📌 to pin the extension to your start bar
  <img src="https://aktunes.neocities.org/ezTrack/pinToBrowser.png" height=350 />
