@@ -110,6 +110,20 @@ export const ANY_TAG_FIELDS = (el, guard = false) => {
 	return fields;
 };
 
+export const VIDEO_SELECTOR = String.raw`video`
+export const VIDEO_FIELDS = (el) => ({
+	"VIDEO → watch time" : el.currentTime,
+	"VIDEO → total time" : el.duration,
+	"VIDEO → watch %" : Number(Number(el.currentTime / el.duration * 100).toFixed(2)),
+	"VIDEO → autoplay?" : el.autoplay,
+	"VIDEO → controls visible?" : el.controls,
+	"VIDEO → loops?" : el.loop,
+	"VIDEO → muted?" : el.muted,
+	"VIDEO → thumbnail" : el.poster,
+	"VIDEO → source(s)" : el.src || [...el.querySelectorAll('source')].map(source => source.src),
+	"VIDEO → source type(s)" : el.src.split(".").slice(-1)[0] || [...el.querySelectorAll('source')].map(source => source.type),
+})
+
 export const YOUTUBE_SELECTOR = String.raw`iframe`;
 
 /*

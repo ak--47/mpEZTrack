@@ -9,7 +9,7 @@ import {
 	DROPDOWN_SELECTOR, DROPDOWN_FIELDS,
 	INPUT_SELECTOR, INPUT_FIELDS,
 	ALL_SELECTOR, ANY_TAG_FIELDS,
-	YOUTUBE_SELECTOR,
+	VIDEO_SELECTOR, VIDEO_FIELDS, YOUTUBE_SELECTOR,
 	LISTENER_OPTIONS
 } from './attributes';
 
@@ -50,6 +50,7 @@ export const ezTrack = {
 	selectors: listenForDropDownChanges,
 	inputs: listenForUserInput,
 	clicks: listenForAllClicks,
+	videos: listenForVideo,
 
 	// tracking stuff
 	buttonTrack: trackButtonClick,
@@ -57,9 +58,11 @@ export const ezTrack = {
 	formTrack: trackFormSubmit,
 	selectTrack: trackDropDownChange,
 	inputTrack: trackInputChange,
+	videoTrack: trackVideo,
 	clickTrack: trackAnyClick,
+	
 
-	// video stuff
+	// third party stuff
 	youtube: trackYoutubeVideos,
 
 	// window stuff
@@ -184,6 +187,7 @@ export function getDefaultOptions() {
 		forms: true,
 		profiles: true,
 		selectors: true,
+		videos: true,
 		spa: true,
 
 		//default off		
@@ -227,11 +231,12 @@ export function bindTrackers(mp, opts) {
 		if (opts.selectors) this.selectors(mp, opts);
 		if (opts.inputs) this.inputs(mp, opts);
 		if (opts.links) this.links(mp, opts);
+		if (opts.videos) this.videos(mp, opts);
 		if (opts.youtube) this.youtube(mp, opts);
-		
+
 		// //this should always be last as it is the most general form of tracking for non spas
 		// if (opts.clicks) this.clicks(mp, opts);
-		
+
 		//cactch clicks on elements that are constructed after page is loaded
 		if (opts.spa) this.spa(mp, opts);
 
@@ -380,6 +385,52 @@ export function listenForDropDownChanges(mp, opts) {
 	}
 }
 
+//default: on
+export function listenForVideo(mp, opts) {
+	let allVideos = uniqueNodes(this.query(VIDEO_SELECTOR))
+		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
+		.filter(node => !this.trackedElements.some(el => el === node));
+
+	for (const video of allVideos) {
+		this.trackedElements.push(video);
+		video.addEventListener('play', (ev) => {
+			try {
+				this.videoTrack(ev, mp, opts);
+			}
+			catch (e) {
+				if (opts.debug) console.log(e);
+			}
+		}, LISTENER_OPTIONS);
+
+		video.addEventListener('pause', (ev) => {
+			try {
+				this.videoTrack(ev, mp, opts);
+			}
+			catch (e) {
+				if (opts.debug) console.log(e);
+			}
+		}, LISTENER_OPTIONS);
+
+		video.addEventListener('ended', (ev) => {
+			try {
+				this.videoTrack(ev, mp, opts);
+			}
+			catch (e) {
+				if (opts.debug) console.log(e);
+			}
+		}, LISTENER_OPTIONS);
+
+		// video.addEventListener('timeupdate', (ev) => {
+		// 	try {
+		// 		this.videoTrack(ev, mp, opts);
+		// 	}
+		// 	catch (e) {
+		// 		if (opts.debug) console.log(e);
+		// 	}
+		// }, LISTENER_OPTIONS);
+	}
+}
+
 //default: off
 export function listenForUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
@@ -455,7 +506,7 @@ export function singlePageAppTracking(mp, opts) {
 export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 	//this is called recursively, so we need to ensure we're not already tracking it
 	if (this.trackedElements.includes(elem)) return false;
-	
+
 	// no sensitive fields
 	if (elem.matches(BLACKLIST_ELEMENTS)) {
 		return false;
@@ -482,9 +533,13 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 		this.spaPipe('input', ev, mp, opts);
 		return true;
 	}
+	else if (elem.matches(VIDEO_SELECTOR)) {
+		this.spaPipe('video', ev, mp, opts);
+		return true;
+	}
 
 	//the node didn't match any selectors; check it's parents
-	const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
+	const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR, VIDEO_SELECTOR];
 	const matchingParents = getAllParents(elem).filter((node) => {
 		let matched = possibleMatches.map((matchSelector) => {
 			return node.matches(matchSelector);
@@ -518,16 +573,16 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 		if (opts.buttons && directive === 'button') {
 			this.trackedElements.push(ev.target);
 			this.buttonTrack(ev, mp, opts);
-			
+
 			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.buttonTrack(clickEv, mp, opts);
-			}, LISTENER_OPTIONS);			
+			}, LISTENER_OPTIONS);
 		}
 		else if (opts.links && directive === 'link') {
 			this.trackedElements.push(ev.target);
 			this.linkTrack(ev, mp, opts);
-			
+
 			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.linkTrack(clickEv, mp, opts);
@@ -551,11 +606,27 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 				this.inputTrack(changeEv, mp, opts);
 			}, LISTENER_OPTIONS);
 		}
+
+		else if (opts.videos && directive === 'video') {
+			this.trackedElements.push(ev.target);
+			ev.target.addEventListener('play', (videoEv) => {
+				this.videoTrack(videoEv, mp, opts);
+			}, LISTENER_OPTIONS);
+			ev.target.addEventListener('pause', (videoEv) => {
+				this.videoTrack(videoEv, mp, opts);
+			}, LISTENER_OPTIONS);
+			ev.target.addEventListener('ended', (videoEv) => {
+				this.videoTrack(videoEv, mp, opts);
+			}, LISTENER_OPTIONS);
+			// ev.target.addEventListener('progress', (videoEv) => {
+			// 	this.videoTrack(videoEv, mp, opts);
+			// }, LISTENER_OPTIONS);
+		}
 		//this should always be last as it is the most general form of tracking
 		else if (opts.clicks && directive === 'all') {
 			this.trackedElements.push(ev.target);
 			this.clickTrack(ev, mp, opts);
-			
+
 			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.clickTrack(clickEv, mp, opts);
@@ -616,7 +687,6 @@ export function trackPageExits(mp, opts) {
 		if (opts.logProps) console.log("PAGE EXIT"); console.log(JSON.stringify({ ...statefulProps(false) }, null, 2));
 	});
 }
-
 
 export function trackButtonClick(evOrEl, mp, opts) {
 	const src = evOrEl.target || evOrEl;
@@ -700,6 +770,18 @@ export function trackInputChange(evOrEl, mp, opts) {
 	};
 	mp.track('user entered text', props);
 	if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
+}
+
+export function trackVideo(videoEvent, mp, opts) {
+	const src = videoEvent.target
+	const props = {
+		...STANDARD_FIELDS(src, "VIDEO"),
+		...VIDEO_FIELDS(src),
+		...statefulProps()
+	};
+	const action = videoEvent.type
+	mp.track(`video: ${action}`, props);
+	if (opts.logProps) console.log(`VIDEO ${action}`); console.log(JSON.stringify(props, null, 2));
 }
 
 export function trackAnyClick(evOrEl, mp, opts) {
@@ -870,9 +952,9 @@ export function createUserProfiles(mp, opts) {
 }
 
 /*
------
-VIDEO
------
+----------
+THIRD PARTY
+----------
 */
 
 

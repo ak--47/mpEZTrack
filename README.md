@@ -61,6 +61,7 @@ in the table below, you will find all the options exposed by this module; **if y
 | `buttons`           | `boolean` | `true`   | tracks all clicks on `<button>`-like elements as `button click`                         
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements as `form submit`                 |
 | `selectors`          | `boolean` | `true`   | track all changes to `<select>`, `[type=radio]`, `[type=checkbox]`, and other drop-down elements as `user selection`
+| `videos`         | `boolean` | `true`   | track `<video>` elements getting `play`, `pause`, and `ended` events (including `watch %` and `duration`) |
 | `profiles`         | `boolean` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
 | `spa` |`boolean`  | `true` | **for single page applications** where page elements are rendered dynamically [(see note)](#spa)
 | ----------- | --------  | ----    | --------------------------------------  |

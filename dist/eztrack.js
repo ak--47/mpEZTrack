@@ -4090,6 +4090,19 @@
     }
     return fields;
   };
+  var VIDEO_SELECTOR = String.raw`video`;
+  var VIDEO_FIELDS = (el) => ({
+    "VIDEO \u2192 watch time": el.currentTime,
+    "VIDEO \u2192 total time": el.duration,
+    "VIDEO \u2192 watch %": Number(Number(el.currentTime / el.duration * 100).toFixed(2)),
+    "VIDEO \u2192 autoplay?": el.autoplay,
+    "VIDEO \u2192 controls visible?": el.controls,
+    "VIDEO \u2192 loops?": el.loop,
+    "VIDEO \u2192 muted?": el.muted,
+    "VIDEO \u2192 thumbnail": el.poster,
+    "VIDEO \u2192 source(s)": el.src || [...el.querySelectorAll("source")].map((source) => source.src),
+    "VIDEO \u2192 source type(s)": el.src.split(".").slice(-1)[0] || [...el.querySelectorAll("source")].map((source) => source.type)
+  });
   var YOUTUBE_SELECTOR = String.raw`iframe`;
   function enumNodeProps(el, label = "ELEMENT") {
     const result = {};
@@ -4268,11 +4281,13 @@
     selectors: listenForDropDownChanges,
     inputs: listenForUserInput,
     clicks: listenForAllClicks,
+    videos: listenForVideo,
     buttonTrack: trackButtonClick,
     linkTrack: trackLinkClick,
     formTrack: trackFormSubmit,
     selectTrack: trackDropDownChange,
     inputTrack: trackInputChange,
+    videoTrack: trackVideo,
     clickTrack: trackAnyClick,
     youtube: trackYoutubeVideos,
     pageView: trackPageViews,
@@ -4373,6 +4388,7 @@ https://developer.mixpanel.com/reference/project-token`);
       forms: true,
       profiles: true,
       selectors: true,
+      videos: true,
       spa: true,
       inputs: false,
       clicks: false,
@@ -4419,6 +4435,8 @@ https://developer.mixpanel.com/reference/project-token`);
         this.inputs(mp, opts);
       if (opts.links)
         this.links(mp, opts);
+      if (opts.videos)
+        this.videos(mp, opts);
       if (opts.youtube)
         this.youtube(mp, opts);
       if (opts.spa)
@@ -4520,6 +4538,36 @@ https://developer.mixpanel.com/reference/project-token`);
       }, LISTENER_OPTIONS);
     }
   }
+  function listenForVideo(mp, opts) {
+    let allVideos = uniqueNodes(this.query(VIDEO_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
+    for (const video of allVideos) {
+      this.trackedElements.push(video);
+      video.addEventListener("play", (ev) => {
+        try {
+          this.videoTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+      video.addEventListener("pause", (ev) => {
+        try {
+          this.videoTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+      video.addEventListener("ended", (ev) => {
+        try {
+          this.videoTrack(ev, mp, opts);
+        } catch (e) {
+          if (opts.debug)
+            console.log(e);
+        }
+      }, LISTENER_OPTIONS);
+    }
+  }
   function listenForUserInput(mp, opts) {
     let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
     for (const input of inputElements) {
@@ -4583,8 +4631,11 @@ https://developer.mixpanel.com/reference/project-token`);
     } else if (elem.matches(INPUT_SELECTOR)) {
       this.spaPipe("input", ev, mp, opts);
       return true;
+    } else if (elem.matches(VIDEO_SELECTOR)) {
+      this.spaPipe("video", ev, mp, opts);
+      return true;
     }
-    const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR];
+    const possibleMatches = [BUTTON_SELECTORS, LINK_SELECTORS, FORM_SELECTORS, DROPDOWN_SELECTOR, INPUT_SELECTOR, VIDEO_SELECTOR];
     const matchingParents = getAllParents(elem).filter((node) => {
       let matched = possibleMatches.map((matchSelector) => {
         return node.matches(matchSelector);
@@ -4632,6 +4683,17 @@ https://developer.mixpanel.com/reference/project-token`);
         this.trackedElements.push(ev.target);
         ev.target.addEventListener("change", (changeEv) => {
           this.inputTrack(changeEv, mp, opts);
+        }, LISTENER_OPTIONS);
+      } else if (opts.videos && directive === "video") {
+        this.trackedElements.push(ev.target);
+        ev.target.addEventListener("play", (videoEv) => {
+          this.videoTrack(videoEv, mp, opts);
+        }, LISTENER_OPTIONS);
+        ev.target.addEventListener("pause", (videoEv) => {
+          this.videoTrack(videoEv, mp, opts);
+        }, LISTENER_OPTIONS);
+        ev.target.addEventListener("ended", (videoEv) => {
+          this.videoTrack(videoEv, mp, opts);
         }, LISTENER_OPTIONS);
       } else if (opts.clicks && directive === "all") {
         this.trackedElements.push(ev.target);
@@ -4755,6 +4817,19 @@ https://developer.mixpanel.com/reference/project-token`);
     mp.track("user entered text", props);
     if (opts.logProps)
       console.log("USER ENTERED CONTENT");
+    console.log(JSON.stringify(props, null, 2));
+  }
+  function trackVideo(videoEvent, mp, opts) {
+    const src = videoEvent.target;
+    const props = {
+      ...STANDARD_FIELDS(src, "VIDEO"),
+      ...VIDEO_FIELDS(src),
+      ...statefulProps()
+    };
+    const action = videoEvent.type;
+    mp.track(`video: ${action}`, props);
+    if (opts.logProps)
+      console.log(`VIDEO ${action}`);
     console.log(JSON.stringify(props, null, 2));
   }
   function trackAnyClick(evOrEl, mp, opts) {
