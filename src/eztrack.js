@@ -273,17 +273,17 @@ export function firstVisitChecker(token = this.token, opts = this.opts, timeoutM
 
 			if (firstVisitTime === null) {
 				localStorage.setItem(`MPEZTrack_First_Page_${token}`, this.loadTimeUTC);
-				return { "DEVICE → first visit?": true };
+				return { "SESSION → first visit?": true };
 			}
 
 			// 30 minute timeout
 			else if (this.loadTimeUTC - firstVisitTime <= timeout) {
-				return { "DEVICE → first visit?": true };
+				return { "SESSION → first visit?": true };
 			}
 
 			else {
 				this.isFirstVisit = false;
-				return { "DEVICE → first visit?": false };
+				return { "SESSION → first visit?": false };
 			}
 
 		}
@@ -434,7 +434,7 @@ SPAS
 export function singlePageAppTracking(mp, opts) {
 	window.addEventListener("click", (ev) => {
 		try {
-			if (this.trackedElements.includes(ev.target)) return true;
+			if (this.trackedElements.includes(ev.target)) return false;
 			figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
 		}
 		catch (e) {
@@ -453,8 +453,9 @@ export function singlePageAppTracking(mp, opts) {
 }
 
 export function figureOutWhatWasClicked(elem, ev, mp, opts) {
-	// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
-
+	//this is called recursively, so we need to ensure we're not already tracking it
+	if (this.trackedElements.includes(elem)) return false;
+	
 	// no sensitive fields
 	if (elem.matches(BLACKLIST_ELEMENTS)) {
 		return false;
@@ -521,9 +522,7 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 			//for next click
 			ev.target.addEventListener('click', (clickEv) => {
 				this.buttonTrack(clickEv, mp, opts);
-			}, LISTENER_OPTIONS);
-
-			
+			}, LISTENER_OPTIONS);			
 		}
 		else if (opts.links && directive === 'link') {
 			this.trackedElements.push(ev.target);
@@ -533,15 +532,12 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 			ev.target.addEventListener('click', (clickEv) => {
 				this.linkTrack(clickEv, mp, opts);
 			});
-
-			
 		}
 		else if (opts.forms && directive === 'form') {
 			this.trackedElements.push(ev.target);
 			ev.target.addEventListener('submit', (submitEv) => {
 				this.formTrack(submitEv, mp, opts);
 			}, LISTENER_OPTIONS);
-
 		}
 		else if (opts.selectors && directive === 'select') {
 			this.trackedElements.push(ev.target);

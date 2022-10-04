@@ -4448,12 +4448,12 @@ https://developer.mixpanel.com/reference/project-token`);
         const timeout = 6e4 * timeoutMins;
         if (firstVisitTime === null) {
           localStorage.setItem(`MPEZTrack_First_Page_${token}`, this.loadTimeUTC);
-          return { "DEVICE \u2192 first visit?": true };
+          return { "SESSION \u2192 first visit?": true };
         } else if (this.loadTimeUTC - firstVisitTime <= timeout) {
-          return { "DEVICE \u2192 first visit?": true };
+          return { "SESSION \u2192 first visit?": true };
         } else {
           this.isFirstVisit = false;
-          return { "DEVICE \u2192 first visit?": false };
+          return { "SESSION \u2192 first visit?": false };
         }
       } catch (e) {
         if (opts.debug)
@@ -4554,7 +4554,7 @@ https://developer.mixpanel.com/reference/project-token`);
     window.addEventListener("click", (ev) => {
       try {
         if (this.trackedElements.includes(ev.target))
-          return true;
+          return false;
         figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
       } catch (e) {
         if (opts.debug)
@@ -4563,6 +4563,8 @@ https://developer.mixpanel.com/reference/project-token`);
     }, LISTENER_OPTIONS);
   }
   function figureOutWhatWasClicked(elem, ev, mp, opts) {
+    if (this.trackedElements.includes(elem))
+      return false;
     if (elem.matches(BLACKLIST_ELEMENTS)) {
       return false;
     }
