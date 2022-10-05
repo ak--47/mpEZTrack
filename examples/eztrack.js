@@ -4114,58 +4114,67 @@
       "alt": "desc",
       "class": "class (delete)"
     };
+    let potentialPassEl = false;
     loopAttributes:
       for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
         att = atts[i];
+        let potentialPassAttr = false;
         let keySuffix = mapReplace(att.name, replaceAttrs);
-        if (keySuffix?.toLowerCase()?.includes("pass"))
-          continue loopAttributes;
+        let keyName = `${label} \u2192 ${keySuffix}`;
+        let val = att.value?.trim();
+        if (keySuffix?.toLowerCase()?.includes("pass")) {
+          potentialPassAttr = true;
+          potentialPassEl = true;
+        }
         if (keySuffix?.startsWith("on"))
           continue loopAttributes;
         if (keySuffix === "nonce")
           continue loopAttributes;
         if (keySuffix === "d")
           continue loopAttributes;
-        let keyName = `${label} \u2192 ${keySuffix}`;
-        let val = att.value?.trim();
         if (boolAttrs.some((attr) => attr === att.name)) {
           val = true;
           keyName += "?";
         }
+        if (potentialPassAttr)
+          val = `******`;
         result[keyName] = val;
       }
     delete result[`${label} \u2192 class (delete)`];
     delete result[`${label} \u2192 style`];
+    if (potentialPassEl) {
+    }
     return result;
   }
   function conditionalFields(el, label = "ELEMENT") {
     const results = {};
+    const labelString = `${label} \u2192 label`;
     if (Array.from(el?.labels || "").length === 0) {
       if (el.previousElementSibling?.nodeName === `LABEL`) {
-        results[`${label} \u2192 label`] = el.previousElementSibling.textContent.trim();
+        results[labelString] = el.previousElementSibling.textContent.trim();
       }
       if (el.nextElementSibling?.nodeName === `LABEL`) {
-        results[`${label} \u2192 label`] = el.nextElementSibling.textContent.trim();
+        results[labelString] = el.nextElementSibling.textContent.trim();
       }
       if (el.parentElement?.nodeName === `LABEL`) {
-        results[`${label} \u2192 label`] = el.parentElement.textContent.trim();
+        results[labelString] = el.parentElement.textContent.trim();
       }
       if (el.childNodes[0]?.nodeName === `LABEL`) {
-        results[`${label} \u2192 label`] = el.childNodes[0].textContent.trim();
+        results[labelString] = el.childNodes[0].textContent.trim();
       }
       if (el.parentElement.title)
-        results[`${label} \u2192 label`] = el.parentElement.title.trim();
+        results[labelString] = el.parentElement.title.trim();
       if (el.parentElement.name)
-        results[`${label} \u2192 label`] = el.parentElement.name.trim();
+        results[labelString] = el.parentElement.name.trim();
       if (el.parentElement.id)
-        results[`${label} \u2192 label`] = el.parentElement.id.trim();
-      if (!results[`${label} \u2192 label`]) {
+        results[labelString] = el.parentElement.id.trim();
+      if (!results[labelString]) {
         let findLabelRecursively = function(el2) {
           if (!el2) {
             return false;
           }
           if (el2.textContent.trim() !== "") {
-            results[`${label} \u2192 label`] = truncate(squish(el2.textContent));
+            results[labelString] = truncate(squish(el2.textContent));
             return true;
           } else {
             findLabelRecursively(el2?.parentElement);

@@ -1,6 +1,8 @@
 const config = {
 	launch: {
-		headless: true
+		product: 'chrome', //or firefox
+		headless: true,
+		dumpio: false
 	},
 	server: {
 		command: 'serve -s -n -l 5000 ./examples/',

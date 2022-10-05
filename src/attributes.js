@@ -110,19 +110,19 @@ export const ANY_TAG_FIELDS = (el, guard = false) => {
 	return fields;
 };
 
-export const VIDEO_SELECTOR = String.raw`video`
+export const VIDEO_SELECTOR = String.raw`video`;
 export const VIDEO_FIELDS = (el) => ({
-	"VIDEO → watch time" : el.currentTime,
-	"VIDEO → total time" : el.duration,
-	"VIDEO → watch %" : Number(Number(el.currentTime / el.duration * 100).toFixed(2)),
-	"VIDEO → autoplay?" : el.autoplay,
-	"VIDEO → controls visible?" : el.controls,
-	"VIDEO → loops?" : el.loop,
-	"VIDEO → muted?" : el.muted,
-	"VIDEO → thumbnail" : el.poster,
-	"VIDEO → source(s)" : el.src || [...el.querySelectorAll('source')].map(source => source.src),
-	"VIDEO → source type(s)" : el.src.split(".").slice(-1)[0] || [...el.querySelectorAll('source')].map(source => source.type),
-})
+	"VIDEO → watch time": el.currentTime,
+	"VIDEO → total time": el.duration,
+	"VIDEO → watch %": Number(Number(el.currentTime / el.duration * 100).toFixed(2)),
+	"VIDEO → autoplay?": el.autoplay,
+	"VIDEO → controls visible?": el.controls,
+	"VIDEO → loops?": el.loop,
+	"VIDEO → muted?": el.muted,
+	"VIDEO → thumbnail": el.poster,
+	"VIDEO → source(s)": el.src || [...el.querySelectorAll('source')].map(source => source.src),
+	"VIDEO → source type(s)": el.src.split(".").slice(-1)[0] || [...el.querySelectorAll('source')].map(source => source.type),
+});
 
 export const YOUTUBE_SELECTOR = String.raw`iframe`;
 
@@ -132,7 +132,7 @@ UTILITIES
 ---------
 */
 
-
+//TODO: check for other types of embedded passwords
 export function enumNodeProps(el, label = "ELEMENT") {
 	const result = {};
 	// https://meiert.com/en/blog/boolean-attributes-of-html/
@@ -146,18 +146,22 @@ export function enumNodeProps(el, label = "ELEMENT") {
 		'class': 'class (delete)'
 	};
 
+	let potentialPassEl = false;
+
 	loopAttributes: for (var att, i = 0, atts = el.attributes, n = atts.length; i < n; i++) {
 		att = atts[i];
+		let potentialPassAttr = false;
 		let keySuffix = mapReplace(att.name, replaceAttrs);
-
-		if (keySuffix?.toLowerCase()?.includes('pass')) continue loopAttributes; //no sneakily emedded password fields
-		if (keySuffix?.startsWith("on")) continue loopAttributes; //no inline js handlers
-		if (keySuffix === "nonce") continue loopAttributes; //get that crypto stuff outta here
-		if (keySuffix === "d") continue loopAttributes; //no svg paths
-
-
 		let keyName = `${label} → ${keySuffix}`;
 		let val = att.value?.trim();
+
+		if (keySuffix?.toLowerCase()?.includes('pass')) {
+			potentialPassAttr = true;
+			potentialPassEl = true;
+		}
+		if (keySuffix?.startsWith("on")) continue loopAttributes; //skip inline js handlers
+		if (keySuffix === "nonce") continue loopAttributes; //skip crypto
+		if (keySuffix === "d") continue loopAttributes; //skip svg paths
 
 		if (boolAttrs.some(attr => attr === att.name)) {
 			//attrs which have no value are "boolean" and therefore true when present
@@ -165,13 +169,18 @@ export function enumNodeProps(el, label = "ELEMENT") {
 			keyName += "?";
 		}
 
-		result[keyName] = val;
+		if (potentialPassAttr) val = `******`;
 
+		result[keyName] = val;
 	}
 
 	//tags to delete
 	delete result[`${label} → class (delete)`];
 	delete result[`${label} → style`];
+
+	if (potentialPassEl) {
+		//scrub all data inputs
+	}
 
 
 	return result;
@@ -179,33 +188,33 @@ export function enumNodeProps(el, label = "ELEMENT") {
 
 export function conditionalFields(el, label = "ELEMENT") {
 	const results = {};
-
+	const labelString = `${label} → label`
 	// LABELS
 	// sometimes lables are not explicitly tied to elements
 	if (Array.from(el?.labels || "").length === 0) {
 		// siblings
 		if (el.previousElementSibling?.nodeName === `LABEL`) {
-			results[`${label} → label`] = el.previousElementSibling.textContent.trim();
+			results[labelString] = el.previousElementSibling.textContent.trim();
 		}
 		if (el.nextElementSibling?.nodeName === `LABEL`) {
-			results[`${label} → label`] = el.nextElementSibling.textContent.trim();
+			results[labelString] = el.nextElementSibling.textContent.trim();
 		}
 
 		// parents + children
 		if (el.parentElement?.nodeName === `LABEL`) {
-			results[`${label} → label`] = el.parentElement.textContent.trim();
+			results[labelString] = el.parentElement.textContent.trim();
 		}
 		if (el.childNodes[0]?.nodeName === `LABEL`) {
-			results[`${label} → label`] = el.childNodes[0].textContent.trim();
+			results[labelString] = el.childNodes[0].textContent.trim();
 		}
 
 		//other possibilities for the label
-		if (el.parentElement.title) results[`${label} → label`] = el.parentElement.title.trim();
-		if (el.parentElement.name) results[`${label} → label`] = el.parentElement.name.trim();
-		if (el.parentElement.id) results[`${label} → label`] = el.parentElement.id.trim();
+		if (el.parentElement.title) results[labelString] = el.parentElement.title.trim();
+		if (el.parentElement.name) results[labelString] = el.parentElement.name.trim();
+		if (el.parentElement.id) results[labelString] = el.parentElement.id.trim();
 
 		// otherwise, recursively find the closest textContent by moving up the DOM
-		if (!results[`${label} → label`]) {
+		if (!results[labelString]) {
 			// eslint-disable-next-line no-inner-declarations
 			function findLabelRecursively(el) {
 				if (!el) {
@@ -213,7 +222,7 @@ export function conditionalFields(el, label = "ELEMENT") {
 				}
 
 				if (el.textContent.trim() !== "") {
-					results[`${label} → label`] = truncate(squish(el.textContent));
+					results[labelString] = truncate(squish(el.textContent));
 					return true;
 				}
 
