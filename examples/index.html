@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>mpEZTrack E2E test</title>
+</head>
+
+<body>
+	<!-- parse QS -->
+	<script>
+		function qsToObj(queryString) {
+			try {
+				const parsedQs = new URLSearchParams(queryString);
+				const params = Object.fromEntries(parsedQs);
+				return params;
+			}
+
+			catch (e) {
+				return {};
+			}
+		}
+
+	</script>
+	<!-- EZ TRACK -->
+	<script src="../eztrack.js"></script>
+	<script>
+		const params = qsToObj(document.location.search)
+		mpEZTrack.init(params?.token, {}, true)
+	</script>
+	<script>
+		window.addEventListener('mpEZTrackLoaded', () => { window.loadSuccess = `👍`; })
+	</script>
+</body>
+
+</html>
