@@ -10,6 +10,12 @@
 
 <body>
 	<style>
+		label {
+			font-family: monospace;
+			color: cadetblue;
+			font-weight: 800;
+		}
+
 		li {
 			padding: 5px;
 		}
@@ -33,7 +39,8 @@
 		}
 	</style>
 	<h1>🏃💨 mpEZTrack E2E tests</h1>
-	<p>this page might not look fancy, but it is a collection of all the different DOM elements that mpEZTrack can... track!</p>
+	<p>this page might not look fancy, but it is a collection of all the different DOM elements that mpEZTrack can...
+		track!</p>
 	<h2>BUTTONS</h2>
 	<ul>
 		<li>
@@ -203,50 +210,103 @@
 	<!-- input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`; -->
 	<ul>
 		<li>
-			<label for="plainInput">plain input</label><br/>
+			<label for="plainInput">plain input</label><br />
 			<input type="text" id="plainInput" name="plainInput" minlength="4" maxlength="100" size="20">
 		</li>
 		<li>
-			<label for="emailInput">email input</label><br/>
+			<label for="emailInput">email input</label><br />
 			<input type="email" id="emailInput" name="emailInput" minlength="4" maxlength="100" size="20">
 		</li>
 		<li>
-			<label for="urlInput">url input</label><br/>
+			<label for="urlInput">url input</label><br />
 			<input type="url" id="urlInput" name="urlInput" minlength="4" maxlength="100" size="20">
 		</li>
 		<li>
-			<label for="searchInput">search input</label><br/>
+			<label for="searchInput">search input</label><br />
 			<input type="search" id="searchInput" name="searchInput" minlength="4" maxlength="100" size="20">
 		</li>
 		<li>
-			<label for="textarea">textarea</label><br/>
+			<label for="textarea">textarea</label><br />
 			<textarea id="textarea" name="textarea" rows="5" cols="33">It was a dark and stormy night...</textarea>
 		</li>
 		<li>
 			<label for="contentEditable">editable non-inputs</label></br>
-			<div id="editableDiv" name="contentEditiable"  contenteditable="true">i am editable text that you can change and type over...</div>
+			<div id="editableDiv" name="contentEditiable" contenteditable="true">i am editable text that you can change
+				and type over...</div>
 		</li>
 	</ul>
 	<h2>CLICKS</h2>
 	<ul>
-		<li></li>
-		<li></li>
-		<li></li>
-		<li></li>
+		<li>
+			<label for="image">image</label><br />
+			<img src="https://aktunes.neocities.org/Rick-Astley-Never-Gonna-Give-You-Up.png" alt="hey rick" id="image"
+				name="image">
+		</li>
+		<li>
+			<label for="gif">gifs</label><br />
+			<img src="https://aktunes.neocities.org/rick.gif" alt="hey rick" id="gif" name="gif">
+		</li>
+		<li>
+			<label for="oneDiv">arbitrary div with no children</label><br />
+			<div id="oneDiv" name="oneDiv">never gonna give you up</div>
+		</li>
+		<li>
+			<label for="twoDiv">arbitrary div with children</label><br />
+			<div id="twoDiv" name="twoDiv">
+				<div>parent
+					<div>
+						child
+						<div>
+							grandchild
+						</div>
+					</div>
+				</div>
+			</div>
+		</li>
+		<li>
+			<section>
+				<label for="section">a section</label><br />
+				<p>with multiple paragraphs</p>
+				<p>and such</p>
+			</section>
+		</li>
+
 	</ul>
 	<h2>VIDEOS</h2>
 	<ul>
-		<li></li>
-		<li></li>
-		<li></li>
-		<li></li>
+		<li>
+			<label for="youtube">youtube embed</label><br /><br />
+			<iframe id="youtube" name="youtube" width="560" height="315" src="https://www.youtube.com/embed/oHg5SJYRHA0"
+				title="YouTube video player" frameborder="0"
+				allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+				allowfullscreen></iframe>
+		</li>
+		<li>
+			<label for="htmlvid">html5</label><br /><br />
+			<video controls id="htmlvid" width="560" height="315">
+				<source src="https://aktunes.com/rick.mp4" type="video/mp4">
+			</video>
+		</li>
 	</ul>
 	<h2>SENSITIVE FIELDS</h2>
 	<ul>
-		<li></li>
-		<li></li>
-		<li></li>
-		<li></li>
+		<li>
+			<label for="creditCard">cc#</label><br />
+			<input type="text" name="creditCard" id="creditcard" value="4833238298510968" />
+		</li>
+		<li>
+			<label for="ssn">ssn#</label><br />
+			<input type="text" name="ssn" id="ssn" value="152-96-4567" />
+		</li>
+		<li>
+			<label for="obvisecret">obviously a secret</label><br />
+			<input type="password" name="obvisecret" id="obvisecret" value="foo bar baz" />
+		</li>
+		<li>
+			<label for="notobvisecret">less obviously a secret</label><br />
+			<input type="text" name="notobvisecret" id="notobvisecret" value="foo bar baz" />
+		</li>
+		</li>
 	</ul>
 
 	<!-- parse QS -->

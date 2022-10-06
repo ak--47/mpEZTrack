@@ -1,16 +1,27 @@
 {
-    "env": {
-        "browser": true,
-        "commonjs": true,
-        "es2021": true
-    },
-    "extends": "eslint:recommended",
-    "overrides": [
-    ],
-    "parserOptions": {
+	"env": {
+		"browser": true,
+		"commonjs": true,
+		"es2021": true
+	},
+	"extends": "eslint:recommended",
+	"overrides": [
+		{
+			"files": [
+				"**/*.test.js"
+			],
+			"env": {
+			  "jest": true // now **/*.test.js files' env has both es6 *and* jest
+			},			
+			"plugins": [
+				"jest"
+			]
+			
+		}
+	],
+	"parserOptions": {
 		"ecmaVersion": "latest",
 		"sourceType": "module"
 	},
-    "rules": {
-    }
+	"rules": {}
 }
