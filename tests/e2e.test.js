@@ -122,17 +122,31 @@ describe('compenents track properly', () => {
 
 	test('dropdowns', async () => {
 		await page.select('#select', 'audi');
-		await page.evaluate(()=>{
-			const dataList = document.querySelector('#ice-cream-choice')
-			dataList.value = "Mint"
-			const change = new Event('change'); 
-			dataList.dispatchEvent(change)
+		await page.evaluate(() => {
+			const dataList = document.querySelector('#ice-cream-choice');
+			dataList.value = "Mint";
+			const change = new Event('change');
+			dataList.dispatchEvent(change);
 
-		})		
+		});
 		await page.click('#dewey');
 		await page.click('#scales');
 		await page.click('#wings');
+		await page.evaluate(() => {
+			const colorPicker = document.querySelector('#tail');
+			colorPicker.value = "#51d2bc";
+			const change = new Event('change');
+			colorPicker.dispatchEvent(change);
+		});
+
+		await page.evaluate(() => {
+			const rangeSlider = document.querySelector('#dubstep');
+			rangeSlider.value = '42';
+			const change = new Event('change');
+			rangeSlider.dispatchEvent(change);
+		});
 		await sleep();
+
 		let selectSpec = { event: 'user selection', properties: { "OPTION → id": "select", "OPTION → user selected": "audi", "OPTION → choices": ["Volvo", "Saab", "Opel", "Audi"] } };
 		expect(stream()).toContainObjectMatching(selectSpec);
 		let dataListSpec = { event: 'user selection', properties: { "OPTION → id": "ice-cream-choice", "OPTION → user selected": "Mint", "OPTION → choices": ["Chocolate", "Coconut", "Mint", "Strawberry", "Vanilla"] } };
@@ -140,9 +154,13 @@ describe('compenents track properly', () => {
 		let radioSpec = { event: 'user selection', properties: { "OPTION → id": "dewey", "OPTION → user selected": "dewey" } };
 		expect(stream()).toContainObjectMatching(radioSpec);
 		let checkBoxSpecOff = { event: 'user selection', properties: { "OPTION → id": "scales", "OPTION → user selected": false } };
-		expect(stream()).toContainObjectMatching(checkBoxSpecOff);		
+		expect(stream()).toContainObjectMatching(checkBoxSpecOff);
 		let checkBoxSpecOn = { event: 'user selection', properties: { "OPTION → id": "wings", "OPTION → user selected": true } };
-		expect(stream()).toContainObjectMatching(checkBoxSpecOn);		
+		expect(stream()).toContainObjectMatching(checkBoxSpecOn);
+		let colorPickerSpec = { event: 'user selection', properties: { "OPTION → id": "tail", "OPTION → user selected": "#51d2bc" } };
+		expect(stream()).toContainObjectMatching(colorPickerSpec);
+		let rangeSliderSpec = { event: 'user selection', properties: { "OPTION → id": "dubstep"} };
+		expect(stream()).toContainObjectMatching(rangeSliderSpec);
 	});
 });
 
