@@ -5,10 +5,10 @@
   "main": "./src/eztrack.js",
   "scripts": {
     "watch": "npm-watch build",
-    "serve": "./node_modules/.bin/serve ./examples",
+    "serve": "./node_modules/.bin/serve -l 3000 ./examples",
     "deploy": "node deploy.js",
     "build": "npm run buildMin && npm run buildMax && npm run buildEx",
-	"test": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --watch --verbose",
+	"test": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --watchAll --verbose",
     "buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --target=es6 --outdir=./dist/ --out-extension:.js=.min.js",
     "buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/",
     "buildEx": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/"

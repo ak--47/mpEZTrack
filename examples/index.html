@@ -9,12 +9,246 @@
 </head>
 
 <body>
+	<style>
+		li {
+			padding: 5px;
+		}
+
+		.btn {
+			width: 85px;
+			appearance: auto;
+			user-select: none;
+			white-space: pre;
+			align-items: flex-start;
+			text-align: center;
+			cursor: default;
+			box-sizing: border-box;
+			background-color: buttonface;
+			color: buttontext;
+			padding: 1px 6px;
+			border-width: 2px;
+			border-style: outset;
+			border-color: buttonborder;
+			border-image: initial;
+		}
+	</style>
+	<h1>🏃💨 mpEZTrack E2E tests</h1>
+	<p>this page might not look fancy, but it is a collection of all the different DOM elements that mpEZTrack can... track!</p>
 	<h2>BUTTONS</h2>
-		<ul>
-			<li><button id="normalButton">normal button</button></li>
-			<li><input type="button" id="inputButton"></input><label for="inputButton">input button</label></li>
-			<li><div class="btn" id="divButton">div button</div></li>
-		</ul>	
+	<ul>
+		<li>
+			<button id="normalButton">normal button</button>
+		</li>
+		<li>
+			<input type="button" id="inputButton" value="input button" />
+		</li>
+		<li>
+			<div class="btn" id="divButton">div button</div>
+		</li>
+		<li><label for="filePicker">file picker</label>
+			<input type="file" id="filePicker" name="filePicker" accept="image/png, image/jpeg">
+		</li>
+		<li>
+			<label for="imageButton">image button</label>
+			<input style="height: 25px;" type="image" id="imageButton" alt="image button" src="buttonImage.jpg">
+		</li>
+		<li>
+			<input id="resetButton" type="reset" value="Reset Button" />
+		</li>
+		<li>
+			<input id="submitButton" type="submit" value="Submit Button">
+		</li>
+	</ul>
+	<h2>LINKS</h2>
+	<ul>
+		<li><a href="#" id="internal">internal link</a></li>
+		<li><a href="http://localhost:5000" id="domain">same domain link</a></li>
+		<li><a id="nohref" name="foo">no href link</a></li>
+		<li><a href="javascript:;" id="js">javascript link</a></li>
+		<li><a href="https://google.com" id="external" target="_blank">external site</a></li>
+	</ul>
+	<h2>DROPDOWNS + SELECTORS</h2>
+	<ul>
+		<li>
+			<fieldset>
+				<legend>select menus</legend>
+				<label for="select">cars:</label>
+				<select name="cars" id="select" form="carform">
+					<option value="volvo">Volvo</option>
+					<option value="saab">Saab</option>
+					<option value="opel">Opel</option>
+					<option value="audi">Audi</option>
+				</select>
+			</fieldset>
+		</li>
+		<li>
+			<fieldset>
+				<legend>datalists</legend>
+
+				<label for="datalist">ice cream</label>
+				<input list="datalist" id="ice-cream-choice" name="ice-cream-choice">
+				<datalist id="datalist">
+					<option value="Chocolate">
+					<option value="Coconut">
+					<option value="Mint">
+					<option value="Strawberry">
+					<option value="Vanilla">
+				</datalist>
+			</fieldset>
+		</li>
+		<li>
+			<fieldset>
+				<legend>radios</legend>
+				<input type="radio" id="huey" name="drone" value="huey" checked>
+				<label for="huey">Huey</label>
+
+				<input type="radio" id="dewey" name="drone" value="dewey">
+				<label for="dewey">Dewey</label>
+
+				<input type="radio" id="louie" name="drone" value="louie">
+				<label for="louie">Louie</label>
+			</fieldset>
+		</li>
+		<li>
+			<fieldset>
+				<legend>checkboxes</legend>
+
+				<div>
+					<input type="checkbox" id="scales" name="scales" checked>
+					<label for="scales">Scales</label>
+				</div>
+
+				<div>
+					<input type="checkbox" id="horns" name="horns">
+					<label for="horns">Horns</label>
+				</div>
+
+				<div>
+					<input type="checkbox" id="wings" name="wings">
+					<label for="horns">Wings</label>
+				</div>
+			</fieldset>
+		</li>
+		<li>
+			<fieldset>
+				<legend>color picker</legend>
+				<input type="color" id="head" name="head" value="#e66465">
+				<label for="head">Head</label>
+
+				<input type="color" id="body" name="body" value="#f6b73c">
+				<label for="body">Body</label>
+
+				<input type="color" id="tail" name="tail" value="#1548ca">
+				<label for="tail">Tail</label>
+			</fieldset>
+		</li>
+		<li>
+			<fieldset>
+				<legend>range selectors</legend>
+				<input type="range" id="volume" name="volume" min="0" max="11">
+				<label for="volume">Volume</label>
+
+				<input type="range" id="cowbell" name="cowbell" min="0" max="100" value="90" step="10">
+				<label for="cowbell">Cowbell</label>
+
+				<input type="range" id="dubstep" name="dubstep" min="0" max="100" value="90" step="10">
+				<label for="dubstep">Dubstep</label>
+			</fieldset>
+		</li>
+	</ul>
+	<h2>FORMS</h2>
+	<li>
+		<fieldset>
+			<legend>subscription form</legend>
+			<form action="" method="" class="form-example">
+				<div class="form-example">
+					<label for="name">Enter your name: </label>
+					<input type="text" name="name" id="name" required>
+				</div>
+				<div class="form-example">
+					<label for="email">Enter your email: </label>
+					<input type="email" name="email" id="email" required>
+				</div>
+				<div class="form-example">
+					<input type="submit" value="Subscribe!">
+				</div>
+			</form>
+		</fieldset>
+	</li>
+	<li>
+		<fieldset>
+			<legend>login form</legend>
+			<form action="" method="">
+				<div class="container">
+					<label for="uname"><b>Username</b></label>
+					<input type="text" placeholder="Enter Username" name="uname" required>
+
+					<label for="psw"><b>Password</b></label>
+					<input type="password" placeholder="Enter Password" name="psw" required>
+
+					<button type="submit">Login</button>
+					<label>
+						<input type="checkbox" checked="checked" name="remember"> Remember me
+					</label>
+				</div>
+
+				<div class="container">
+					<button type="button" class="cancelbtn">Cancel</button>
+					<span class="psw">Forgot <a href="#">password?</a></span>
+				</div>
+			</form>
+		</fieldset>
+	</li>
+	<h2>USER INPUT</h2>
+	<!-- input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`; -->
+	<ul>
+		<li>
+			<label for="plainInput">plain input</label><br/>
+			<input type="text" id="plainInput" name="plainInput" minlength="4" maxlength="100" size="20">
+		</li>
+		<li>
+			<label for="emailInput">email input</label><br/>
+			<input type="email" id="emailInput" name="emailInput" minlength="4" maxlength="100" size="20">
+		</li>
+		<li>
+			<label for="urlInput">url input</label><br/>
+			<input type="url" id="urlInput" name="urlInput" minlength="4" maxlength="100" size="20">
+		</li>
+		<li>
+			<label for="searchInput">search input</label><br/>
+			<input type="search" id="searchInput" name="searchInput" minlength="4" maxlength="100" size="20">
+		</li>
+		<li>
+			<label for="textarea">textarea</label><br/>
+			<textarea id="textarea" name="textarea" rows="5" cols="33">It was a dark and stormy night...</textarea>
+		</li>
+		<li>
+			<label for="contentEditable">editable non-inputs</label></br>
+			<div id="editableDiv" name="contentEditiable"  contenteditable="true">i am editable text that you can change and type over...</div>
+		</li>
+	</ul>
+	<h2>CLICKS</h2>
+	<ul>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+	</ul>
+	<h2>VIDEOS</h2>
+	<ul>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+	</ul>
+	<h2>SENSITIVE FIELDS</h2>
+	<ul>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+	</ul>
+
 	<!-- parse QS -->
 	<script>
 		function qsToObj(queryString) {
@@ -30,10 +264,20 @@
 		}
 
 	</script>
+	<!-- prevent defaults -->
+	<script>
+		document.querySelectorAll("a").forEach(link => {
+			link.addEventListener('click', (e) => e.preventDefault());
+		});
+
+		document.querySelectorAll("form").forEach(form => {
+			form.addEventListener('submit', (e) => e.preventDefault());
+		});
+	</script>
 	<!-- EZ TRACK -->
 	<script src="../eztrack.js"></script>
 	<script>
-		const params = qsToObj(document.location.search)
+		const params = qsToObj(document.location.search);
 		mpEZTrack.init(params?.token, {}, true)
 	</script>
 	<script>
