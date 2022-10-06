@@ -69,7 +69,7 @@
 	<h2>LINKS</h2>
 	<ul>
 		<li><a href="#" id="internal">internal link</a></li>
-		<li><a href="http://localhost:5000" id="domain">same domain link</a></li>
+		<li><a href="http://localhost" id="domain">same domain link</a></li>
 		<li><a id="nohref" name="foo">no href link</a></li>
 		<li><a href="javascript:;" id="js">javascript link</a></li>
 		<li><a href="https://google.com" id="external" target="_blank">external site</a></li>
@@ -92,7 +92,7 @@
 			<fieldset>
 				<legend>datalists</legend>
 
-				<label for="datalist">ice cream</label>
+				<label for="ice-cream-choice">ice cream</label>
 				<input list="datalist" id="ice-cream-choice" name="ice-cream-choice">
 				<datalist id="datalist">
 					<option value="Chocolate">
@@ -338,7 +338,9 @@
 	<script src="../eztrack.js"></script>
 	<script>
 		const params = qsToObj(document.location.search);
+		if (params.port) document.querySelector('#domain').href = `http://localhost:${params.port}/`
 		mpEZTrack.init(params?.token, {}, true)
+		
 	</script>
 	<script>
 		window.addEventListener('mpEZTrackLoaded', () => { window.loadSuccess = `👍`; })

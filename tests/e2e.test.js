@@ -1,9 +1,18 @@
 require('dotenv').config();
-const { PROJECT, TOKEN, SECRET, ACCT, PASS, } = process.env;
+const { PROJECT, TOKEN, SECRET, ACCT, PASS, PORT } = process.env;
 const eventStream = [];
 const profileStream = [];
 const TRACK = `https://api-js.mixpanel.com/track/`;
 const ENGAGE = `https://api-js.mixpanel.com/engage/`;
+
+function stream(type = "event") {
+	if (type === "event") return eventStream.flat();
+	if (type === "profile") return profileStream.flat();
+}
+
+async function sleep(ms = 100) {
+	await page.waitForTimeout(ms);
+}
 
 // oy.... https://lightrun.com/answers/facebook-jest-expose-matchers-in-expectextend
 const { getMatchers } = require("../node_modules/expect/build/jestMatchersObject");
@@ -32,7 +41,7 @@ beforeAll(async () => {
 		}
 	});
 
-	await page.goto(`http://localhost:5000?token=${TOKEN}`);
+	await page.goto(`http://localhost:${PORT}?token=${TOKEN}&port=${PORT}`);
 });
 
 describe('do tests work?', () => {
@@ -53,58 +62,87 @@ describe('loading the tag', () => {
 				token: TOKEN
 			}
 		};
-		expect(eventStream.flat()).toContainObjectMatching(spec);
+		expect(stream()).toContainObjectMatching(spec);
 	});
 });
 
 describe('compenents track properly', () => {
 
-	test('page view tracking', async () => {
+	test('page views', async () => {
 		let spec = {
-			event: 'page enter',
-			properties: {
-				token: TOKEN
-			}
+			event: 'page enter', properties: { token: TOKEN }
 		};
-		expect(eventStream.flat()).toContainObjectMatching(spec);
+		expect(stream()).toContainObjectMatching(spec);
 
 	});
 
-	test('buttons tracking', async () => {
+	test('buttons', async () => {
 		await page.click('#normalButton');
-		await sleep();
-		let normalSpec = { event: 'button click', properties: { "BUTTON → id": "normalButton" } };
-		expect(eventStream.flat()).toContainObjectMatching(normalSpec);
-
 		await page.click('#inputButton');
-		await sleep();
-		let inputSpec = { event: 'button click', properties: { "BUTTON → id": "inputButton" } };
-		expect(eventStream.flat()).toContainObjectMatching(inputSpec);
-
 		await page.click('#divButton');
-		await sleep();
-		let divSpec = { event: 'button click', properties: { "BUTTON → id": "divButton" } };
-		expect(eventStream.flat()).toContainObjectMatching(divSpec);
-
 		await page.click('#filePicker');
-		await sleep();
-		let filePickerSpec = { event: 'button click', properties: { "BUTTON → id": "filePicker" } };
-		expect(eventStream.flat()).toContainObjectMatching(filePickerSpec);
-
 		await page.click('#imageButton');
-		await sleep();
-		let imageButtonSpec = { event: 'button click', properties: { "BUTTON → id": "imageButton" } };
-		expect(eventStream.flat()).toContainObjectMatching(imageButtonSpec);
-
 		await page.click('#resetButton');
-		await sleep();
-		let resetSpec = { event: 'button click', properties: { "BUTTON → id": "resetButton" } };
-		expect(eventStream.flat()).toContainObjectMatching(resetSpec);
-
 		await page.click('#submitButton');
 		await sleep();
+		let normalSpec = { event: 'button click', properties: { "BUTTON → id": "normalButton" } };
+		expect(stream()).toContainObjectMatching(normalSpec);
+		let inputSpec = { event: 'button click', properties: { "BUTTON → id": "inputButton" } };
+		expect(stream()).toContainObjectMatching(inputSpec);
+		let divSpec = { event: 'button click', properties: { "BUTTON → id": "divButton" } };
+		expect(stream()).toContainObjectMatching(divSpec);
+		let filePickerSpec = { event: 'button click', properties: { "BUTTON → id": "filePicker" } };
+		expect(stream()).toContainObjectMatching(filePickerSpec);
+		let imageButtonSpec = { event: 'button click', properties: { "BUTTON → id": "imageButton" } };
+		expect(stream()).toContainObjectMatching(imageButtonSpec);
+		let resetSpec = { event: 'button click', properties: { "BUTTON → id": "resetButton" } };
+		expect(stream()).toContainObjectMatching(resetSpec);
 		let submitButtonSpec = { event: 'button click', properties: { "BUTTON → id": "submitButton" } };
-		expect(eventStream.flat()).toContainObjectMatching(submitButtonSpec);
+		expect(stream()).toContainObjectMatching(submitButtonSpec);
+	});
+
+	test('links', async () => {
+		await page.click('#internal');
+		await page.click('#domain');
+		await page.click('#nohref');
+		await page.click('#js');
+		await page.click('#external');
+		await sleep();
+		let internalSpec = { event: 'navigation click', properties: { "LINK → id": "internal" } };
+		expect(stream()).toContainObjectMatching(internalSpec);
+		let domainSpec = { event: 'navigation click', properties: { "LINK → id": "domain" } };
+		expect(stream()).toContainObjectMatching(domainSpec);
+		let noHrefSpec = { event: 'navigation click', properties: { "LINK → id": "nohref" } };
+		expect(stream()).toContainObjectMatching(noHrefSpec);
+		let jsHrefSpec = { event: 'navigation click', properties: { "LINK → id": "js" } };
+		expect(stream()).toContainObjectMatching(jsHrefSpec);
+		let externalSpec = { event: 'link click', properties: { "LINK → id": "external" } };
+		expect(stream()).toContainObjectMatching(externalSpec);
+	});
+
+	test('dropdowns', async () => {
+		await page.select('#select', 'audi');
+		await page.evaluate(()=>{
+			const dataList = document.querySelector('#ice-cream-choice')
+			dataList.value = "Mint"
+			const change = new Event('change'); 
+			dataList.dispatchEvent(change)
+
+		})		
+		await page.click('#dewey');
+		await page.click('#scales');
+		await page.click('#wings');
+		await sleep();
+		let selectSpec = { event: 'user selection', properties: { "OPTION → id": "select", "OPTION → user selected": "audi", "OPTION → choices": ["Volvo", "Saab", "Opel", "Audi"] } };
+		expect(stream()).toContainObjectMatching(selectSpec);
+		let dataListSpec = { event: 'user selection', properties: { "OPTION → id": "ice-cream-choice", "OPTION → user selected": "Mint", "OPTION → choices": ["Chocolate", "Coconut", "Mint", "Strawberry", "Vanilla"] } };
+		expect(stream()).toContainObjectMatching(dataListSpec);
+		let radioSpec = { event: 'user selection', properties: { "OPTION → id": "dewey", "OPTION → user selected": "dewey" } };
+		expect(stream()).toContainObjectMatching(radioSpec);
+		let checkBoxSpecOff = { event: 'user selection', properties: { "OPTION → id": "scales", "OPTION → user selected": false } };
+		expect(stream()).toContainObjectMatching(checkBoxSpecOff);		
+		let checkBoxSpecOn = { event: 'user selection', properties: { "OPTION → id": "wings", "OPTION → user selected": true } };
+		expect(stream()).toContainObjectMatching(checkBoxSpecOn);		
 	});
 });
 
@@ -114,14 +152,14 @@ describe('bad token throws', () => {
 		errorPage.on("pageerror", function (err) {
 			expect(err.message).toEqual(expect.stringContaining(`Error: BAD TOKEN! TRY AGAIN`));
 		});
-		await errorPage.goto(`http://localhost:5000?token=foo`);
-	});
+		await errorPage.goto(`http://localhost:${PORT}?token=foo`);
+	}, 3000);
 });
 
+afterAll(() => {
+	console.debug("URL:", `http://localhost:${PORT}?token=${TOKEN}&port=${PORT}`);
+});
 
-async function sleep(ms = 40) {
-	await page.waitForTimeout(ms);
-}
 
 /**
  *  UTILITY: toContainObjectMatching(rec, exp)
@@ -131,7 +169,7 @@ async function sleep(ms = 40) {
  *	https://github.com/jest-community/jest-extended/issues/146#issuecomment-1212283459	 
 
 **/
-expect.extend({	
+expect.extend({
 	toContainObjectMatching(received, expected) {
 		let matchFound = false;
 		if (Array.isArray(received)) {

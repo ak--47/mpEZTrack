@@ -82,12 +82,31 @@ export const FORM_FIELDS = (el) => ({
 	"FORM → encoding": el.encoding
 });
 
-export const DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
-export const DROPDOWN_FIELDS = (el) => ({
-	"OPTION → selected": el.value,
-	"OPTION → choices": el.innerText.split('\n'),
-	"OPTION → labels": [...el.labels].map(label => label.textContent?.trim())
-});
+export const DROPDOWN_SELECTOR = String.raw`select, input[list], input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
+export const DROPDOWN_FIELDS = (el) => {
+	let props = {
+		"OPTION → user selected": el.value === 'on' ? el.checked : el.value,
+		"OPTION → labels": [...el.labels].map(label => label.textContent?.trim())
+	};
+	
+	// solve for possible choices
+	try {
+		let choices = el.innerText.split('\n');
+		if (choices.length > 1) {
+			props["OPTION → choices"] = choices;
+		}
+		else if (el?.list) {
+			choices = [...el.list.children].map(opt => opt.value);
+			props["OPTION → choices"] = choices;
+		}
+	}
+	catch (e) {
+		//noop
+		(()=>{})()
+	}
+	
+	return props;
+};
 
 export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`;
 export const INPUT_FIELDS = (el) => ({
@@ -188,7 +207,7 @@ export function enumNodeProps(el, label = "ELEMENT") {
 
 export function conditionalFields(el, label = "ELEMENT") {
 	const results = {};
-	const labelString = `${label} → label`
+	const labelString = `${label} → label`;
 	// LABELS
 	// sometimes lables are not explicitly tied to elements
 	if (Array.from(el?.labels || "").length === 0) {

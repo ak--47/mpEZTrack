@@ -4068,12 +4068,26 @@
     "FORM \u2192 action": el.action,
     "FORM \u2192 encoding": el.encoding
   });
-  var DROPDOWN_SELECTOR = String.raw`select, datalist, input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
-  var DROPDOWN_FIELDS = (el) => ({
-    "OPTION \u2192 selected": el.value,
-    "OPTION \u2192 choices": el.innerText.split("\n"),
-    "OPTION \u2192 labels": [...el.labels].map((label) => label.textContent?.trim())
-  });
+  var DROPDOWN_SELECTOR = String.raw`select, input[list], input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
+  var DROPDOWN_FIELDS = (el) => {
+    let props = {
+      "OPTION \u2192 user selected": el.value === "on" ? el.checked : el.value,
+      "OPTION \u2192 labels": [...el.labels].map((label) => label.textContent?.trim())
+    };
+    try {
+      let choices = el.innerText.split("\n");
+      if (choices.length > 1) {
+        props["OPTION \u2192 choices"] = choices;
+      } else if (el?.list) {
+        choices = [...el.list.children].map((opt) => opt.value);
+        props["OPTION \u2192 choices"] = choices;
+      }
+    } catch (e) {
+      (() => {
+      })();
+    }
+    return props;
+  };
   var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`;
   var INPUT_FIELDS = (el) => ({
     "CONTENT \u2192 user content": isSensitiveData(el.value) ? "******" : el.value,
