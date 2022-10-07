@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { PROJECT, TOKEN, SECRET, ACCT, PASS, PORT } = process.env;
-const eventStream = [];
-const profileStream = [];
+let eventStream = [];
+let profileStream = [];
 const TRACK = `https://api-js.mixpanel.com/track/`;
 const ENGAGE = `https://api-js.mixpanel.com/engage/`;
 
@@ -10,8 +10,13 @@ function stream(type = "event") {
 	if (type === "profile") return profileStream.flat();
 }
 
-async function sleep(ms = 200) {
+async function sleep(ms = 300) {
 	await page.waitForTimeout(ms);
+}
+
+function clearStream() {
+	eventStream = [];
+	profileStream = [];
 }
 
 // oy.... https://lightrun.com/answers/facebook-jest-expose-matchers-in-expectextend
@@ -57,6 +62,7 @@ describe('loading the tag', () => {
 	});
 
 	test('valid token bootstraps tracking', async () => {
+		await page.reload({ waitUntil: ["networkidle0", "domcontentloaded"] });
 		let spec = {
 			properties: {
 				token: TOKEN
@@ -249,6 +255,86 @@ describe('compenents track properly', () => {
 		expect(stream()).toContainObjectMatching(videoPauseSpec);
 	}, 5000);
 
+});
+
+describe('sensitive fields are NOT tracked', () => {
+
+
+	test('credit card', async () => {
+		let sampleCCs = ['4833231031483007', '4833248550533335', '4798518084349926', '4798515032429933'];
+
+		await page.evaluate(() => {
+			let sampleCCs = ['4833231031483007', '4833248550533335', '4798518084349926', '4798515032429933'];
+			for (const ccNum of sampleCCs) {
+				const cc = document.querySelector('#creditcard');
+				cc.value = ccNum;
+				const change = new Event('change');
+				cc.dispatchEvent(change);
+			}
+		});
+
+		await sleep();
+
+		let ccSpec = { event: 'user entered text', properties: { "CONTENT → id": "creditcard", "CONTENT → user content": "******" } };
+		expect(stream()).toContainObjectMatching(ccSpec);
+		for (const ccNum of sampleCCs) {
+			expect(stream()).not.toContainObjectMatching({ properties: { "CONTENT → user content": ccNum } });
+		}
+
+
+	});
+
+	test('social security numbers', async () => {
+		let sampleSSNs = ['152-84-3695', '152369654'];
+
+		await page.evaluate(() => {
+			let sampleSSNs = ['152-84-3695', '152-36-9654'];
+			for (const SSN of sampleSSNs) {
+				const cc = document.querySelector('#ssn');
+				cc.value = SSN;
+				const change = new Event('change');
+				cc.dispatchEvent(change);
+			}
+		});
+
+		await sleep();
+
+		let ssnSpec = { event: 'user entered text', properties: { "CONTENT → id": "ssn", "CONTENT → user content": "******" } };
+		expect(stream()).toContainObjectMatching(ssnSpec);
+		for (const SSN of sampleSSNs) {
+			expect(stream()).not.toContainObjectMatching({ properties: { "CONTENT → user content": SSN } });
+		}
+
+
+	});
+
+	test('obvious passwords', async () => {
+		const samplePassword = 'i am a very bad password';
+		await page.focus('#obvisecret');
+		await page.type('#obvisecret', samplePassword);
+		await page.focus('#hero');
+		await page.click('#hero')
+		await sleep();
+
+		let passSpec = { event: "user entered text", properties: { "CONTENT → id": "obvisecret" } };
+		let passSpecFields = { properties: { "CONTENT → user content": samplePassword } };
+		expect(stream()).not.toContainObjectMatching(passSpec);
+		expect(stream()).not.toContainObjectMatching(passSpecFields);
+	});
+
+	test('less obvious passwords', async () => {
+		const samplePassword = 'i am ALSO a very bad password';
+		await page.focus('#notobvisecret');
+		await page.type('#notobvisecret', samplePassword);
+		await page.focus('#hero');
+		await page.click('#hero')
+		await sleep();
+
+		let passSpec = { event: "user entered text", properties: { "CONTENT → id": "notobvisecret" } };
+		let passSpecFields = { properties: { "CONTENT → user content": samplePassword } };
+		expect(stream()).toContainObjectMatching(passSpec);
+		expect(stream()).not.toContainObjectMatching(passSpecFields);
+	});
 });
 
 describe('bad token throws', () => {

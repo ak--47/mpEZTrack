@@ -189,6 +189,7 @@ export function enumNodeProps(el, label = "ELEMENT") {
 		}
 
 		if (potentialPassAttr) val = `******`;
+		if (isSensitiveData(val)) val = `******`;
 
 		result[keyName] = val;
 	}

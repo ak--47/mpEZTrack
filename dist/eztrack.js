@@ -4088,7 +4088,7 @@
     }
     return props;
   };
-  var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`;
+  var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
   var INPUT_FIELDS = (el) => ({
     "CONTENT \u2192 user content": isSensitiveData(el.value) ? "******" : el.value,
     "CONTENT \u2192 labels": [...el.labels].map((label) => squish(label.textContent))
@@ -4151,6 +4151,8 @@
           keyName += "?";
         }
         if (potentialPassAttr)
+          val = `******`;
+        if (isSensitiveData(val))
           val = `******`;
         result[keyName] = val;
       }
