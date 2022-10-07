@@ -5,12 +5,18 @@
   "main": "./src/eztrack.js",
   "scripts": {
     "watch": "npm-watch build",
-    "serve": "./node_modules/.bin/serve ./examples",
+    "serve": "./node_modules/.bin/serve -l 3000 ./examples",
     "deploy": "node deploy.js",
     "build": "npm run buildMin && npm run buildMax && npm run buildEx",
+	"testExt": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --verbose",
+	"testWatch": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --watchAll --verbose",	
     "buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --target=es6 --outdir=./dist/ --out-extension:.js=.min.js",
     "buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/",
     "buildEx": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/"
+  },
+  "jest": {
+    "preset": "jest-puppeteer",
+	"testPathIgnorePatterns": ["/dist/", "/examples/", "/src/"]
   },
   "watch": {
     "build": "./src/*.js"
@@ -29,10 +35,14 @@
   "devDependencies": {
     "@google-cloud/storage": "^6.5.2",
     "ak-tools": "^1.0.14",
+    "dotenv": "^16.0.3",
     "esbuild": "^0.15.7",
     "eslint": "^8.23.0",
+    "jest": "^29.1.2",
+    "jest-puppeteer": "^6.1.1",
     "nodemon": "^2.0.19",
     "npm-watch": "^0.11.0",
+    "puppeteer": "^18.0.5",
     "serve": "^14.0.1"
   },
   "dependencies": {
