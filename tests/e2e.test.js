@@ -159,8 +159,25 @@ describe('compenents track properly', () => {
 		expect(stream()).toContainObjectMatching(checkBoxSpecOn);
 		let colorPickerSpec = { event: 'user selection', properties: { "OPTION → id": "tail", "OPTION → user selected": "#51d2bc" } };
 		expect(stream()).toContainObjectMatching(colorPickerSpec);
-		let rangeSliderSpec = { event: 'user selection', properties: { "OPTION → id": "dubstep"} };
+		let rangeSliderSpec = { event: 'user selection', properties: { "OPTION → id": "dubstep" } };
 		expect(stream()).toContainObjectMatching(rangeSliderSpec);
+	});
+
+	test('forms', async () => {
+		await page.type('#name', 'foo');
+		await page.type('#email', 'bar@baz.com');
+		await page.click('#submitSimple');
+
+		await page.type('#uname', 'foo bar');
+		await page.type('#pass', 'baz password');
+		await page.click('#login');
+
+		await sleep();
+		let simpleFormSpec = { event: 'form submit', properties: { "FORM → id": "basicForm", "FORM → # inputs": 3 } };
+		expect(stream()).toContainObjectMatching(simpleFormSpec);
+		let loginFormSpec = { event: 'form submit', properties: { "FORM → id": "loginForm", "FORM → # inputs": 5 } };
+		expect(stream()).toContainObjectMatching(loginFormSpec);
+		expect(stream()).not.toContainObjectMatching({ properties : {"CONTENT → user content": "baz password"}})
 	});
 });
 

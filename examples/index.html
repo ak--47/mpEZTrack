@@ -167,7 +167,7 @@
 	<li>
 		<fieldset>
 			<legend>subscription form</legend>
-			<form action="" method="" class="form-example">
+			<form action="" method="" class="form-example" id="basicForm">
 				<div class="form-example">
 					<label for="name">Enter your name: </label>
 					<input type="text" name="name" id="name" required>
@@ -177,7 +177,7 @@
 					<input type="email" name="email" id="email" required>
 				</div>
 				<div class="form-example">
-					<input type="submit" value="Subscribe!">
+					<input type="submit" value="Subscribe!" id="submitSimple">
 				</div>
 			</form>
 		</fieldset>
@@ -185,15 +185,15 @@
 	<li>
 		<fieldset>
 			<legend>login form</legend>
-			<form action="" method="">
+			<form action="" method="" id="loginForm">
 				<div class="container">
 					<label for="uname"><b>Username</b></label>
-					<input type="text" placeholder="Enter Username" name="uname" required>
+					<input type="text" id="uname" placeholder="Enter Username" name="uname" required>
 
 					<label for="psw"><b>Password</b></label>
-					<input type="password" placeholder="Enter Password" name="psw" required>
+					<input type="password" id="pass" placeholder="Enter Password" name="psw" required>
 
-					<button type="submit">Login</button>
+					<button type="submit" id="login">Login</button>
 					<label>
 						<input type="checkbox" checked="checked" name="remember"> Remember me
 					</label>
