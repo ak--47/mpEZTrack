@@ -681,7 +681,7 @@ export function trackPageViews(mp, opts) {
 //default: on
 export function trackPageExits(mp, opts) {
 	window.addEventListener('beforeunload', () => {
-		//page exist should be last event
+		//page exit should be last event
 		this.hasVisibilityChanged = null;
 		mp.track('page exit', { ...statefulProps(false) }, { transport: 'sendBeacon', send_immediately: true });
 		if (opts.logProps) console.log("PAGE EXIT"); console.log(JSON.stringify({ ...statefulProps(false) }, null, 2));

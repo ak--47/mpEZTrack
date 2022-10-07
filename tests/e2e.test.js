@@ -10,7 +10,7 @@ function stream(type = "event") {
 	if (type === "profile") return profileStream.flat();
 }
 
-async function sleep(ms = 150) {
+async function sleep(ms = 200) {
 	await page.waitForTimeout(ms);
 }
 
@@ -223,9 +223,31 @@ describe('compenents track properly', () => {
 		let sectionTwoSpec = { event: 'page click', properties: { "ELEM → tag (<>)": "<P>", "ELEM → id": "secondChild", "ELEM → text": "and such" } };
 		expect(stream()).toContainObjectMatching(sectionTwoSpec);
 
-
-
 	});
+
+	test('video', async () => {
+		await page.evaluate(() => {
+			try {
+				document.querySelector('#htmlvid').play();
+			}
+			catch (e) { }
+		});
+		await sleep(1000);
+		await page.evaluate(() => {
+			try {
+				document.querySelector('#htmlvid').pause();
+			}
+			catch (e) { }
+		});
+		await sleep();
+
+		let youtubeSpec = { event: "youtube player load", properties: { "VIDEO → length (sec)": 213, "VIDEO → id": "oHg5SJYRHA0", "VIDEO → title": "RickRoll'D" } };
+		expect(stream()).toContainObjectMatching(youtubeSpec);
+		let videoPlaySpec = { event: "video: play", properties: { "VIDEO → id": "htmlvid", "VIDEO → tag (<>)": "<VIDEO>" } };
+		expect(stream()).toContainObjectMatching(videoPlaySpec);
+		let videoPauseSpec = { event: "video: pause", properties: { "VIDEO → id": "htmlvid", "VIDEO → tag (<>)": "<VIDEO>" } };
+		expect(stream()).toContainObjectMatching(videoPauseSpec);
+	}, 5000);
 
 });
 
@@ -278,7 +300,7 @@ expect.extend({
 		}
 
 		const prettyPrinted = {
-			received: this.utils.printReceived(received),
+			received: this.utils.printReceived(received.filter(ev => ev.event === (expected?.event || true))),
 			expected: this.utils.printExpected(expected),
 		};
 		return {

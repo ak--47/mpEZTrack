@@ -14,6 +14,7 @@ const config = {
 		launchTimeout: 4000,
 	},
 	browserContext: 'incognito',
+	exitOnPageError: false
 };
 
 function ranInt(min = 4000, max = 6000) { // min and max included 
