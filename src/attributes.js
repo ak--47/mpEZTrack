@@ -108,7 +108,7 @@ export const DROPDOWN_FIELDS = (el) => {
 	return props;
 };
 
-export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`;
+export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
 export const INPUT_FIELDS = (el) => ({
 	"CONTENT → user content": isSensitiveData(el.value) ? "******" : el.value,
 	"CONTENT → labels": [...el.labels].map(label => squish(label.textContent))

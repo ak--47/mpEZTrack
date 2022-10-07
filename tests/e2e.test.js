@@ -10,7 +10,7 @@ function stream(type = "event") {
 	if (type === "profile") return profileStream.flat();
 }
 
-async function sleep(ms = 100) {
+async function sleep(ms = 150) {
 	await page.waitForTimeout(ms);
 }
 
@@ -122,13 +122,8 @@ describe('compenents track properly', () => {
 
 	test('dropdowns', async () => {
 		await page.select('#select', 'audi');
-		await page.evaluate(() => {
-			const dataList = document.querySelector('#ice-cream-choice');
-			dataList.value = "Mint";
-			const change = new Event('change');
-			dataList.dispatchEvent(change);
-
-		});
+		await page.type('#ice-cream-choice', 'Mint');
+		await page.focus('#hero');
 		await page.click('#dewey');
 		await page.click('#scales');
 		await page.click('#wings');
@@ -145,6 +140,7 @@ describe('compenents track properly', () => {
 			const change = new Event('change');
 			rangeSlider.dispatchEvent(change);
 		});
+		page.focus('#hero');
 		await sleep();
 
 		let selectSpec = { event: 'user selection', properties: { "OPTION → id": "select", "OPTION → user selected": "audi", "OPTION → choices": ["Volvo", "Saab", "Opel", "Audi"] } };
@@ -177,8 +173,60 @@ describe('compenents track properly', () => {
 		expect(stream()).toContainObjectMatching(simpleFormSpec);
 		let loginFormSpec = { event: 'form submit', properties: { "FORM → id": "loginForm", "FORM → # inputs": 5 } };
 		expect(stream()).toContainObjectMatching(loginFormSpec);
-		expect(stream()).not.toContainObjectMatching({ properties : {"CONTENT → user content": "baz password"}})
+		expect(stream()).not.toContainObjectMatching({ properties: { "CONTENT → user content": "baz password" } });
 	});
+
+	test('user input', async () => {
+		await page.type('#plainInput', 'i am a plain input text box');
+		await page.type('#emailInput', 'ak@notmixpanel.com');
+		await page.type('#urlInput', 'https://aktunes.com');
+		await page.type('#searchInput', 'i am some fancy search terms');
+		await page.type('#textarea', 'i am a long text entry field');
+		await page.evaluate(() => {
+			const change = new Event('change');
+			document.querySelector('#textarea').dispatchEvent(change);
+		});
+		await page.focus('#hero');
+		await sleep();
+
+		let plainInputSpec = { event: 'user entered text', properties: { "CONTENT → id": "plainInput", "CONTENT → user content": "i am a plain input text box" } };
+		expect(stream()).toContainObjectMatching(plainInputSpec);
+		let emailInputSpec = { event: 'user entered text', properties: { "CONTENT → id": "emailInput", "CONTENT → user content": "ak@notmixpanel.com" } };
+		expect(stream()).toContainObjectMatching(emailInputSpec);
+		let urlInputSpec = { event: 'user entered text', properties: { "CONTENT → id": "urlInput", "CONTENT → user content": "https://aktunes.com" } };
+		expect(stream()).toContainObjectMatching(urlInputSpec);
+		let searchInputSpec = { event: 'user entered text', properties: { "CONTENT → id": "searchInput", "CONTENT → user content": "i am some fancy search terms" } };
+		expect(stream()).toContainObjectMatching(searchInputSpec);
+		let textAreaInputSpec = { event: 'user entered text', properties: { "CONTENT → id": "textarea", "CONTENT → user content": "i am a long text entry field" } };
+		expect(stream()).toContainObjectMatching(textAreaInputSpec);
+	});
+
+	test('page clicks', async () => {
+		await page.click('#image');
+		await page.click('#gif');
+		await page.click('#oneDiv');
+		await page.click('#grandchild');
+		await page.click("#firstChild");
+		await page.click('#secondChild');
+		await sleep();
+
+		let clickImgSpec = { event: 'page click', properties: { "ELEM → id": "image", "ELEM → tag (<>)": "<IMG>", "ELEM → source": "https://aktunes.neocities.org/Rick-Astley-Never-Gonna-Give-You-Up.png" } };
+		expect(stream()).toContainObjectMatching(clickImgSpec);
+		let clickGifSpec = { event: 'page click', properties: { "ELEM → id": "gif", "ELEM → tag (<>)": "<IMG>", "ELEM → source": "https://aktunes.neocities.org/rick.gif" } };
+		expect(stream()).toContainObjectMatching(clickGifSpec);
+		let noChildSpec = { event: 'page click', properties: { "ELEM → id": "oneDiv", "ELEM → tag (<>)": "<DIV>", "ELEM → text": "never gonna give you up" } };
+		expect(stream()).toContainObjectMatching(noChildSpec);
+		let grandChildSpec = { event: 'page click', properties: { "ELEM → id": "grandchild", "ELEM → tag (<>)": "<DIV>", "ELEM → text": "grandchild" } };
+		expect(stream()).toContainObjectMatching(grandChildSpec);
+		let sectionOneSpec = { event: 'page click', properties: { "ELEM → tag (<>)": "<P>", "ELEM → id": "firstChild", "ELEM → text": "with multiple paragraphs" } };
+		expect(stream()).toContainObjectMatching(sectionOneSpec);
+		let sectionTwoSpec = { event: 'page click', properties: { "ELEM → tag (<>)": "<P>", "ELEM → id": "secondChild", "ELEM → text": "and such" } };
+		expect(stream()).toContainObjectMatching(sectionTwoSpec);
+
+
+
+	});
+
 });
 
 describe('bad token throws', () => {
@@ -196,6 +244,20 @@ afterAll(() => {
 });
 
 
+/** 
+ * UTILITY: force change events in the DOM 
+ * 
+**/
+
+function changeEv(selector) {
+	return function () {
+		const el = document.querySelector(selector);
+		const change = new Event('change');
+		el.dispatchEvent(change);
+	};
+}
+
+
 /**
  *  UTILITY: toContainObjectMatching(rec, exp)
  *	Deep-match an array of objects against another object.
@@ -211,8 +273,6 @@ expect.extend({
 			matchFound =
 				received.map((obj) => {
 					const result = getMatchers().toMatchObject.call(this, obj, expected);
-					// For some reason TSC doesn't fully recognize result as object of type
-					// ExpectationResult
 					return (result).pass;
 				}).reduce((a, b) => a || b, false);
 		}

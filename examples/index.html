@@ -38,7 +38,7 @@
 			border-image: initial;
 		}
 	</style>
-	<h1>🏃💨 mpEZTrack E2E tests</h1>
+	<h1 id="hero">🏃💨 mpEZTrack E2E tests</h1>
 	<p>this page might not look fancy, but it is a collection of all the different DOM elements that mpEZTrack can...
 		track!</p>
 	<h2>BUTTONS</h2>
@@ -207,7 +207,6 @@
 		</fieldset>
 	</li>
 	<h2>USER INPUT</h2>
-	<!-- input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea, *[contenteditable="true"]`; -->
 	<ul>
 		<li>
 			<label for="plainInput">plain input</label><br />
@@ -227,12 +226,7 @@
 		</li>
 		<li>
 			<label for="textarea">textarea</label><br />
-			<textarea id="textarea" name="textarea" rows="5" cols="33">It was a dark and stormy night...</textarea>
-		</li>
-		<li>
-			<label for="contentEditable">editable non-inputs</label></br>
-			<div id="editableDiv" name="contentEditiable" contenteditable="true">i am editable text that you can change
-				and type over...</div>
+			<textarea id="textarea" name="textarea" rows="5" cols="33"></textarea>
 		</li>
 	</ul>
 	<h2>CLICKS</h2>
@@ -256,7 +250,7 @@
 				<div>parent
 					<div>
 						child
-						<div>
+						<div id="grandchild">
 							grandchild
 						</div>
 					</div>
@@ -266,11 +260,15 @@
 		<li>
 			<section>
 				<label for="section">a section</label><br />
-				<p>with multiple paragraphs</p>
-				<p>and such</p>
+				<p id="firstChild">with multiple paragraphs</p>
+				<p id="secondChild">and such</p>
 			</section>
 		</li>
-
+		<!-- <li>
+			<label for="contentEditable">editable non-inputs</label></br>
+			<div id="editableDiv" name="contentEditiable" contenteditable="true">i am editable text that you can change
+				and type over...</div>
+		</li> -->
 	</ul>
 	<h2>VIDEOS</h2>
 	<ul>
