@@ -331,7 +331,7 @@ describe('sensitive fields are NOT tracked', () => {
 		await sleep();
 
 		let passSpec = { event: "user entered text", properties: { "CONTENT → id": "notobvisecret" } };
-		let passSpecFields = { properties: { "CONTENT → user content": samplePassword } };
+		let passSpecFields = { properties: { "CONTENT → DATA → role-password": samplePassword } };
 		expect(stream()).toContainObjectMatching(passSpec);
 		expect(stream()).not.toContainObjectMatching(passSpecFields);
 	});

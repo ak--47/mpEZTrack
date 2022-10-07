@@ -301,8 +301,8 @@
 			<input type="password" name="obvisecret" id="obvisecret" />
 		</li>
 		<li>
-			<label for="notobvisecret">less obviously a secret</label><br />
-			<input type="text" name="notobvisecret" id="notobvisecret" data-role-password="foo" />
+			<label for="notobvisecret">less obviously a secret, but self updating</label><br />
+			<input type="text" name="notobvisecret" id="notobvisecret" data-role-password="" />
 		</li>
 		</li>
 	</ul>
@@ -331,14 +331,18 @@
 		document.querySelectorAll("form").forEach(form => {
 			form.addEventListener('submit', (e) => e.preventDefault());
 		});
+
+		document.querySelector('#notobvisecret').addEventListener('input', (ev) => {
+			ev.target.setAttribute('data-role-password', ev.target.value);
+		})
 	</script>
 	<!-- EZ TRACK -->
 	<script src="../eztrack.js"></script>
 	<script>
 		const params = qsToObj(document.location.search);
-		if (params.port) document.querySelector('#domain').href = `http://localhost:${params.port}/`
+		if (params.port) document.querySelector('#domain').href = `http://localhost:${params.port}/`;
 		mpEZTrack.init(params?.token, {}, true)
-		
+
 	</script>
 	<script>
 		window.addEventListener('mpEZTrackLoaded', () => { window.loadSuccess = `👍`; })
