@@ -52,6 +52,7 @@ in the table below, you will find all the options exposed by this module; **if y
 
 | option                 | expected type    | default | notes                                                       |
 |------------------------|-------------------|----------|-------------------------------------------------------------|
+|`region`  | `US` or `EU`   | `US`  | controls whether data is routed through global servers (default) or EU-only servers; learn more about [EU data residency](https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU)                            |
 |`refresh`  | `integer`   | `5000`  | the frequency (ms) in which the queue will be flushed (sending events to mixpanel)                             |
 |`location` |  `boolean` | `true` | resolve the end-user's geo-location (country/region/state/city)                              |
 | `deviceProps`           | `boolean` | `true`   | add device information (extending [mixpanel defaults](https://help.mixpanel.com/hc/en-us/articles/115004613766-Default-Properties-Collected-by-Mixpanel)) about the client device      |
@@ -62,15 +63,15 @@ in the table below, you will find all the options exposed by this module; **if y
 | `forms`          | `boolean` | `true`   | track all submissions on `<form>` elements as `form submit`                 |
 | `selectors`          | `boolean` | `true`   | track all changes to `<select>`, `[type=radio]`, `[type=checkbox]`, and other drop-down elements as `user selection`
 | `videos`         | `boolean` | `true`   | track `<video>` elements getting `play`, `pause`, and `ended` events (including `watch %` and `duration`) |
+| `window`              | `boolean` | `true`  | track visibility of page (`page lost/regained focus`, `full screen: on/off`, `resize`, `print`, etc... )             |
 | `profiles`         | `boolean` | `true`   | creates user profiles for every unique device [(see note)](#profiles)        |
 | `spa` |`boolean`  | `true` | **for single page applications** where page elements are rendered dynamically [(see note)](#spa)
 | ----------- | --------  | ----    | --------------------------------------  |
 | `inputs`          | `boolean` | `false`   | track all `<input>` text fields as `user entered text` [(see note)](#security)                 |
 | `clicks`            | `boolean` | `false`  | track all clicks on  _other_ page elements as `page click` [(see note)](#clicks)                     |
 | `youtube`              | `boolean` | `false`  | track interactions with embedded youtube videos [(see note)](#youtube)            |
-| `window`              | `boolean` | `false`  | track visibility of page (`page lost/regained focus`, `full screen: on/off`, `resize`, `print`, etc... )             |
 | `error`              | `boolean` | `false`  | tracks any javascript errors thrown as `page error`            |
-| `clipboard`              | `boolean` | `false`  | tracks interactions with the clipboard (`cut`, `copy`, `paste`)         |
+| `clipboard`              | `boolean` | `false`  | tracks interactions with the clipboard, firing `cut`, `copy`, `paste` events ([see note](#security))         |
 | `tabs`              | `boolean` | `false`  | generate a unique tabId for each window (note: uses `sessionStorage`)|
 | `firstPage`              | `boolean` | `false`  | determine if it is the first page in the user's history (note: uses `localStorage`)           |
 |`debug`  | `boolean`   | `false` | puts the `mixpanel` SDK in debug mode                          
@@ -144,7 +145,7 @@ you may wish to test `mpEZTrack` before putting it into production.  it's a good
 
 to facilitate this, this repo also includes **[a chrome extension](https://github.com/ak--47/mpEZTrack/releases)** to make it painless and fun to test an `mpEZTrack` implementation, locally on your computer.
 
-### Steps to Install:
+### steps to install chrome extension:
 
  - **[download and extract this zip archive](https://github.com/ak--47/mpEZTrack/releases/download/chromeExtension/mpEZTrack.chromeExt.zip)**  or clone this repo: `git clone https://github.com/ak--47/mpEZTrack.git` 
  - go to [chrome://extensions/](chrome://extensions/) in your browser. 
@@ -324,7 +325,7 @@ please feel free to [review the selectors and fields](https://github.com/ak--47/
 ## security + sensitive fields 🔓 
 many web applications may handle user-entered secrets (passwords, tokens, private keys, etc...). while all network requests made by `mixpanel-js` are encrypted in transit and at rest, **it's never a good idea to send or store secrets in plain text**
 
-`mpEZTrack` employs several strategies to "detect and ignore" sensitive fields:
+with the default settings, `mpEZTrack` **will not collect any end-user input** ... if you choose to turn on `{ inputs: true }` and/or `{ clipboard: true }` [options](#options), `mpEZTrack` will employ several strategies to "detect and ignore" sensitive fields:
 
 - *do not track* (blacklist) DOM elements of selectors matching `<input type="password" />` and other well-known sensitive fields:
 ```javascript

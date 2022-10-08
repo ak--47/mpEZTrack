@@ -118,6 +118,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			cross_subdomain_cookie: true,
 			persistence: "localStorage",
 			api_transport: "XHR",
+			api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api.mixpanel.com" ,
 			ip: opts.location,
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
@@ -189,6 +190,7 @@ export function getDefaultOptions() {
 		extend: false,
 		refresh: 5000,
 		location: true,
+		region: "US",
 
 		//default on
 		deviceProps: true,
@@ -200,13 +202,15 @@ export function getDefaultOptions() {
 		profiles: true,
 		selectors: true,
 		videos: true,
+		window: true,
 		spa: true,
+		
 
 		//default off		
 		inputs: false,
 		clicks: false,
 		youtube: false,
-		window: false,
+		
 		clipboard: false,
 		firstPage: false,
 		error: false,
@@ -318,7 +322,7 @@ export function firstVisitChecker(token = this.token, opts = this.opts, timeoutM
 
 /*
 -------------
-PAGELOAD LISTENERS
+ELEMENT LISTENERS
 -------------
 */
 
@@ -700,6 +704,8 @@ export function trackPageViews(mp, opts) {
 
 //default: on
 export function trackPageExits(mp, opts) {
+	// https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event#usage_notes
+	// https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event#sending_end-of-session_analytics_on_transitioning_to_hidden
 	window.addEventListener('beforeunload', () => {
 		//page exit should be last event
 		this.hasVisibilityChanged = null;
@@ -822,7 +828,7 @@ WINDOW BEHAVIOR
 ----------------
 */
 
-//default: off
+//default: on
 export function trackWindowStuff(mp, opts) {
 
 	//resize events happen in fast succession; we wait 3 sec before sending a single resize event
@@ -855,7 +861,7 @@ export function trackWindowStuff(mp, opts) {
 		const props = {
 			...statefulProps(false)
 		};
-		if (document.hidden && this.hasVisibilityChanged !== null) {
+		if ((document.hidden || document.visibilityState === 'hidden') && this.hasVisibilityChanged !== null) {
 			mp.track('page lost focus', props);
 			this.hasVisibilityChanged = true;
 		} else {
