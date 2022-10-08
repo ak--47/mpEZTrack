@@ -59,9 +59,9 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	[`${label} → classes`]: [...el.classList],
 	[`${label} → height`]: el.offsetHeight,
 	[`${label} → width`]: el.offsetWidth,
-	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
-	...enumNodeProps(el, label),
-	...conditionalFields(el, label)
+	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),	
+	...conditionalFields(el, label),
+	...enumNodeProps(el, label)
 });
 
 export const LINK_SELECTORS = String.raw`a`;
@@ -152,7 +152,7 @@ UTILITIES
 */
 
 //TODO: check for other types of embedded passwords
-export function enumNodeProps(el, label = "ELEMENT") {
+export function enumNodeProps(el, label = "ELEM") {
 	const result = {};
 	// https://meiert.com/en/blog/boolean-attributes-of-html/
 	const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
@@ -200,6 +200,7 @@ export function enumNodeProps(el, label = "ELEMENT") {
 
 	if (potentialPassEl) {
 		//scrub all data inputs
+		result[`${label} → user content`] = `******`;
 	}
 
 

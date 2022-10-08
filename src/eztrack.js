@@ -35,6 +35,7 @@ export const ezTrack = {
 
 	// dom stuff
 	trackedElements: [],
+	blackListedElements: [],
 	host: document.location.host,
 	bind: bindTrackers,
 	query: querySelectorAllDeep, //this guy can pierce the shadow dom		
@@ -132,6 +133,17 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 				catch (e) {
 					if (opts.debug) {
 						console.error('mpEZTrack failed to setup super properties!');
+						console.log(e);
+					}
+				}
+
+				try {
+					this.blackListedElements = [...this.query(BLACKLIST_ELEMENTS)]
+				}
+
+				catch (e) {
+					if (opts.debug) {
+						console.error('mpEZTrack failed bind to query for sensitive fields!');
 						console.log(e);
 					}
 				}
@@ -315,7 +327,8 @@ export function listenForButtonClicks(mp, opts) {
 
 	const buttons = uniqueNodes(this.query(BUTTON_SELECTORS))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.trackedElements.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node))
+		.filter(node => !this.blackListedElements.some(el => el === node));
 
 	for (const button of buttons) {
 		this.trackedElements.push(button);
@@ -335,7 +348,8 @@ export function listenForButtonClicks(mp, opts) {
 export function listenForLinkClicks(mp, opts) {
 	const links = uniqueNodes(this.query(LINK_SELECTORS))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.trackedElements.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node))
+		.filter(node => !this.blackListedElements.some(el => el === node));
 
 	for (const link of links) {
 		this.trackedElements.push(link);
@@ -370,7 +384,8 @@ export function listenForFormSubmits(mp, opts) {
 export function listenForDropDownChanges(mp, opts) {
 	let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.trackedElements.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node))
+		.filter(node => !this.blackListedElements.some(el => el === node));
 
 	for (const dropdown of allDropdowns) {
 		this.trackedElements.push(dropdown);
@@ -389,7 +404,8 @@ export function listenForDropDownChanges(mp, opts) {
 export function listenForVideo(mp, opts) {
 	let allVideos = uniqueNodes(this.query(VIDEO_SELECTOR))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.trackedElements.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node))
+		.filter(node => !this.blackListedElements.some(el => el === node));
 
 	for (const video of allVideos) {
 		this.trackedElements.push(video);
@@ -435,7 +451,8 @@ export function listenForVideo(mp, opts) {
 export function listenForUserInput(mp, opts) {
 	let inputElements = uniqueNodes(this.query(INPUT_SELECTOR))
 		.filter(node => (!node.matches(BLACKLIST_ELEMENTS)))
-		.filter(node => !this.trackedElements.some(el => el === node));
+		.filter(node => !this.trackedElements.some(el => el === node))
+		.filter(node => !this.blackListedElements.some(el => el === node));
 
 	for (const input of inputElements) {
 		this.trackedElements.push(input);
@@ -459,6 +476,7 @@ export function listenForAllClicks(mp, opts) {
 			.filter(node => !this.trackedElements.some(trackedEl => trackedEl.contains(node))) //not a child of already tracked
 			.filter(node => !this.trackedElements.some(trackedEl => node.parentNode === trackedEl)) //immediate parent is not already tracked
 			.filter(node => (!node.matches(BLACKLIST_ELEMENTS))) //isn't classified as sensitive
+			.filter(node => !this.blackListedElements.some(el => el === node))
 	);
 
 
@@ -486,6 +504,7 @@ export function singlePageAppTracking(mp, opts) {
 	window.addEventListener("click", (ev) => {
 		try {
 			if (this.trackedElements.includes(ev.target)) return false;
+			if (this.blackListedElements.includes(ev.target)) return false;
 			figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
 		}
 		catch (e) {
@@ -506,6 +525,7 @@ export function singlePageAppTracking(mp, opts) {
 export function figureOutWhatWasClicked(elem, ev, mp, opts) {
 	//this is called recursively, so we need to ensure we're not already tracking it
 	if (this.trackedElements.includes(elem)) return false;
+	if (this.blackListedElements.includes(elem)) return false;
 
 	// no sensitive fields
 	if (elem.matches(BLACKLIST_ELEMENTS)) {
@@ -763,10 +783,10 @@ export function trackDropDownChange(evOrEl, mp, opts) {
 
 export function trackInputChange(evOrEl, mp, opts) {
 	const src = evOrEl.target || evOrEl;
-	const props = {
-		...STANDARD_FIELDS(src, "CONTENT"),
+	const props = {		
 		...INPUT_FIELDS(src),
-		...statefulProps()
+		...statefulProps(),
+		...STANDARD_FIELDS(src, "CONTENT")
 	};
 	mp.track('user entered text', props);
 	if (opts.logProps) console.log('USER ENTERED CONTENT'); console.log(JSON.stringify(props, null, 2));
@@ -786,10 +806,10 @@ export function trackVideo(videoEvent, mp, opts) {
 
 export function trackAnyClick(evOrEl, mp, opts) {
 	const src = evOrEl.target || evOrEl;
-	const props = {
-		...STANDARD_FIELDS(src),
+	const props = {		
 		...ANY_TAG_FIELDS(src),
-		...statefulProps()
+		...statefulProps(),
+		...STANDARD_FIELDS(src)
 	};
 	mp.track('page click', props);
 	if (opts.logProps) console.log('PAGE CLICK'); console.log(JSON.stringify(props, null, 2));

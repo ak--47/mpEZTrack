@@ -285,7 +285,7 @@ describe('sensitive fields are NOT tracked', () => {
 	});
 
 	test('social security numbers', async () => {
-		let sampleSSNs = ['152-84-3695', '152369654'];
+		let sampleSSNs = ['152-84-3695', '152-36-9654'];
 
 		await page.evaluate(() => {
 			let sampleSSNs = ['152-84-3695', '152-36-9654'];
@@ -334,6 +334,7 @@ describe('sensitive fields are NOT tracked', () => {
 		let passSpecFields = { properties: { "CONTENT → DATA → role-password": samplePassword } };
 		expect(stream()).toContainObjectMatching(passSpec);
 		expect(stream()).not.toContainObjectMatching(passSpecFields);
+		expect(stream()).not.toContainObjectMatching({  event: "user entered text", properties: { "CONTENT → user content": samplePassword } });
 	});
 });
 

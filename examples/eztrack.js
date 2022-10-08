@@ -4050,8 +4050,8 @@
     [`${label} \u2192 height`]: el.offsetHeight,
     [`${label} \u2192 width`]: el.offsetWidth,
     [`${label} \u2192 tag (<>)`]: "".concat("<", el.tagName, ">"),
-    ...enumNodeProps(el, label),
-    ...conditionalFields(el, label)
+    ...conditionalFields(el, label),
+    ...enumNodeProps(el, label)
   });
   var LINK_SELECTORS = String.raw`a`;
   var LINK_FIELDS = (el) => ({
@@ -4118,7 +4118,7 @@
     "VIDEO \u2192 source type(s)": el.src.split(".").slice(-1)[0] || [...el.querySelectorAll("source")].map((source) => source.type)
   });
   var YOUTUBE_SELECTOR = String.raw`iframe`;
-  function enumNodeProps(el, label = "ELEMENT") {
+  function enumNodeProps(el, label = "ELEM") {
     const result = {};
     const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
     const replaceAttrs = {
@@ -4159,6 +4159,7 @@
     delete result[`${label} \u2192 class (delete)`];
     delete result[`${label} \u2192 style`];
     if (potentialPassEl) {
+      result[`${label} \u2192 user content`] = `******`;
     }
     return result;
   }
@@ -4295,6 +4296,7 @@
     },
     mpDefaults: ["$os", "$browser", "$referrer", "$referring_domain", "$current_url", "$browser_version", "$screen_height", "$screen_width", "$initial_referrer", "$initial_referring_domain"],
     trackedElements: [],
+    blackListedElements: [],
     host: document.location.host,
     bind: bindTrackers,
     query: querySelectorAllDeep,
@@ -4369,6 +4371,14 @@ https://developer.mixpanel.com/reference/project-token`);
           } catch (e) {
             if (opts.debug) {
               console.error("mpEZTrack failed to setup super properties!");
+              console.log(e);
+            }
+          }
+          try {
+            this.blackListedElements = [...this.query(BLACKLIST_ELEMENTS)];
+          } catch (e) {
+            if (opts.debug) {
+              console.error("mpEZTrack failed bind to query for sensitive fields!");
               console.log(e);
             }
           }
@@ -4508,7 +4518,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForButtonClicks(mp, opts) {
-    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
+    const buttons = uniqueNodes(this.query(BUTTON_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.blackListedElements.some((el) => el === node));
     for (const button of buttons) {
       this.trackedElements.push(button);
       button.addEventListener("click", (ev) => {
@@ -4522,7 +4532,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForLinkClicks(mp, opts) {
-    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
+    const links = uniqueNodes(this.query(LINK_SELECTORS)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.blackListedElements.some((el) => el === node));
     for (const link of links) {
       this.trackedElements.push(link);
       link.addEventListener("click", (ev) => {
@@ -4550,7 +4560,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForDropDownChanges(mp, opts) {
-    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
+    let allDropdowns = uniqueNodes(this.query(DROPDOWN_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.blackListedElements.some((el) => el === node));
     for (const dropdown of allDropdowns) {
       this.trackedElements.push(dropdown);
       dropdown.addEventListener("change", (ev) => {
@@ -4564,7 +4574,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForVideo(mp, opts) {
-    let allVideos = uniqueNodes(this.query(VIDEO_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
+    let allVideos = uniqueNodes(this.query(VIDEO_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.blackListedElements.some((el) => el === node));
     for (const video of allVideos) {
       this.trackedElements.push(video);
       video.addEventListener("play", (ev) => {
@@ -4594,7 +4604,7 @@ https://developer.mixpanel.com/reference/project-token`);
     }
   }
   function listenForUserInput(mp, opts) {
-    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node));
+    let inputElements = uniqueNodes(this.query(INPUT_SELECTOR)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.blackListedElements.some((el) => el === node));
     for (const input of inputElements) {
       this.trackedElements.push(input);
       input.addEventListener("change", (ev) => {
@@ -4609,7 +4619,7 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function listenForAllClicks(mp, opts) {
     let allThings = uniqueNodes(
-      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.trackedElements.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.trackedElements.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => !node.matches(BLACKLIST_ELEMENTS))
+      this.query(ALL_SELECTOR).filter((node) => node.childElementCount === 0).filter((node) => !this.trackedElements.some((el) => el === node)).filter((node) => !this.trackedElements.some((trackedEl) => trackedEl.contains(node))).filter((node) => !this.trackedElements.some((trackedEl) => node.parentNode === trackedEl)).filter((node) => !node.matches(BLACKLIST_ELEMENTS)).filter((node) => !this.blackListedElements.some((el) => el === node))
     );
     for (const thing of allThings) {
       this.trackedElements.push(thing);
@@ -4628,6 +4638,8 @@ https://developer.mixpanel.com/reference/project-token`);
       try {
         if (this.trackedElements.includes(ev.target))
           return false;
+        if (this.blackListedElements.includes(ev.target))
+          return false;
         figureOutWhatWasClicked.call(ezTrack, ev.target, ev, mp, opts);
       } catch (e) {
         if (opts.debug)
@@ -4637,6 +4649,8 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function figureOutWhatWasClicked(elem, ev, mp, opts) {
     if (this.trackedElements.includes(elem))
+      return false;
+    if (this.blackListedElements.includes(elem))
       return false;
     if (elem.matches(BLACKLIST_ELEMENTS)) {
       return false;
@@ -4835,9 +4849,9 @@ https://developer.mixpanel.com/reference/project-token`);
   function trackInputChange(evOrEl, mp, opts) {
     const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(src, "CONTENT"),
       ...INPUT_FIELDS(src),
-      ...statefulProps()
+      ...statefulProps(),
+      ...STANDARD_FIELDS(src, "CONTENT")
     };
     mp.track("user entered text", props);
     if (opts.logProps)
@@ -4860,9 +4874,9 @@ https://developer.mixpanel.com/reference/project-token`);
   function trackAnyClick(evOrEl, mp, opts) {
     const src = evOrEl.target || evOrEl;
     const props = {
-      ...STANDARD_FIELDS(src),
       ...ANY_TAG_FIELDS(src),
-      ...statefulProps()
+      ...statefulProps(),
+      ...STANDARD_FIELDS(src)
     };
     mp.track("page click", props);
     if (opts.logProps)
