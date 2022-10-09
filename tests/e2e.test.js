@@ -10,7 +10,7 @@ function stream(type = "event") {
 	if (type === "profile") return profileStream.flat();
 }
 
-async function sleep(ms = 300) {
+async function sleep(ms = 100) {
 	await page.waitForTimeout(ms);
 }
 
@@ -68,6 +68,7 @@ describe('loading the tag', () => {
 				token: TOKEN
 			}
 		};
+		await sleep()
 		expect(stream()).toContainObjectMatching(spec);
 	});
 });

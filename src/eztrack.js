@@ -61,7 +61,7 @@ export const ezTrack = {
 	inputTrack: trackInputChange,
 	videoTrack: trackVideo,
 	clickTrack: trackAnyClick,
-	
+
 
 	// third party stuff
 	youtube: trackYoutubeVideos,
@@ -118,7 +118,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 			cross_subdomain_cookie: true,
 			persistence: "localStorage",
 			api_transport: "XHR",
-			api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api.mixpanel.com" ,
+			api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api-js.mixpanel.com",
 			ip: opts.location,
 			ignore_dnt: true,
 			batch_flush_interval_ms: opts.refresh,
@@ -139,7 +139,7 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 				}
 
 				try {
-					this.blackListedElements = [...this.query(BLACKLIST_ELEMENTS)]
+					this.blackListedElements = [...this.query(BLACKLIST_ELEMENTS)];
 				}
 
 				catch (e) {
@@ -204,13 +204,13 @@ export function getDefaultOptions() {
 		videos: true,
 		window: true,
 		spa: true,
-		
+
 
 		//default off		
 		inputs: false,
 		clicks: false,
 		youtube: false,
-		
+
 		clipboard: false,
 		firstPage: false,
 		error: false,
@@ -440,14 +440,21 @@ export function listenForVideo(mp, opts) {
 			}
 		}, LISTENER_OPTIONS);
 
+		// for 'watching' events - setInterval is a better implementation:
+		// https://developer.mozilla.org/en-US/docs/Web/API/setInterval
 		// video.addEventListener('timeupdate', (ev) => {
-		// 	try {
-		// 		this.videoTrack(ev, mp, opts);
-		// 	}
-		// 	catch (e) {
-		// 		if (opts.debug) console.log(e);
-		// 	}
+		// 	window.clearTimeout(ezTrack.videoTimer);
+		// 	ezTrack.videoTimer = window.setTimeout(() => {
+		// 		try {
+		// 			this.videoTrack(ev, mp, opts);
+		// 		}
+		// 		catch (e) {
+		// 			if (opts.debug) console.log(e);
+		// 		}
+		// 	}, 3000);
+
 		// }, LISTENER_OPTIONS);
+
 	}
 }
 
@@ -527,7 +534,7 @@ export function singlePageAppTracking(mp, opts) {
 }
 
 export function figureOutWhatWasClicked(elem, ev, mp, opts) {
-	//this is called recursively, so we need to ensure we're not already tracking it
+	//this is called recursively, so we need to ensure we're not already tracking it and it's not already blacklisted
 	if (this.trackedElements.includes(elem)) return false;
 	if (this.blackListedElements.includes(elem)) return false;
 
@@ -642,9 +649,7 @@ export function spaPipeline(directive = 'none', ev, mp, opts) {
 			ev.target.addEventListener('ended', (videoEv) => {
 				this.videoTrack(videoEv, mp, opts);
 			}, LISTENER_OPTIONS);
-			// ev.target.addEventListener('progress', (videoEv) => {
-			// 	this.videoTrack(videoEv, mp, opts);
-			// }, LISTENER_OPTIONS);
+
 		}
 		//this should always be last as it is the most general form of tracking
 		else if (opts.clicks && directive === 'all') {
@@ -789,7 +794,7 @@ export function trackDropDownChange(evOrEl, mp, opts) {
 
 export function trackInputChange(evOrEl, mp, opts) {
 	const src = evOrEl.target || evOrEl;
-	const props = {		
+	const props = {
 		...INPUT_FIELDS(src),
 		...statefulProps(),
 		...STANDARD_FIELDS(src, "CONTENT")
@@ -799,20 +804,20 @@ export function trackInputChange(evOrEl, mp, opts) {
 }
 
 export function trackVideo(videoEvent, mp, opts) {
-	const src = videoEvent.target
+	const src = videoEvent.target;
 	const props = {
 		...STANDARD_FIELDS(src, "VIDEO"),
 		...VIDEO_FIELDS(src),
 		...statefulProps()
 	};
-	const action = videoEvent.type
+	const action = videoEvent.type;
 	mp.track(`video: ${action}`, props);
 	if (opts.logProps) console.log(`VIDEO ${action}`); console.log(JSON.stringify(props, null, 2));
 }
 
 export function trackAnyClick(evOrEl, mp, opts) {
 	const src = evOrEl.target || evOrEl;
-	const props = {		
+	const props = {
 		...ANY_TAG_FIELDS(src),
 		...statefulProps(),
 		...STANDARD_FIELDS(src)

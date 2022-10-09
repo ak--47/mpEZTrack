@@ -59,7 +59,7 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	[`${label} → classes`]: [...el.classList],
 	[`${label} → height`]: el.offsetHeight,
 	[`${label} → width`]: el.offsetWidth,
-	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),	
+	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
 	...conditionalFields(el, label),
 	...enumNodeProps(el, label)
 });
@@ -88,7 +88,7 @@ export const DROPDOWN_FIELDS = (el) => {
 		"OPTION → user selected": el.value === 'on' ? el.checked : el.value,
 		"OPTION → labels": [...el.labels].map(label => label.textContent?.trim())
 	};
-	
+
 	// solve for possible choices
 	try {
 		let choices = el.innerText.split('\n');
@@ -102,9 +102,9 @@ export const DROPDOWN_FIELDS = (el) => {
 	}
 	catch (e) {
 		//noop
-		(()=>{})()
+		(() => { })();
 	}
-	
+
 	return props;
 };
 
@@ -151,7 +151,7 @@ UTILITIES
 ---------
 */
 
-//TODO: check for other types of embedded passwords
+
 export function enumNodeProps(el, label = "ELEM") {
 	const result = {};
 	// https://meiert.com/en/blog/boolean-attributes-of-html/
@@ -191,16 +191,20 @@ export function enumNodeProps(el, label = "ELEM") {
 		if (potentialPassAttr) val = `******`;
 		if (isSensitiveData(val)) val = `******`;
 
-		result[keyName] = val;
+		if (val) result[keyName] = val; //note value might be blank
+
 	}
 
 	//tags to delete
 	delete result[`${label} → class (delete)`];
 	delete result[`${label} → style`];
 
+	// 🚨 guard against sensitive fields
 	if (potentialPassEl) {
 		//scrub all data inputs
 		result[`${label} → user content`] = `******`;
+		result[`${label} → text`] = `******`;
+		result[`${label} → value`] = `******`;
 	}
 
 

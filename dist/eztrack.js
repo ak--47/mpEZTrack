@@ -4154,12 +4154,15 @@
           val = `******`;
         if (isSensitiveData(val))
           val = `******`;
-        result[keyName] = val;
+        if (val)
+          result[keyName] = val;
       }
     delete result[`${label} \u2192 class (delete)`];
     delete result[`${label} \u2192 style`];
     if (potentialPassEl) {
       result[`${label} \u2192 user content`] = `******`;
+      result[`${label} \u2192 text`] = `******`;
+      result[`${label} \u2192 value`] = `******`;
     }
     return result;
   }
@@ -4358,6 +4361,7 @@ https://developer.mixpanel.com/reference/project-token`);
         cross_subdomain_cookie: true,
         persistence: "localStorage",
         api_transport: "XHR",
+        api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api-js.mixpanel.com",
         ip: opts.location,
         ignore_dnt: true,
         batch_flush_interval_ms: opts.refresh,
@@ -4415,6 +4419,7 @@ https://developer.mixpanel.com/reference/project-token`);
       extend: false,
       refresh: 5e3,
       location: true,
+      region: "US",
       deviceProps: true,
       pageView: true,
       pageExit: true,
@@ -4424,11 +4429,11 @@ https://developer.mixpanel.com/reference/project-token`);
       profiles: true,
       selectors: true,
       videos: true,
+      window: true,
       spa: true,
       inputs: false,
       clicks: false,
       youtube: false,
-      window: false,
       clipboard: false,
       firstPage: false,
       error: false,
@@ -4910,7 +4915,7 @@ https://developer.mixpanel.com/reference/project-token`);
       const props = {
         ...statefulProps(false)
       };
-      if (document.hidden && this.hasVisibilityChanged !== null) {
+      if ((document.hidden || document.visibilityState === "hidden") && this.hasVisibilityChanged !== null) {
         mp.track("page lost focus", props);
         this.hasVisibilityChanged = true;
       } else {
