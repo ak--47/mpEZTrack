@@ -4257,6 +4257,12 @@
     }
   }
   function isCreditCardNo(cardNo = "") {
+    if (!cardNo)
+      return false;
+    if (typeof cardNo !== "string")
+      cardNo = cardNo?.toString();
+    if (cardNo === "0")
+      return false;
     var s = 0;
     var doubleDigit = false;
     for (var i = cardNo.length - 1; i >= 0; i--) {
@@ -4272,6 +4278,8 @@
     return s % 10 == 0;
   }
   function isSSN(ssn = "") {
+    if (!ssn)
+      return false;
     var regexp = /^(?!000|666)[0-8][0-9]{2}-(?!00)[0-9]{2}-(?!0000)[0-9]{4}$/;
     if (regexp.test(ssn)) {
       return true;
@@ -4788,7 +4796,7 @@ https://developer.mixpanel.com/reference/project-token`);
     });
   }
   function trackButtonClick(evOrEl, mp, opts) {
-    const src = evOrEl.target || evOrEl;
+    const src = evOrEl.currentTarget || evOrEl;
     const props = {
       ...STANDARD_FIELDS(src, "BUTTON"),
       ...BUTTON_FIELDS(src),
@@ -4800,7 +4808,7 @@ https://developer.mixpanel.com/reference/project-token`);
     console.log(JSON.stringify(props, null, 2));
   }
   function trackLinkClick(evOrEl, mp, opts) {
-    const src = evOrEl.target || evOrEl;
+    const src = evOrEl.currentTarget || evOrEl;
     const props = {
       ...STANDARD_FIELDS(src, "LINK"),
       ...LINK_FIELDS(src),
@@ -4828,7 +4836,7 @@ https://developer.mixpanel.com/reference/project-token`);
     console.log(JSON.stringify(props, null, 2));
   }
   function trackFormSubmit(evOrEl, mp, opts) {
-    const src = evOrEl.target || evOrEl;
+    const src = evOrEl.currentTarget || evOrEl;
     const props = {
       ...STANDARD_FIELDS(src, "FORM"),
       ...FORM_FIELDS(src),
@@ -4840,7 +4848,7 @@ https://developer.mixpanel.com/reference/project-token`);
     console.log(JSON.stringify(props, null, 2));
   }
   function trackDropDownChange(evOrEl, mp, opts) {
-    const src = evOrEl.target || evOrEl;
+    const src = evOrEl.currentTarget || evOrEl;
     const props = {
       ...STANDARD_FIELDS(src, "OPTION"),
       ...DROPDOWN_FIELDS(src),
@@ -4852,7 +4860,7 @@ https://developer.mixpanel.com/reference/project-token`);
     console.log(JSON.stringify(props, null, 2));
   }
   function trackInputChange(evOrEl, mp, opts) {
-    const src = evOrEl.target || evOrEl;
+    const src = evOrEl.currentTarget || evOrEl;
     const props = {
       ...INPUT_FIELDS(src),
       ...statefulProps(),

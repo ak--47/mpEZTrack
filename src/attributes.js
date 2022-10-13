@@ -344,6 +344,9 @@ export function qsToObj(queryString) {
 
 export function isCreditCardNo(cardNo = "") {
 	// https://stackoverflow.com/a/30727110
+	if (!cardNo) return false;
+	if (typeof cardNo !== "string") cardNo = cardNo?.toString()
+	if (cardNo === "0") return false;
 	var s = 0;
 	var doubleDigit = false;
 	for (var i = cardNo.length - 1; i >= 0; i--) {
@@ -361,6 +364,7 @@ export function isCreditCardNo(cardNo = "") {
 
 
 export function isSSN(ssn = "") {
+	if (!ssn) return false;
 	// https://www.w3resource.com/javascript-exercises/javascript-regexp-exercise-15.php
 	var regexp = /^(?!000|666)[0-8][0-9]{2}-(?!00)[0-9]{2}-(?!0000)[0-9]{4}$/;
 

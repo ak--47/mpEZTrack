@@ -68,7 +68,7 @@ describe('loading the tag', () => {
 				token: TOKEN
 			}
 		};
-		await sleep()
+		await sleep();
 		expect(stream()).toContainObjectMatching(spec);
 	});
 });
@@ -91,6 +91,7 @@ describe('compenents track properly', () => {
 		await page.click('#imageButton');
 		await page.click('#resetButton');
 		await page.click('#submitButton');
+		await page.click('#nestedButton');
 		await sleep();
 		let normalSpec = { event: 'button click', properties: { "BUTTON → id": "normalButton" } };
 		expect(stream()).toContainObjectMatching(normalSpec);
@@ -106,6 +107,8 @@ describe('compenents track properly', () => {
 		expect(stream()).toContainObjectMatching(resetSpec);
 		let submitButtonSpec = { event: 'button click', properties: { "BUTTON → id": "submitButton" } };
 		expect(stream()).toContainObjectMatching(submitButtonSpec);
+		let nestedButtonSpec = { event: 'button click', properties: { "BUTTON → id": "nestedButton", "BUTTON → tag (<>)": "<BUTTON>" } };
+		expect(stream()).toContainObjectMatching(nestedButtonSpec);
 	});
 
 	test('links', async () => {
@@ -113,7 +116,8 @@ describe('compenents track properly', () => {
 		await page.click('#domain');
 		await page.click('#nohref');
 		await page.click('#js');
-		await page.click('#external');
+		await page.click('#nestedLink');
+		await page.click('#external');		
 		await sleep();
 		let internalSpec = { event: 'navigation click', properties: { "LINK → id": "internal" } };
 		expect(stream()).toContainObjectMatching(internalSpec);
@@ -125,6 +129,8 @@ describe('compenents track properly', () => {
 		expect(stream()).toContainObjectMatching(jsHrefSpec);
 		let externalSpec = { event: 'link click', properties: { "LINK → id": "external" } };
 		expect(stream()).toContainObjectMatching(externalSpec);
+		let nestedLink = { event: 'navigation click', properties: { "LINK → id": "nestedLink", "LINK → tag (<>)": "<A>" } };
+		expect(stream()).toContainObjectMatching(nestedLink);
 	});
 
 	test('dropdowns', async () => {
@@ -314,7 +320,7 @@ describe('sensitive fields are NOT tracked', () => {
 		await page.focus('#obvisecret');
 		await page.type('#obvisecret', samplePassword);
 		await page.focus('#hero');
-		await page.click('#hero')
+		await page.click('#hero');
 		await sleep();
 
 		let passSpec = { event: "user entered text", properties: { "CONTENT → id": "obvisecret" } };
@@ -328,14 +334,14 @@ describe('sensitive fields are NOT tracked', () => {
 		await page.focus('#notobvisecret');
 		await page.type('#notobvisecret', samplePassword);
 		await page.focus('#hero');
-		await page.click('#hero')
+		await page.click('#hero');
 		await sleep();
 
 		let passSpec = { event: "user entered text", properties: { "CONTENT → id": "notobvisecret" } };
 		let passSpecFields = { properties: { "CONTENT → DATA → role-password": samplePassword } };
 		expect(stream()).toContainObjectMatching(passSpec);
 		expect(stream()).not.toContainObjectMatching(passSpecFields);
-		expect(stream()).not.toContainObjectMatching({  event: "user entered text", properties: { "CONTENT → user content": samplePassword } });
+		expect(stream()).not.toContainObjectMatching({ event: "user entered text", properties: { "CONTENT → user content": samplePassword } });
 	});
 });
 

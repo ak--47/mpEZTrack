@@ -720,7 +720,7 @@ export function trackPageExits(mp, opts) {
 }
 
 export function trackButtonClick(evOrEl, mp, opts) {
-	const src = evOrEl.target || evOrEl;
+	const src = evOrEl.currentTarget || evOrEl;
 	const props = {
 		...STANDARD_FIELDS(src, "BUTTON"),
 		...BUTTON_FIELDS(src),
@@ -732,7 +732,7 @@ export function trackButtonClick(evOrEl, mp, opts) {
 }
 
 export function trackLinkClick(evOrEl, mp, opts) {
-	const src = evOrEl.target || evOrEl;
+	const src = evOrEl.currentTarget || evOrEl;
 	const props = {
 		...STANDARD_FIELDS(src, "LINK"),
 		...LINK_FIELDS(src),
@@ -771,7 +771,7 @@ export function trackLinkClick(evOrEl, mp, opts) {
 }
 
 export function trackFormSubmit(evOrEl, mp, opts) {
-	const src = evOrEl.target || evOrEl;
+	const src = evOrEl.currentTarget || evOrEl;
 	const props = {
 		...STANDARD_FIELDS(src, "FORM"),
 		...FORM_FIELDS(src),
@@ -782,7 +782,7 @@ export function trackFormSubmit(evOrEl, mp, opts) {
 }
 
 export function trackDropDownChange(evOrEl, mp, opts) {
-	const src = evOrEl.target || evOrEl;
+	const src = evOrEl.currentTarget || evOrEl;
 	const props = {
 		...STANDARD_FIELDS(src, "OPTION"),
 		...DROPDOWN_FIELDS(src),
@@ -793,7 +793,7 @@ export function trackDropDownChange(evOrEl, mp, opts) {
 }
 
 export function trackInputChange(evOrEl, mp, opts) {
-	const src = evOrEl.target || evOrEl;
+	const src = evOrEl.currentTarget || evOrEl;
 	const props = {
 		...INPUT_FIELDS(src),
 		...statefulProps(),
