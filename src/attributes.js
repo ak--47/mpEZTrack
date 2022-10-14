@@ -65,8 +65,8 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 });
 
 export const LINK_SELECTORS = String.raw`a`;
-export const LINK_FIELDS = (el) => ({
-	"LINK → text": squish(el.textContent)
+export const LINK_FIELDS = (el, label = `LINK`) => ({
+	[`${label} → text`]: squish(el.textContent)
 });
 
 export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
@@ -283,6 +283,46 @@ HELPERS
 -------
 */
 
+export function linkOrNav(el) {
+	const href = el?.getAttribute('href') || "";
+	const linkType = {
+		eventName: ``,
+		label: ``
+	};
+
+	if (href?.startsWith('#')) {
+		linkType.eventName = `navigation`;
+		linkType.label = `NAV`;
+	}
+	else if (href?.startsWith('/')) {
+		linkType.eventName = `navigation`;
+		linkType.label = `NAV`;
+	}
+	else if (href?.includes(this.host)) {
+		linkType.eventName = `navigation`;
+		linkType.label = `NAV`;
+	}
+	else if (href?.startsWith('javascript')) {
+		linkType.eventName = `navigation`;
+		linkType.label = `NAV`;
+	}
+	else if (!href) {
+		linkType.eventName = `navigation`;
+		linkType.label = `NAV`;
+	}
+
+	else {
+		linkType.eventName = `link`;
+		linkType.label = `LINK`;
+	}
+
+
+	return linkType;
+
+
+
+}
+
 export function isSensitiveData(text = "") {
 	if (!text) return false;
 	const sensitiveTests = [isCreditCardNo, isSSN];
@@ -345,7 +385,7 @@ export function qsToObj(queryString) {
 export function isCreditCardNo(cardNo = "") {
 	// https://stackoverflow.com/a/30727110
 	if (!cardNo) return false;
-	if (typeof cardNo !== "string") cardNo = cardNo?.toString()
+	if (typeof cardNo !== "string") cardNo = cardNo?.toString();
 	if (cardNo === "0") return false;
 	var s = 0;
 	var doubleDigit = false;
