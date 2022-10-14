@@ -3,7 +3,7 @@ import { querySelectorAllDeep } from 'query-selector-shadow-dom';
 import {
 	BLACKLIST_ELEMENTS,
 	PAGE_PROPS, DEVICE_PROPS, STANDARD_FIELDS,
-	LINK_SELECTORS, LINK_FIELDS,
+	LINK_SELECTORS, LINK_FIELDS, linkOrNav,
 	BUTTON_SELECTORS, BUTTON_FIELDS,
 	FORM_SELECTORS, FORM_FIELDS,
 	DROPDOWN_SELECTOR, DROPDOWN_FIELDS,
@@ -52,6 +52,7 @@ export const ezTrack = {
 	inputs: listenForUserInput,
 	clicks: listenForAllClicks,
 	videos: listenForVideo,
+	linkOrNav,
 
 	// tracking stuff
 	buttonTrack: trackButtonClick,
@@ -733,41 +734,16 @@ export function trackButtonClick(evOrEl, mp, opts) {
 
 export function trackLinkClick(evOrEl, mp, opts) {
 	const src = evOrEl.currentTarget || evOrEl;
+	const linkType = linkOrNav.call(ezTrack, src);
 	const props = {
-		...STANDARD_FIELDS(src, "LINK"),
-		...LINK_FIELDS(src),
+		...STANDARD_FIELDS(src, linkType.label),
+		...LINK_FIELDS(src, linkType.label),
 		...statefulProps()
 	};
 
-	let type;
+	mp.track(`${linkType.eventName} click`, props);
 
-	// "links" can also be "navigation"
-	if (props["LINK → href"]?.startsWith('#')) {
-		mp.track('navigation click', props);
-		type = `NAVIGATION`;
-	}
-
-	else if (props["LINK → href"]?.includes(this.host)) {
-		mp.track('navigation click', props);
-		type = `NAVIGATION`;
-	}
-
-	else if (!props["LINK → href"]) {
-		mp.track('navigation click', props);
-		type = `NAVIGATION`;
-	}
-
-	else if (props["LINK → href"]?.startsWith('javascript')) {
-		mp.track('navigation click', props);
-		type = `NAVIGATION`;
-	}
-
-	else {
-		mp.track('link click', props);
-		type = `LINK`;
-	}
-
-	if (opts.logProps) console.log(`${type} CLICK`); console.log(JSON.stringify(props, null, 2));
+	if (opts.logProps) console.log(`${linkType.eventName.toUpperCase()} CLICK`); console.log(JSON.stringify(props, null, 2));
 }
 
 export function trackFormSubmit(evOrEl, mp, opts) {

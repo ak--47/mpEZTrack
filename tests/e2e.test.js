@@ -118,19 +118,22 @@ describe('compenents track properly', () => {
 		await page.click('#js');
 		await page.click('#nestedLink');
 		await page.click('#external');		
+		await page.click('#implicitDomain')
 		await sleep();
-		let internalSpec = { event: 'navigation click', properties: { "LINK → id": "internal" } };
+		let internalSpec = { event: 'navigation click', properties: { "NAV → id": "internal" } };
 		expect(stream()).toContainObjectMatching(internalSpec);
-		let domainSpec = { event: 'navigation click', properties: { "LINK → id": "domain" } };
+		let domainSpec = { event: 'navigation click', properties: { "NAV → id": "domain" } };
 		expect(stream()).toContainObjectMatching(domainSpec);
-		let noHrefSpec = { event: 'navigation click', properties: { "LINK → id": "nohref" } };
+		let noHrefSpec = { event: 'navigation click', properties: { "NAV → id": "nohref" } };
 		expect(stream()).toContainObjectMatching(noHrefSpec);
-		let jsHrefSpec = { event: 'navigation click', properties: { "LINK → id": "js" } };
+		let jsHrefSpec = { event: 'navigation click', properties: { "NAV → id": "js" } };
 		expect(stream()).toContainObjectMatching(jsHrefSpec);
 		let externalSpec = { event: 'link click', properties: { "LINK → id": "external" } };
 		expect(stream()).toContainObjectMatching(externalSpec);
-		let nestedLink = { event: 'navigation click', properties: { "LINK → id": "nestedLink", "LINK → tag (<>)": "<A>" } };
-		expect(stream()).toContainObjectMatching(nestedLink);
+		let nestedSpec = { event: 'navigation click', properties: { "NAV → id": "nestedLink", "NAV → tag (<>)": "<A>" } };
+		expect(stream()).toContainObjectMatching(nestedSpec);
+		let implictSpec = { event: 'navigation click', properties: { "NAV → id": "implicitDomain", "NAV → tag (<>)": "<A>" } };
+		expect(stream()).toContainObjectMatching(implictSpec);
 	});
 
 	test('dropdowns', async () => {
@@ -352,7 +355,7 @@ describe('bad token throws', () => {
 			expect(err.message).toEqual(expect.stringContaining(`Error: BAD TOKEN! TRY AGAIN`));
 		});
 		await errorPage.goto(`http://localhost:${PORT}?token=foo`);
-	}, 3000);
+	}, 5000);
 });
 
 afterAll(() => {

@@ -4054,8 +4054,8 @@
     ...enumNodeProps(el, label)
   });
   var LINK_SELECTORS = String.raw`a`;
-  var LINK_FIELDS = (el) => ({
-    "LINK \u2192 text": squish(el.textContent)
+  var LINK_FIELDS = (el, label = `LINK`) => ({
+    [`${label} \u2192 text`]: squish(el.textContent)
   });
   var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
   var BUTTON_FIELDS = (el) => ({
@@ -4211,6 +4211,33 @@
     }
     return results;
   }
+  function linkOrNav(el) {
+    const href = el?.getAttribute("href") || "";
+    const linkType = {
+      eventName: ``,
+      label: ``
+    };
+    if (href?.startsWith("#")) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else if (href?.startsWith("/")) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else if (href?.includes(this.host)) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else if (href?.startsWith("javascript")) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else if (!href) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else {
+      linkType.eventName = `link`;
+      linkType.label = `LINK`;
+    }
+    return linkType;
+  }
   function isSensitiveData(text = "") {
     if (!text)
       return false;
@@ -4320,6 +4347,7 @@
     inputs: listenForUserInput,
     clicks: listenForAllClicks,
     videos: listenForVideo,
+    linkOrNav,
     buttonTrack: trackButtonClick,
     linkTrack: trackLinkClick,
     formTrack: trackFormSubmit,
@@ -4809,30 +4837,15 @@ https://developer.mixpanel.com/reference/project-token`);
   }
   function trackLinkClick(evOrEl, mp, opts) {
     const src = evOrEl.currentTarget || evOrEl;
+    const linkType = linkOrNav.call(ezTrack, src);
     const props = {
-      ...STANDARD_FIELDS(src, "LINK"),
-      ...LINK_FIELDS(src),
+      ...STANDARD_FIELDS(src, linkType.label),
+      ...LINK_FIELDS(src, linkType.label),
       ...statefulProps()
     };
-    let type;
-    if (props["LINK \u2192 href"]?.startsWith("#")) {
-      mp.track("navigation click", props);
-      type = `NAVIGATION`;
-    } else if (props["LINK \u2192 href"]?.includes(this.host)) {
-      mp.track("navigation click", props);
-      type = `NAVIGATION`;
-    } else if (!props["LINK \u2192 href"]) {
-      mp.track("navigation click", props);
-      type = `NAVIGATION`;
-    } else if (props["LINK \u2192 href"]?.startsWith("javascript")) {
-      mp.track("navigation click", props);
-      type = `NAVIGATION`;
-    } else {
-      mp.track("link click", props);
-      type = `LINK`;
-    }
+    mp.track(`${linkType.eventName} click`, props);
     if (opts.logProps)
-      console.log(`${type} CLICK`);
+      console.log(`${linkType.eventName.toUpperCase()} CLICK`);
     console.log(JSON.stringify(props, null, 2));
   }
   function trackFormSubmit(evOrEl, mp, opts) {
