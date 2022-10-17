@@ -29,7 +29,7 @@ to install, include the following two `<script>` tags **before the closing `</bo
 
  customize the second tag with your [mixpanel project token](https://help.mixpanel.com/hc/en-us/articles/115004502806-Find-Project-Token-): 
 ```html
-<script src="https://mpeztrack.com/v0.1b/eztrack.min.js" type="text/javascript"></script>
+<script src="https://mpeztrack.com/v1.0.0/eztrack.min.js" type="text/javascript"></script>
 <script>
 mpEZTrack.init("YOUR-PROJECT-TOKEN") //change me 🤗
 </script>

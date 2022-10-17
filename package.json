@@ -1,12 +1,13 @@
 {
   "name": "mpeztrack",
-  "version": "0.1b",
+  "version": "1.0.0",
   "description": "a codeless implementation of mixpanel-browser",
   "main": "./src/eztrack.js",
   "scripts": {
     "watch": "npm-watch build",
     "serve": "./node_modules/.bin/serve -l 3000 ./examples",
-    "deploy": "node deploy.js",
+    "deploy": "MODE=prod node deploy.js",
+	"deployStg": "MODE=extension node deploy.js",
     "build": "npm run buildMin && npm run buildMax && npm run buildEx",
 	"test": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --verbose",
 	"testWatch": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --watchAll --verbose",	
