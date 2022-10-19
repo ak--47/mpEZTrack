@@ -31,7 +31,7 @@ to install, include the following two `<script>` tags **before the closing `</bo
 ```html
 <script src="https://mpeztrack.com/v1.0.0/eztrack.min.js" type="text/javascript"></script>
 <script>
-mpEZTrack.init("YOUR-PROJECT-TOKEN") //change me 🤗
+mpEZTrack.init("YOUR-PROJECT-TOKEN"); //change me 🤗
 </script>
 ```
 
