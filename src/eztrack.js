@@ -857,11 +857,11 @@ export function trackWindowStuff(mp, opts) {
 			...statefulProps(false)
 		};
 		if (document.fullscreenElement) {
-			mp.track("page fullscren: on", props);
+			mp.track("page fullscreen: on", props);
 		}
 
 		else {
-			mp.track("page fullscren: off", props);
+			mp.track("page fullscreen: off", props);
 		}
 	});
 
