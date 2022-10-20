@@ -56,7 +56,7 @@ SELECTORS + FIELDS
 
 
 export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
-	[`${label} → classes`]: [...el.classList],
+	[`${label} → classes`]: [...el.classList.entries()].map(className => className[1]), 
 	[`${label} → height`]: el.offsetHeight,
 	[`${label} → width`]: el.offsetWidth,
 	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
@@ -207,11 +207,10 @@ export function enumNodeProps(el, label = "ELEM") {
 		result[`${label} → value`] = `******`;
 	}
 
-
 	return result;
 }
 
-export function conditionalFields(el, label = "ELEMENT") {
+export function conditionalFields(el, label = "ELEM") {
 	const results = {};
 	const labelString = `${label} → label`;
 	// LABELS
@@ -316,10 +315,7 @@ export function linkOrNav(el) {
 		linkType.label = `LINK`;
 	}
 
-
 	return linkType;
-
-
 
 }
 
