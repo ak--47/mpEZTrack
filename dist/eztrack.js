@@ -4046,7 +4046,7 @@
     "passive": true
   };
   var STANDARD_FIELDS = (el, label = `ELEM`) => ({
-    [`${label} \u2192 classes`]: [...el.classList],
+    [`${label} \u2192 classes`]: el.classList ? [...el.classList] : [],
     [`${label} \u2192 height`]: el.offsetHeight,
     [`${label} \u2192 width`]: el.offsetWidth,
     [`${label} \u2192 tag (<>)`]: "".concat("<", el.tagName, ">"),
@@ -4166,7 +4166,7 @@
     }
     return result;
   }
-  function conditionalFields(el, label = "ELEMENT") {
+  function conditionalFields(el, label = "ELEM") {
     const results = {};
     const labelString = `${label} \u2192 label`;
     if (Array.from(el?.labels || "").length === 0) {
@@ -4221,6 +4221,9 @@
       linkType.eventName = `navigation`;
       linkType.label = `NAV`;
     } else if (href?.startsWith("/")) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else if (href?.startsWith(".")) {
       linkType.eventName = `navigation`;
       linkType.label = `NAV`;
     } else if (href?.includes(this.host)) {

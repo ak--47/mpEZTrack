@@ -56,7 +56,7 @@ SELECTORS + FIELDS
 
 
 export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
-	[`${label} → classes`]: [...el.classList.entries()].map(className => className[1]), 
+	[`${label} → classes`]: el.classList ? [...el.classList] : [], 
 	[`${label} → height`]: el.offsetHeight,
 	[`${label} → width`]: el.offsetWidth,
 	[`${label} → tag (<>)`]: "".concat('<', el.tagName, '>'),
@@ -214,7 +214,8 @@ export function conditionalFields(el, label = "ELEM") {
 	const results = {};
 	const labelString = `${label} → label`;
 	// LABELS
-	// sometimes lables are not explicitly tied to elements
+	// sometimes lables are not explicitly tied to elements with <label for ="">
+	// in this case, we run around the dom, trying to find a label
 	if (Array.from(el?.labels || "").length === 0) {
 		// siblings
 		if (el.previousElementSibling?.nodeName === `LABEL`) {
@@ -228,16 +229,17 @@ export function conditionalFields(el, label = "ELEM") {
 		if (el.parentElement?.nodeName === `LABEL`) {
 			results[labelString] = el.parentElement.textContent.trim();
 		}
+		// todo: look through all children
 		if (el.childNodes[0]?.nodeName === `LABEL`) {
 			results[labelString] = el.childNodes[0].textContent.trim();
 		}
 
-		//other possibilities for the label
+		// labels can also be parent elements attrs
 		if (el.parentElement.title) results[labelString] = el.parentElement.title.trim();
 		if (el.parentElement.name) results[labelString] = el.parentElement.name.trim();
 		if (el.parentElement.id) results[labelString] = el.parentElement.id.trim();
 
-		// otherwise, recursively find the closest textContent by moving up the DOM
+		// if we haven't found anything recursively find the closest textContent by moving up the DOM
 		if (!results[labelString]) {
 			// eslint-disable-next-line no-inner-declarations
 			function findLabelRecursively(el) {
@@ -294,6 +296,10 @@ export function linkOrNav(el) {
 		linkType.label = `NAV`;
 	}
 	else if (href?.startsWith('/')) {
+		linkType.eventName = `navigation`;
+		linkType.label = `NAV`;
+	}
+	else if (href?.startsWith('.')) {
 		linkType.eventName = `navigation`;
 		linkType.label = `NAV`;
 	}
