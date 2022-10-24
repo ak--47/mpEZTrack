@@ -33,15 +33,19 @@ export const DEVICE_PROPS = (mixpanel) => {
 		"DEVICE → screen dim": `${window.screen?.width} x ${window.screen?.height}`,
 		"DEVICE → language": window.navigator.language,
 		"DEVICE → pixel ratio": window.devicePixelRatio,
+		// eslint-disable-next-line compat/compat
 		"DEVICE → bandwidth": window.navigator.connection ? window.navigator.connection.effectiveType : "unknown",
+		// eslint-disable-next-line compat/compat
 		"DEVICE → memory (GB)": window.navigator.deviceMemory ? window.navigator.deviceMemory : "unknown",
+		// eslint-disable-next-line compat/compat
 		"DEVICE → platform": window.navigator.userAgentData ? window.navigator.userAgentData.platform : "unknown",
+		// eslint-disable-next-line compat/compat
 		"DEVICE → is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown",
 	};
 
 };
 
-export const BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
+export const BLACKLIST_ELEMENTS = `*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
 
 export const LISTENER_OPTIONS = {
 	"passive": true
@@ -64,17 +68,17 @@ export const STANDARD_FIELDS = (el, label = `ELEM`) => ({
 	...enumNodeProps(el, label)
 });
 
-export const LINK_SELECTORS = String.raw`a`;
+export const LINK_SELECTORS = `a`;
 export const LINK_FIELDS = (el, label = `LINK`) => ({
 	[`${label} → text`]: squish(el.textContent)
 });
 
-export const BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
+export const BUTTON_SELECTORS = `button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
 export const BUTTON_FIELDS = (el) => ({
 	"BUTTON → text": squish(el.textContent)
 });
 
-export const FORM_SELECTORS = String.raw`form`;
+export const FORM_SELECTORS = `form`;
 export const FORM_FIELDS = (el) => ({
 	"FORM → # inputs": el.length,
 	"FORM → method": el.method,
@@ -82,7 +86,7 @@ export const FORM_FIELDS = (el) => ({
 	"FORM → encoding": el.encoding
 });
 
-export const DROPDOWN_SELECTOR = String.raw`select, input[list], input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
+export const DROPDOWN_SELECTOR = `select, input[list], input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
 export const DROPDOWN_FIELDS = (el) => {
 	let props = {
 		"OPTION → user selected": el.value === 'on' ? el.checked : el.value,
@@ -108,14 +112,14 @@ export const DROPDOWN_FIELDS = (el) => {
 	return props;
 };
 
-export const INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
+export const INPUT_SELECTOR = `input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
 export const INPUT_FIELDS = (el) => ({
 	"CONTENT → user content": isSensitiveData(el.value) ? "******" : el.value,
 	"CONTENT → labels": [...el.labels].map(label => squish(label.textContent))
 });
 
 // 🚨 guard against sensitive fields 🚨
-export const ALL_SELECTOR = String.raw`*:not(script):not(title):not(meta):not(link):not([type="password"])`;
+export const ALL_SELECTOR = `*:not(script):not(title):not(meta):not(link):not([type="password"])`;
 export const ANY_TAG_FIELDS = (el, guard = false) => {
 	const fields = {
 		"ELEM → text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
@@ -129,7 +133,7 @@ export const ANY_TAG_FIELDS = (el, guard = false) => {
 	return fields;
 };
 
-export const VIDEO_SELECTOR = String.raw`video`;
+export const VIDEO_SELECTOR = `video`;
 export const VIDEO_FIELDS = (el) => ({
 	"VIDEO → watch time": el.currentTime,
 	"VIDEO → total time": el.duration,
@@ -143,7 +147,7 @@ export const VIDEO_FIELDS = (el) => ({
 	"VIDEO → source type(s)": el.src.split(".").slice(-1)[0] || [...el.querySelectorAll('source')].map(source => source.type),
 });
 
-export const YOUTUBE_SELECTOR = String.raw`iframe`;
+export const YOUTUBE_SELECTOR = `iframe`;
 
 /*
 ---------
@@ -373,6 +377,7 @@ export function truncate(text, n = 50, useWordBoundary = true) {
 
 export function qsToObj(queryString) {
 	try {
+		// eslint-disable-next-line compat/compat
 		const parsedQs = new URLSearchParams(queryString);
 		const params = Object.fromEntries(parsedQs);
 		return params;

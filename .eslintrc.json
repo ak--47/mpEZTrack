@@ -1,10 +1,10 @@
 {
 	"env": {
-		"browser": true,
-		"commonjs": true,
-		"es2021": true
+		"browser": true		
 	},
-	"extends": "eslint:recommended",
+	"plugins": ["compat"],
+
+	"extends": ["plugin:compat/recommended"],
 	"overrides": [
 		{
 			"files": [
