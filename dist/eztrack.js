@@ -4041,34 +4041,34 @@
       "DEVICE \u2192 is mobile?": window.navigator.userAgentData ? window.navigator.userAgentData.mobile : "unknown"
     };
   };
-  var BLACKLIST_ELEMENTS = String.raw`*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
+  var BLACKLIST_ELEMENTS = `*[type="password"], *[type="hidden"], *.sensitive, *.pendo-ignore, *[data-heap-redact-text], *[data-heap-redact-attributes], label`;
   var LISTENER_OPTIONS = {
     "passive": true
   };
   var STANDARD_FIELDS = (el, label = `ELEM`) => ({
-    [`${label} \u2192 classes`]: [...el.classList],
+    [`${label} \u2192 classes`]: el.classList ? [...el.classList] : [],
     [`${label} \u2192 height`]: el.offsetHeight,
     [`${label} \u2192 width`]: el.offsetWidth,
     [`${label} \u2192 tag (<>)`]: "".concat("<", el.tagName, ">"),
     ...conditionalFields(el, label),
     ...enumNodeProps(el, label)
   });
-  var LINK_SELECTORS = String.raw`a`;
+  var LINK_SELECTORS = `a`;
   var LINK_FIELDS = (el, label = `LINK`) => ({
     [`${label} \u2192 text`]: squish(el.textContent)
   });
-  var BUTTON_SELECTORS = String.raw`button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
+  var BUTTON_SELECTORS = `button, .button, .btn, input[type="button"], input[type="file"], input[type="image"], input[type="submit"], input[type="reset"]`;
   var BUTTON_FIELDS = (el) => ({
     "BUTTON \u2192 text": squish(el.textContent)
   });
-  var FORM_SELECTORS = String.raw`form`;
+  var FORM_SELECTORS = `form`;
   var FORM_FIELDS = (el) => ({
     "FORM \u2192 # inputs": el.length,
     "FORM \u2192 method": el.method,
     "FORM \u2192 action": el.action,
     "FORM \u2192 encoding": el.encoding
   });
-  var DROPDOWN_SELECTOR = String.raw`select, input[list], input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
+  var DROPDOWN_SELECTOR = `select, input[list], input[type="radio"], input[type="checkbox"], input[type="range"], input[type="color"], input[type="range"]`;
   var DROPDOWN_FIELDS = (el) => {
     let props = {
       "OPTION \u2192 user selected": el.value === "on" ? el.checked : el.value,
@@ -4088,12 +4088,12 @@
     }
     return props;
   };
-  var INPUT_SELECTOR = String.raw`input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
+  var INPUT_SELECTOR = `input[type="text"], input[type="email"], input[type="url"], input[type="search"], textarea`;
   var INPUT_FIELDS = (el) => ({
     "CONTENT \u2192 user content": isSensitiveData(el.value) ? "******" : el.value,
     "CONTENT \u2192 labels": [...el.labels].map((label) => squish(label.textContent))
   });
-  var ALL_SELECTOR = String.raw`*:not(script):not(title):not(meta):not(link):not([type="password"])`;
+  var ALL_SELECTOR = `*:not(script):not(title):not(meta):not(link):not([type="password"])`;
   var ANY_TAG_FIELDS = (el, guard = false) => {
     const fields = {
       "ELEM \u2192 text": guard ? "******" : el.textContent?.trim() || el.value?.trim(),
@@ -4104,7 +4104,7 @@
     }
     return fields;
   };
-  var VIDEO_SELECTOR = String.raw`video`;
+  var VIDEO_SELECTOR = `video`;
   var VIDEO_FIELDS = (el) => ({
     "VIDEO \u2192 watch time": el.currentTime,
     "VIDEO \u2192 total time": el.duration,
@@ -4117,7 +4117,7 @@
     "VIDEO \u2192 source(s)": el.src || [...el.querySelectorAll("source")].map((source) => source.src),
     "VIDEO \u2192 source type(s)": el.src.split(".").slice(-1)[0] || [...el.querySelectorAll("source")].map((source) => source.type)
   });
-  var YOUTUBE_SELECTOR = String.raw`iframe`;
+  var YOUTUBE_SELECTOR = `iframe`;
   function enumNodeProps(el, label = "ELEM") {
     const result = {};
     const boolAttrs = ["allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled", "formnovalidate", "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "selected", "truespeed"];
@@ -4166,7 +4166,7 @@
     }
     return result;
   }
-  function conditionalFields(el, label = "ELEMENT") {
+  function conditionalFields(el, label = "ELEM") {
     const results = {};
     const labelString = `${label} \u2192 label`;
     if (Array.from(el?.labels || "").length === 0) {
@@ -4221,6 +4221,9 @@
       linkType.eventName = `navigation`;
       linkType.label = `NAV`;
     } else if (href?.startsWith("/")) {
+      linkType.eventName = `navigation`;
+      linkType.label = `NAV`;
+    } else if (href?.startsWith(".")) {
       linkType.eventName = `navigation`;
       linkType.label = `NAV`;
     } else if (href?.includes(this.host)) {

@@ -3,21 +3,26 @@
   "version": "1.0.0",
   "description": "a codeless implementation of mixpanel-browser",
   "main": "./src/eztrack.js",
+  "browserslist": ["defaults"],
   "scripts": {
     "watch": "npm-watch build",
     "serve": "./node_modules/.bin/serve -l 3000 ./examples",
     "deploy": "MODE=prod node deploy.js",
-	"deployStg": "MODE=extension node deploy.js",
+    "deployStg": "MODE=extension node deploy.js",
     "build": "npm run buildMin && npm run buildMax && npm run buildEx",
-	"test": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --verbose",
-	"testWatch": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --watchAll --verbose",	
+    "test": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --verbose",
+    "testWatch": "JEST_PUPPETEER_CONFIG=testConfig.cjs jest --watchAll --verbose",
     "buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --target=es6 --outdir=./dist/ --out-extension:.js=.min.js",
     "buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/",
     "buildEx": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/"
   },
   "jest": {
     "preset": "jest-puppeteer",
-	"testPathIgnorePatterns": ["/dist/", "/examples/", "/src/"]
+    "testPathIgnorePatterns": [
+      "/dist/",
+      "/examples/",
+      "/src/"
+    ]
   },
   "watch": {
     "build": "./src/*.js"
@@ -39,6 +44,7 @@
     "dotenv": "^16.0.3",
     "esbuild": "^0.15.7",
     "eslint": "^8.23.0",
+    "eslint-plugin-compat": "^4.0.2",
     "jest": "^29.1.2",
     "jest-puppeteer": "^6.1.1",
     "nodemon": "^2.0.19",
