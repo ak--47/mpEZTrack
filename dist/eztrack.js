@@ -5075,7 +5075,7 @@ https://developer.mixpanel.com/reference/project-token`);
       const videoProps = {
         "VIDEO \u2192 quality": player.getPlaybackQuality(),
         "VIDEO \u2192 length (sec)": player.getDuration(),
-        "VIDEO \u2192 ellapsed (sec)": player.getCurrentTime(),
+        "VIDEO \u2192 elapsed (sec)": player.getCurrentTime(),
         "VIDEO \u2192 url": player.getVideoUrl(),
         "VIDEO \u2192 title": videoInfo.title,
         "VIDEO \u2192 id": videoInfo.video_id,

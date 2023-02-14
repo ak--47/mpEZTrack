@@ -1,4 +1,9 @@
 {
 	"jest.jestCommandLine": "npm run test --",
-	"jest.autoRun": "off"
+	"jest.autoRun": "off",
+	"cSpell.words": [
+		"enablejsapi",
+		"gatekeeping",
+		"tldr"
+	]
 }

@@ -1014,7 +1014,7 @@ export function trackYoutubeVideos(mp) {
 		const videoProps = {
 			'VIDEO → quality': player.getPlaybackQuality(),
 			'VIDEO → length (sec)': player.getDuration(),
-			'VIDEO → ellapsed (sec)': player.getCurrentTime(),
+			'VIDEO → elapsed (sec)': player.getCurrentTime(),
 			'VIDEO → url': player.getVideoUrl(),
 			'VIDEO → title': videoInfo.title,
 			'VIDEO → id': videoInfo.video_id,

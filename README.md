@@ -4,7 +4,7 @@
 
 ## wat? 🐠
 
-`mpEZtrack` helps you collect data from your web application as events (and users) in Mixpanel with **no code**. All you need is to  **[copy/modify/paste a `<script>` tag](#tldr)** and deploy it on your website to get up and going.
+`mpEZtrack` helps you collect data from your web application as events (and users) in Mixpanel with **no code**. All you need is to  **[copy/modify/paste a `<script>` tag](#tldr)** and deploy it on your website to get up and going. i've also made a [short demo](#demo) which goes through the installation process.
 
 more specifically `mpEZTrack` is a javascript bundle that wraps the [mixpanel JS SDK](https://github.com/mixpanel/mixpanel-js), initializes it with [best practices](https://mixpanel.com/blog/best-practices-updated/), and adds listeners for common events like `page view`, `page exit`, `button click`, `link click`, etc... 
 
@@ -41,7 +41,13 @@ you MUST change the value of `YOUR-PROJECT-TOKEN` in the above snippet to your *
 
 one deployed on your website, look in your mixpanel project; you are now collecting many useful events:
 
-<img src="https://aktunes.neocities.org/manyUsefulEvents.png" alt="many useful events" width=500/>
+<img src="https://aktunes.neocities.org/manyUsefulEvents.png" alt="many useful events" width=400/>
+
+ <div  id="demo"></div> 
+
+## demo 🍿
+
+ <a href="https://youtu.be/rYvVXST2loY"><img src="https://aktunes.neocities.org/ezTrack/demo.png" alt="ezTrack demo"/></a>
 
  <div  id="options"></div> 
  
@@ -167,7 +173,7 @@ to facilitate this, this repo also includes **[a chrome extension](https://githu
 
  - now preform some actions on the webpage, and you'll see the events in your console (and in your mixpanel project!)
 
-  <img src="https://aktunes.neocities.org/ezTrack/see%20props%20in%20console.png" />
+  <img src="https://aktunes.neocities.org/ezTrack/see%20props%20in%20console.png" height=500/>
 
 🥳 celebrate! you just implemented `mpEZTrack` locally! 
 
@@ -238,7 +244,7 @@ mpEZTrack.init('project-token', { extend: true });
 
 
 // someOtherFile.js
-window.addEvenetListener('mpEZTrackLoaded', ()=>{
+window.addEventListener('mpEZTrackLoaded', ()=>{
   // mixpanel.ez is always available in this scope
   mixpanel.ez.people.set({$name: currentUser.name})
 })
@@ -272,7 +278,7 @@ these video events will contain event properties which describe the video being 
 ```
 'VIDEO → quality': STRING
 'VIDEO → length (sec)': NUMBER
-'VIDEO → ellapsed (sec)': NUMBER
+'VIDEO → elapsed (sec)': NUMBER
 'VIDEO → url': URL
 'VIDEO → title': STRING
 'VIDEO → id': STRING
