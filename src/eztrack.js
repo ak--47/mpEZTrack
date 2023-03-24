@@ -29,6 +29,7 @@ export const ezTrack = {
 	superProps: {},
 	getProps: getSuperProperties,
 	clearQueue: clearExistingMixpanelQueue,
+	getEZConfig: getEZTrackConfig,
 
 	debug: () => { mixpanel.ez.set_config({ debug: true }); },
 	mpDefaults: ["$os", "$browser", "$referrer", "$referring_domain", "$current_url", "$browser_version", "$screen_height", "$screen_width", "$initial_referrer", "$initial_referring_domain"],
@@ -117,7 +118,8 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 		mixpanel.init(token, {
 			debug: opts.debug,
 			cross_subdomain_cookie: true,
-			persistence: "localStorage",
+			persistence: opts.persistence,
+			cookie_domain: opts.cookie_domain,
 			api_transport: "XHR",
 			api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api-js.mixpanel.com",
 			ip: opts.location,
@@ -192,6 +194,8 @@ export function getDefaultOptions() {
 		refresh: 5000,
 		location: true,
 		region: "US",
+		persistence: "localStorage",
+		cookie_domain: "",
 
 		//default on
 		deviceProps: true,
@@ -254,7 +258,7 @@ export function bindTrackers(mp, opts) {
 		// //this should always be last as it is the most general form of tracking for non spas
 		// if (opts.clicks) this.clicks(mp, opts);
 
-		//cactch clicks on elements that are constructed after page is loaded
+		//catch clicks on elements that are constructed after page is loaded
 		if (opts.spa) this.spa(mp, opts);
 
 	}
@@ -1071,6 +1075,10 @@ export function trackYoutubeVideos(mp) {
 HELPERS
 -------
 */
+
+export function getEZTrackConfig() {
+	return this.opts;
+}
 
 export function uniqueNodes(arrayOfNodes) {
 	return [...new Set(arrayOfNodes)];

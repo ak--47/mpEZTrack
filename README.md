@@ -58,7 +58,9 @@ in the table below, you will find all the options exposed by this module; **if y
 
 | option                 | expected type    | default | notes                                                       |
 |------------------------|-------------------|----------|-------------------------------------------------------------|
-|`region`  | `US` or `EU`   | `US`  | controls whether data is routed through global servers (default) or EU-only servers; learn more about [EU data residency](https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU)                            |
+|`region`  | `"US"` or `"EU"`   | `"US"`  | controls whether data is routed through global servers (default) or EU-only servers; learn more about [EU data residency](https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU)                            |
+|`persistence`  | `"localStorage"` or `"cookie"`   | `"localStorage"`  | controls the persistence mechanism; use `"cookie"` if you need cross sub-domain tracking. note that the `"cookie_domain"` option can also be passed if using `"cookie"` persistence with non-standard subdomains. learn more about [persistence options](https://developer.mixpanel.com/docs/javascript-full-api-reference#mixpanelset_config)
+| ----------- | --------  | ----    | --------------------------------------  |                            |
 |`refresh`  | `integer`   | `5000`  | the frequency (ms) in which the queue will be flushed (sending events to mixpanel)                             |
 |`location` |  `boolean` | `true` | resolve the end-user's geo-location (country/region/state/city)                              |
 | `deviceProps`           | `boolean` | `true`   | add device information (extending [mixpanel defaults](https://help.mixpanel.com/hc/en-us/articles/115004613766-Default-Properties-Collected-by-Mixpanel)) about the client device      |
@@ -109,9 +111,14 @@ mpEZTrack.init('YOUR-PROJECT-TOKEN', { deviceProps: false, profiles: false})
 mpEZTrack.init('YOUR-PROJECT-TOKEN', { spa: true, firstPage: true})
 ```
 
+- use a (first party) cookie for persistence; override the cookie domain (if non-standard)
+```javascript
+mpEZTrack.init('YOUR-PROJECT-TOKEN', { persistence: "cookie", cookie_domain: "subdomain.mainsite.aktunes.biz"})
+```
+
 - the default settings for all options
 ```javascript
-mpEZTrack.init('YOUR-PROJECT-TOKEN', {debug: false, extend: false, refresh: 5000, location: true, superProps: true, pageView: true, pageExit: true, links: true, buttons: true, forms: true, profiles: true, selectors: true, inputs: false, clicks: false, youtube: false, window: false, clipboard: false, firstPage: false, error: false, spa: false, tabs: false})
+mpEZTrack.init('YOUR-PROJECT-TOKEN', {debug: false, extend: false, refresh: 5000, location: true, superProps: true, pageView: true, pageExit: true, links: true, buttons: true, forms: true, profiles: true, selectors: true, inputs: false, clicks: false, youtube: false, window: false, clipboard: false, firstPage: false, error: false, spa: true, tabs: false, persistence: 'localStorage'})
 ```
 <div  id="motivation"></div>
 

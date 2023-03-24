@@ -1,6 +1,6 @@
 /*
 -----------------
-ENVIORMENT VALUES
+ENVIRONMENT VALUES
 -----------------
 */
 
@@ -218,7 +218,7 @@ export function conditionalFields(el, label = "ELEM") {
 	const results = {};
 	const labelString = `${label} → label`;
 	// LABELS
-	// sometimes lables are not explicitly tied to elements with <label for ="">
+	// sometimes labels are not explicitly tied to elements with <label for ="">
 	// in this case, we run around the dom, trying to find a label
 	if (Array.from(el?.labels || "").length === 0) {
 		// siblings

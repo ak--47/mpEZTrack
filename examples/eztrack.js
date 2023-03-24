@@ -4332,6 +4332,7 @@
     superProps: {},
     getProps: getSuperProperties,
     clearQueue: clearExistingMixpanelQueue,
+    getEZConfig: getEZTrackConfig,
     debug: () => {
       import_mixpanel_browser.default.ez.set_config({ debug: true });
     },
@@ -4398,7 +4399,8 @@ https://developer.mixpanel.com/reference/project-token`);
       import_mixpanel_browser.default.init(token, {
         debug: opts.debug,
         cross_subdomain_cookie: true,
-        persistence: "localStorage",
+        persistence: opts.persistence,
+        cookie_domain: opts.cookie_domain,
         api_transport: "XHR",
         api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api-js.mixpanel.com",
         ip: opts.location,
@@ -4459,6 +4461,8 @@ https://developer.mixpanel.com/reference/project-token`);
       refresh: 5e3,
       location: true,
       region: "US",
+      persistence: "localStorage",
+      cookie_domain: "",
       deviceProps: true,
       pageView: true,
       pageExit: true,
@@ -5116,6 +5120,9 @@ https://developer.mixpanel.com/reference/project-token`);
           break;
       }
     }
+  }
+  function getEZTrackConfig() {
+    return this.opts;
   }
   function uniqueNodes(arrayOfNodes) {
     return [...new Set(arrayOfNodes)];

@@ -2,8 +2,23 @@
 	"jest.jestCommandLine": "npm run test --",
 	"jest.autoRun": "off",
 	"cSpell.words": [
+		"atts",
+		"compat",
 		"enablejsapi",
+		"eztrack",
+		"formnovalidate",
+		"fullscreen",
 		"gatekeeping",
-		"tldr"
+		"itemscope",
+		"mpeztrack",
+		"nodebug",
+		"novalidate",
+		"outdir",
+		"passw",
+		"pendo",
+		"playsinline",
+		"tldr",
+		"truespeed",
+		"unstarted"
 	]
 }
