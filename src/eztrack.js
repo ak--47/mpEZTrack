@@ -247,9 +247,15 @@ export function getDefaultOptions() {
 
 export function getSuperProperties(token = this.token, opts = this.opts, mixpanelClass) {
     let result = PAGE_PROPS;
-    if (opts.deviceProps) result = { ...DEVICE_PROPS(mixpanelClass), ...result };
-    if (opts.firstPage) result = { ...this.priorVisit(token, opts), ...result };
-    if (opts.tabs) result = { ...this.tabTrack(token), ...result };
+    try {
+        if (opts.deviceProps) result = { ...DEVICE_PROPS(mixpanelClass), ...result };
+    } catch (e) {}
+    try {
+        if (opts.firstPage) result = { ...this.priorVisit(token, opts), ...result };
+    } catch (e) {}
+    try {
+        if (opts.tabs) result = { ...this.tabTrack(token), ...result };
+    } catch (e) {}
     return result;
 }
 
@@ -578,22 +584,46 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
     }
 
     if (elem.matches(BUTTON_SELECTORS)) {
-        this.spaPipe("button", ev, mp, opts);
+        if (elem) {
+            this.spaPipe("button", elem, mp, opts);
+        } else {
+            this.spaPipe("button", ev, mp, opts);
+        }
         return true;
     } else if (elem.matches(LINK_SELECTORS)) {
-        this.spaPipe("link", ev, mp, opts);
+        if (elem) {
+            this.spaPipe("link", elem, mp, opts);
+        } else {
+            this.spaPipe("link", ev, mp, opts);
+        }
         return true;
     } else if (elem.matches(FORM_SELECTORS)) {
-        this.spaPipe("form", ev, mp, opts);
+        if (elem) {
+            this.spaPipe("form", elem, mp, opts);
+        } else {
+            this.spaPipe("form", ev, mp, opts);
+        }
         return true;
     } else if (elem.matches(DROPDOWN_SELECTOR)) {
-        this.spaPipe("select", ev, mp, opts);
+        if (elem) {
+            this.spaPipe("select", elem, mp, opts);
+        } else {
+            this.spaPipe("select", ev, mp, opts);
+        }
         return true;
     } else if (elem.matches(INPUT_SELECTOR)) {
-        this.spaPipe("input", ev, mp, opts);
+        if (elem) {
+            this.spaPipe("input", elem, mp, opts);
+        } else {
+            this.spaPipe("input", ev, mp, opts);
+        }
         return true;
     } else if (elem.matches(VIDEO_SELECTOR)) {
-        this.spaPipe("video", ev, mp, opts);
+        if (elem) {
+            this.spaPipe("video", elem, mp, opts);
+        } else {
+            this.spaPipe("video", ev, mp, opts);
+        }
         return true;
     }
 
@@ -622,15 +652,26 @@ export function figureOutWhatWasClicked(elem, ev, mp, opts) {
     }
 }
 
-export function spaPipeline(directive = "none", ev, mp, opts) {
-    const isAlreadyTracked = this.trackedElements.includes(ev.target);
+export function spaPipeline(directive = "none", evOrElem, mp, opts) {
+    //distinguish between event and element
+    let entity;
+    if (evOrElem instanceof Event) {
+        entity = evOrElem.target;
+    } else if (evOrElem instanceof HTMLElement) {
+        entity = evOrElem;
+    } else {
+        if (opts.debug) console.log("spaPipeline: invalid element or event");
+        return false;
+    }
+
+    const isAlreadyTracked = this.trackedElements.includes(evOrElem.target);
     if (!isAlreadyTracked) {
         if (opts.buttons && directive === "button") {
-            this.trackedElements.push(ev.target);
-            this.buttonTrack(ev, mp, opts);
+            this.trackedElements.push(evOrElem.target);
+            this.buttonTrack(evOrElem, mp, opts);
 
             //for next click
-            ev.target.addEventListener(
+            entity.addEventListener(
                 "click",
                 clickEv => {
                     this.buttonTrack(clickEv, mp, opts);
@@ -638,16 +679,16 @@ export function spaPipeline(directive = "none", ev, mp, opts) {
                 LISTENER_OPTIONS
             );
         } else if (opts.links && directive === "link") {
-            this.trackedElements.push(ev.target);
-            this.linkTrack(ev, mp, opts);
+            this.trackedElements.push(entity);
+            this.linkTrack(evOrElem, mp, opts);
 
             //for next click
-            ev.target.addEventListener("click", clickEv => {
+            entity.addEventListener("click", clickEv => {
                 this.linkTrack(clickEv, mp, opts);
             });
         } else if (opts.forms && directive === "form") {
-            this.trackedElements.push(ev.target);
-            ev.target.addEventListener(
+            this.trackedElements.push(entity);
+            entity.addEventListener(
                 "submit",
                 submitEv => {
                     this.formTrack(submitEv, mp, opts);
@@ -655,8 +696,8 @@ export function spaPipeline(directive = "none", ev, mp, opts) {
                 LISTENER_OPTIONS
             );
         } else if (opts.selectors && directive === "select") {
-            this.trackedElements.push(ev.target);
-            ev.target.addEventListener(
+            this.trackedElements.push(entity);
+            entity.addEventListener(
                 "change",
                 changeEv => {
                     this.selectTrack(changeEv, mp, opts);
@@ -664,8 +705,8 @@ export function spaPipeline(directive = "none", ev, mp, opts) {
                 LISTENER_OPTIONS
             );
         } else if (opts.inputs && directive === "input") {
-            this.trackedElements.push(ev.target);
-            ev.target.addEventListener(
+            this.trackedElements.push(entity);
+            entity.addEventListener(
                 "change",
                 changeEv => {
                     this.inputTrack(changeEv, mp, opts);
@@ -673,22 +714,22 @@ export function spaPipeline(directive = "none", ev, mp, opts) {
                 LISTENER_OPTIONS
             );
         } else if (opts.videos && directive === "video") {
-            this.trackedElements.push(ev.target);
-            ev.target.addEventListener(
+            this.trackedElements.push(entity);
+            entity.addEventListener(
                 "play",
                 videoEv => {
                     this.videoTrack(videoEv, mp, opts);
                 },
                 LISTENER_OPTIONS
             );
-            ev.target.addEventListener(
+            entity.addEventListener(
                 "pause",
                 videoEv => {
                     this.videoTrack(videoEv, mp, opts);
                 },
                 LISTENER_OPTIONS
             );
-            ev.target.addEventListener(
+            entity.addEventListener(
                 "ended",
                 videoEv => {
                     this.videoTrack(videoEv, mp, opts);
@@ -698,11 +739,11 @@ export function spaPipeline(directive = "none", ev, mp, opts) {
         }
         //this should always be last as it is the most general form of tracking
         else if (opts.clicks && directive === "all") {
-            this.trackedElements.push(ev.target);
-            this.clickTrack(ev, mp, opts);
+            this.trackedElements.push(entity);
+            this.clickTrack(evOrElem, mp, opts);
 
             //for next click
-            ev.target.addEventListener(
+            entity.addEventListener(
                 "click",
                 clickEv => {
                     this.clickTrack(clickEv, mp, opts);
