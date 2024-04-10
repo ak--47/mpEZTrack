@@ -4446,8 +4446,6 @@ https://developer.mixpanel.com/reference/project-token`
           cross_subdomain_cookie: true,
           persistence: opts.persistence,
           cookie_domain: opts.cookie_domain,
-          api_transport: "XHR",
-          api_host: opts.region.toLowerCase() === `eu` ? "https://api-eu.mixpanel.com" : "https://api-js.mixpanel.com",
           ip: opts.location,
           ignore_dnt: true,
           batch_flush_interval_ms: opts.refresh,
@@ -4480,7 +4478,8 @@ https://developer.mixpanel.com/reference/project-token`
                 console.log(e);
               }
             }
-          }
+          },
+          ...this.opts
         },
         "ez"
       );
@@ -4501,13 +4500,12 @@ https://developer.mixpanel.com/reference/project-token`
         console.log(e);
     }
   }
-  function getDefaultOptions() {
-    return {
+  function getDefaultOptions(opts = {}) {
+    const defaults = {
       debug: false,
       extend: false,
       refresh: 5e3,
       location: true,
-      region: "US",
       persistence: "localStorage",
       cookie_domain: "",
       deviceProps: true,
@@ -4530,6 +4528,11 @@ https://developer.mixpanel.com/reference/project-token`
       tabs: false,
       logProps: false
     };
+    if (opts?.region?.toLowerCase() === "eu")
+      defaults.api_host = "https://api-eu.mixpanel.com";
+    if (opts?.region?.toLowerCase() === "us")
+      defaults.api_host = "https://api-js.mixpanel.com";
+    return defaults;
   }
   function getSuperProperties(token = this.token, opts = this.opts, mixpanelClass) {
     let result = PAGE_PROPS;
