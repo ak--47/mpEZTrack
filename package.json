@@ -1,9 +1,11 @@
 {
   "name": "mpeztrack",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "a codeless implementation of mixpanel-browser",
   "main": "./src/eztrack.js",
-  "browserslist": ["defaults"],
+  "browserslist": [
+    "defaults"
+  ],
   "scripts": {
     "watch": "npm-watch build",
     "serve": "./node_modules/.bin/serve -l 3000 ./examples",
@@ -15,7 +17,7 @@
     "buildMin": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --minify --tree-shaking=true --target=es6 --outdir=./dist/ --out-extension:.js=.min.js",
     "buildMax": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --outdir=./dist/",
     "buildEx": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/",
-	"buildReact": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/react/ant/public/"
+    "buildReact": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/react/ant/public/"
   },
   "jest": {
     "preset": "jest-puppeteer",
@@ -54,7 +56,7 @@
     "serve": "^14.0.1"
   },
   "dependencies": {
-    "mixpanel-browser": "^2.45.0",
+    "mixpanel-browser": "^2.54.0",
     "query-selector-shadow-dom": "^1.0.0"
   }
 }
