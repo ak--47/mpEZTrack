@@ -13,3 +13,5 @@ examples/*
 !/examples/index.html
 eztrack-service-acct.json
 deploy.js
+bundle/*/dist/
+!bundle/*/dist/.gitkeep
