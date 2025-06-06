@@ -347,7 +347,7 @@
 	<script>
 		const params = qsToObj(document.location.search);
 		if (params.port) document.querySelector('#domain').href = `http://localhost:${params.port}/`;
-		mpEZTrack.init(params?.token, {}, true)
+		mpEZTrack.init(params?.token, { record_sessions_percent: 100}, true)
 
 	</script>
 	<script>

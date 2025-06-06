@@ -1,5 +1,18 @@
 # mpEZTrack 🏃💨
 
+## ⚠️ DEPRECATION NOTICE  
+Mixpanel has officially released **[autocapture](https://docs.mixpanel.com/docs/tracking-methods/autocapture)**, a robust and feature-rich solution for codeless analytics. 
+
+As such, `mpEZTrack` will no longer be actively maintained. I recommend using Mixpanel's official autocapture feature for new projects. 
+
+This was a fantastic project to work on; we had over 500k daily hits at peak! 
+
+Please migrate to Mixpanel's autocapture for the latest features and support (it's free!).
+
+<3 AK
+
+---------------
+
 <div  id="about"></div>
 
 ## wat? 🐠

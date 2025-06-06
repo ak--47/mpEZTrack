@@ -126,8 +126,10 @@ export function entryPoint(token = ``, userSuppliedOptions = {}, forceTrue = fal
 	// overloading init()
 	if (forceTrue) {
 		for (let key in opts) {
-			if (typeof opts[key] === "boolean") opts[key] = true;
-			if (typeof opts[key] === "number") opts[key] = 0;
+			if (key !== 'record_sessions_percent') {
+				if (typeof opts[key] === "boolean") opts[key] = true;
+				if (typeof opts[key] === "number") opts[key] = 0;
+			}
 		}
 		if (forceTrue === "nodebug") opts.debug = false;
 	}
