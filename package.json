@@ -19,7 +19,8 @@
     "buildEx": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/",
     "buildReact": "./node_modules/.bin/esbuild ./src/eztrack.js --bundle --sourcemap --platform=browser --outdir=./examples/react/ant/public/",
     "bundleVanilla": "./node_modules/.bin/esbuild ./bundle/vanilla/mixpanel-embedded.js --bundle --platform=browser --outdir=./bundle/vanilla/dist/",
-    "buildTweaks": "./node_modules/.bin/esbuild ./bundle/tweaks/ez-track-and-replay.js --bundle --platform=browser --outdir=./bundle/tweaks/dist/"
+    "buildTweaks": "./node_modules/.bin/esbuild ./bundle/tweaks/ez-track-and-replay.js --bundle --platform=browser --outdir=./bundle/tweaks/dist/",
+    "bundleNoDeps": "./node_modules/.bin/esbuild ./bundle/no_deps/straightpanel.js --bundle --platform=browser --minify-whitespace --outdir=./bundle/no_deps/dist/"
   },
   "jest": {
     "preset": "jest-puppeteer",
@@ -58,7 +59,7 @@
     "serve": "^14.0.1"
   },
   "dependencies": {
-    "mixpanel-browser": "^2.55.0",
+    "mixpanel-browser": "^2.56.0",
     "query-selector-shadow-dom": "^1.0.0"
   }
 }

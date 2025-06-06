@@ -4113,7 +4113,7 @@
   })(IncrementalSource || {});
   var Config = {
     DEBUG: false,
-    LIB_VERSION: "2.55.0"
+    LIB_VERSION: "2.56.0"
   };
   var win;
   if (typeof window === "undefined") {
@@ -4121,7 +4121,7 @@
       hostname: ""
     };
     win = {
-      navigator: { userAgent: "" },
+      navigator: { userAgent: "", onLine: true },
       document: {
         location: loc,
         referrer: ""
@@ -4134,6 +4134,7 @@
   }
   var loc;
   var MAX_RECORDING_MS = 24 * 60 * 60 * 1e3;
+  var MAX_VALUE_FOR_MIN_RECORDING_MS = 8 * 1e3;
   var ArrayProto = Array.prototype;
   var FuncProto = Function.prototype;
   var ObjProto = Object.prototype;
@@ -4853,7 +4854,7 @@
     return tmp_arr.join(arg_separator);
   };
   _.getQueryParam = function(url, param) {
-    param = param.replace(/[[]/, "\\[").replace(/[\]]/, "\\]");
+    param = param.replace(/[[]/g, "\\[").replace(/[\]]/g, "\\]");
     var regexS = "[\\?&]" + param + "=([^&#]*)", regex = new RegExp(regexS), results = regex.exec(url);
     if (results === null || results && typeof results[1] !== "string" && results[1].length) {
       return "";
@@ -5199,8 +5200,8 @@
       }
     };
   }();
-  var CAMPAIGN_KEYWORDS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
-  var CLICK_IDS = ["dclid", "fbclid", "gclid", "ko_click_id", "li_fat_id", "msclkid", "ttclid", "twclid", "wbraid"];
+  var CAMPAIGN_KEYWORDS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_id", "utm_source_platform", "utm_campaign_id", "utm_creative_format", "utm_marketing_tactic"];
+  var CLICK_IDS = ["dclid", "fbclid", "gclid", "ko_click_id", "li_fat_id", "msclkid", "sccid", "ttclid", "twclid", "wbraid"];
   _.info = {
     campaignParams: function(default_value) {
       var kw = "", params = {};
@@ -5430,6 +5431,10 @@
     var matches = hostname.match(domain_regex);
     return matches ? matches[0] : "";
   };
+  var isOnline = function() {
+    var onLine = win.navigator["onLine"];
+    return _.isUndefined(onLine) || onLine;
+  };
   var JSONStringify = null;
   var JSONParse = null;
   if (typeof JSON !== "undefined") {
@@ -5573,7 +5578,7 @@
       return;
     };
   }
-  var logger$3 = console_with_prefix("lock");
+  var logger$4 = console_with_prefix("lock");
   var SharedLock = function(key, options) {
     options = options || {};
     this.storageKey = key;
@@ -5600,7 +5605,7 @@
     };
     var delay = function(cb) {
       if (new Date().getTime() - startTime > timeoutMS) {
-        logger$3.error("Timeout waiting for mutex on " + key + "; clearing lock. [" + i + "]");
+        logger$4.error("Timeout waiting for mutex on " + key + "; clearing lock. [" + i + "]");
         storage.removeItem(keyZ);
         storage.removeItem(keyY);
         loop();
@@ -5681,14 +5686,16 @@
       reportError(err);
     }
   };
-  var logger$2 = console_with_prefix("batch");
+  var logger$3 = console_with_prefix("batch");
   var RequestQueue = function(storageKey, options) {
     options = options || {};
     this.storageKey = storageKey;
-    this.storage = options.storage || window.localStorage;
-    this.reportError = options.errorReporter || _.bind(logger$2.error, logger$2);
-    this.lock = new SharedLock(storageKey, { storage: this.storage });
     this.usePersistence = options.usePersistence;
+    if (this.usePersistence) {
+      this.storage = options.storage || window.localStorage;
+      this.lock = new SharedLock(storageKey, { storage: this.storage });
+    }
+    this.reportError = options.errorReporter || _.bind(logger$3.error, logger$3);
     this.pid = options.pid || null;
     this.memQueue = [];
   };
@@ -5894,7 +5901,7 @@
     }
   };
   var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1e3;
-  var logger$1 = console_with_prefix("batch");
+  var logger$2 = console_with_prefix("batch");
   var RequestBatcher = function(storageKey, options) {
     this.errorReporter = options.errorReporter;
     this.queue = new RequestQueue(storageKey, {
@@ -5950,7 +5957,7 @@
   RequestBatcher.prototype.flush = function(options) {
     try {
       if (this.requestInProgress) {
-        logger$1.log("Flush: Request already in progress");
+        logger$2.log("Flush: Request already in progress");
         return;
       }
       options = options || {};
@@ -6008,7 +6015,7 @@
           } else if (_.isObject(res) && res.error === "timeout" && new Date().getTime() - startTime >= timeoutMS) {
             this.reportError("Network timeout; retrying");
             this.flush();
-          } else if (_.isObject(res) && (res.httpStatusCode >= 500 || res.httpStatusCode === 429 || res.error === "timeout")) {
+          } else if (_.isObject(res) && (res.httpStatusCode >= 500 || res.httpStatusCode === 429 || res.httpStatusCode <= 0 && !isOnline() || res.error === "timeout")) {
             var retryMS = this.flushInterval * 2;
             if (res.retryAfter) {
               retryMS = parseInt(res.retryAfter, 10) * 1e3 || retryMS;
@@ -6085,7 +6092,7 @@
       if (options.unloading) {
         requestOptions.transport = "sendBeacon";
       }
-      logger$1.log("MIXPANEL REQUEST:", dataForRequest);
+      logger$2.log("MIXPANEL REQUEST:", dataForRequest);
       this.sendRequest(dataForRequest, requestOptions, batchSendCallback);
     } catch (err) {
       this.reportError("Error flushing request queue", err);
@@ -6093,7 +6100,7 @@
     }
   };
   RequestBatcher.prototype.reportError = function(msg, err) {
-    logger$1.error.apply(logger$1.error, arguments);
+    logger$2.error.apply(logger$2.error, arguments);
     if (this.errorReporter) {
       try {
         if (!(err instanceof Error)) {
@@ -6101,11 +6108,11 @@
         }
         this.errorReporter(msg, err);
       } catch (err2) {
-        logger$1.error(err2);
+        logger$2.error(err2);
       }
     }
   };
-  var logger = console_with_prefix("recorder");
+  var logger$1 = console_with_prefix("recorder");
   var CompressionStream = win["CompressionStream"];
   var RECORDER_BATCHER_LIB_CONFIG = {
     "batch_size": 1e3,
@@ -6127,85 +6134,98 @@
   function isUserEvent(ev) {
     return ev.type === EventType.IncrementalSnapshot && ACTIVE_SOURCES.has(ev.data.source);
   }
-  var MixpanelRecorder = function(mixpanelInstance) {
-    this._mixpanel = mixpanelInstance;
+  var SessionRecording = function(options) {
+    this._mixpanel = options.mixpanelInstance;
+    this._onIdleTimeout = options.onIdleTimeout;
+    this._onMaxLengthReached = options.onMaxLengthReached;
+    this._rrwebRecord = options.rrwebRecord;
+    this.replayId = options.replayId;
     this._stopRecording = null;
-    this.recEvents = [];
     this.seqNo = 0;
-    this.replayId = null;
     this.replayStartTime = null;
-    this.sendBatchId = null;
+    this.batchStartUrl = null;
     this.idleTimeoutId = null;
     this.maxTimeoutId = null;
     this.recordMaxMs = MAX_RECORDING_MS;
-    this._initBatcher();
-  };
-  MixpanelRecorder.prototype._initBatcher = function() {
-    this.batcher = new RequestBatcher("__mprec", {
-      libConfig: RECORDER_BATCHER_LIB_CONFIG,
-      sendRequestFunc: _.bind(this.flushEventsWithOptOut, this),
+    this.recordMinMs = 0;
+    var batcherKey = "__mprec_" + this.getConfig("token") + "_" + this.replayId;
+    this.batcher = new RequestBatcher(batcherKey, {
       errorReporter: _.bind(this.reportError, this),
       flushOnlyOnInterval: true,
+      libConfig: RECORDER_BATCHER_LIB_CONFIG,
+      sendRequestFunc: _.bind(this.flushEventsWithOptOut, this),
       usePersistence: false
     });
   };
-  MixpanelRecorder.prototype.get_config = function(configVar) {
+  SessionRecording.prototype.getConfig = function(configVar) {
     return this._mixpanel.get_config(configVar);
   };
-  MixpanelRecorder.prototype.startRecording = function(shouldStopBatcher) {
+  SessionRecording.prototype.get_config = function(configVar) {
+    return this.getConfig(configVar);
+  };
+  SessionRecording.prototype.startRecording = function(shouldStopBatcher) {
     if (this._stopRecording !== null) {
-      logger.log("Recording already in progress, skipping startRecording.");
+      logger$1.log("Recording already in progress, skipping startRecording.");
       return;
     }
-    this.recordMaxMs = this.get_config("record_max_ms");
+    this.recordMaxMs = this.getConfig("record_max_ms");
     if (this.recordMaxMs > MAX_RECORDING_MS) {
       this.recordMaxMs = MAX_RECORDING_MS;
-      logger.critical("record_max_ms cannot be greater than " + MAX_RECORDING_MS + "ms. Capping value.");
+      logger$1.critical("record_max_ms cannot be greater than " + MAX_RECORDING_MS + "ms. Capping value.");
     }
-    this.recEvents = [];
-    this.seqNo = 0;
-    this.replayStartTime = null;
-    this.replayId = _.UUID();
-    if (shouldStopBatcher) {
+    this.recordMinMs = this.getConfig("record_min_ms");
+    if (this.recordMinMs > MAX_VALUE_FOR_MIN_RECORDING_MS) {
+      this.recordMinMs = MAX_VALUE_FOR_MIN_RECORDING_MS;
+      logger$1.critical("record_min_ms cannot be greater than " + MAX_VALUE_FOR_MIN_RECORDING_MS + "ms. Capping value.");
+    }
+    this.replayStartTime = new Date().getTime();
+    this.batchStartUrl = _.info.currentUrl();
+    if (shouldStopBatcher || this.recordMinMs > 0) {
       this.batcher.stop();
     } else {
       this.batcher.start();
     }
     var resetIdleTimeout = _.bind(function() {
       clearTimeout(this.idleTimeoutId);
-      this.idleTimeoutId = setTimeout(_.bind(function() {
-        logger.log("Idle timeout reached, restarting recording.");
-        this.resetRecording();
-      }, this), this.get_config("record_idle_timeout_ms"));
+      this.idleTimeoutId = setTimeout(this._onIdleTimeout, this.getConfig("record_idle_timeout_ms"));
     }, this);
-    this._stopRecording = record({
+    var blockSelector = this.getConfig("record_block_selector");
+    if (blockSelector === "" || blockSelector === null) {
+      blockSelector = void 0;
+    }
+    this._stopRecording = this._rrwebRecord({
       "emit": _.bind(function(ev) {
         this.batcher.enqueue(ev);
         if (isUserEvent(ev)) {
-          if (this.batcher.stopped) {
+          if (this.batcher.stopped && new Date().getTime() - this.replayStartTime >= this.recordMinMs) {
             this.batcher.start();
           }
           resetIdleTimeout();
         }
       }, this),
-      "blockClass": this.get_config("record_block_class"),
-      "blockSelector": this.get_config("record_block_selector"),
-      "collectFonts": this.get_config("record_collect_fonts"),
-      "inlineImages": this.get_config("record_inline_images"),
+      "blockClass": this.getConfig("record_block_class"),
+      "blockSelector": blockSelector,
+      "collectFonts": this.getConfig("record_collect_fonts"),
       "maskAllInputs": true,
-      "maskTextClass": this.get_config("record_mask_text_class"),
-      "maskTextSelector": this.get_config("record_mask_text_selector")
+      "maskTextClass": this.getConfig("record_mask_text_class"),
+      "maskTextSelector": this.getConfig("record_mask_text_selector")
     });
+    if (typeof this._stopRecording !== "function") {
+      this.reportError("rrweb failed to start, skipping this recording.");
+      this._stopRecording = null;
+      this.stopRecording();
+      return;
+    }
     resetIdleTimeout();
-    this.maxTimeoutId = setTimeout(_.bind(this.resetRecording, this), this.recordMaxMs);
+    this.maxTimeoutId = setTimeout(_.bind(this._onMaxLengthReached, this), this.recordMaxMs);
   };
-  MixpanelRecorder.prototype.resetRecording = function() {
-    this.stopRecording();
-    this.startRecording(true);
-  };
-  MixpanelRecorder.prototype.stopRecording = function() {
-    if (this._stopRecording !== null) {
-      this._stopRecording();
+  SessionRecording.prototype.stopRecording = function() {
+    if (!this.isRrwebStopped()) {
+      try {
+        this._stopRecording();
+      } catch (err) {
+        this.reportError("Error with rrweb stopRecording", err);
+      }
       this._stopRecording = null;
     }
     if (this.batcher.stopped) {
@@ -6214,23 +6234,25 @@
       this.batcher.flush();
       this.batcher.stop();
     }
-    this.replayId = null;
     clearTimeout(this.idleTimeoutId);
     clearTimeout(this.maxTimeoutId);
   };
-  MixpanelRecorder.prototype.flushEventsWithOptOut = function(data, options, cb) {
+  SessionRecording.prototype.isRrwebStopped = function() {
+    return this._stopRecording === null;
+  };
+  SessionRecording.prototype.flushEventsWithOptOut = function(data, options, cb) {
     this._flushEvents(data, options, cb, _.bind(this._onOptOut, this));
   };
-  MixpanelRecorder.prototype._onOptOut = function(code) {
+  SessionRecording.prototype._onOptOut = function(code) {
     if (code === 0) {
-      this.recEvents = [];
       this.stopRecording();
     }
   };
-  MixpanelRecorder.prototype._sendRequest = function(reqParams, reqBody, callback) {
+  SessionRecording.prototype._sendRequest = function(currentReplayId, reqParams, reqBody, callback) {
     var onSuccess = _.bind(function(response, responseBody) {
-      if (response.status === 200) {
+      if (response.status === 200 && this.replayId === currentReplayId) {
         this.seqNo++;
+        this.batchStartUrl = _.info.currentUrl();
       }
       callback({
         status: 0,
@@ -6239,10 +6261,10 @@
         retryAfter: response.headers.get("Retry-After")
       });
     }, this);
-    win["fetch"](this.get_config("api_host") + "/" + this.get_config("api_routes")["record"] + "?" + new URLSearchParams(reqParams), {
+    win["fetch"](this.getConfig("api_host") + "/" + this.getConfig("api_routes")["record"] + "?" + new URLSearchParams(reqParams), {
       "method": "POST",
       "headers": {
-        "Authorization": "Basic " + btoa(this.get_config("token") + ":"),
+        "Authorization": "Basic " + btoa(this.getConfig("token") + ":"),
         "Content-Type": "application/octet-stream"
       },
       "body": reqBody
@@ -6253,24 +6275,31 @@
         callback({ error });
       });
     }).catch(function(error) {
-      callback({ error });
+      callback({ error, httpStatusCode: 0 });
     });
   };
-  MixpanelRecorder.prototype._flushEvents = addOptOutCheckMixpanelLib(function(data, options, callback) {
+  SessionRecording.prototype._flushEvents = addOptOutCheckMixpanelLib(function(data, options, callback) {
     const numEvents = data.length;
     if (numEvents > 0) {
+      var replayId = this.replayId;
       var batchStartTime = data[0].timestamp;
-      if (this.seqNo === 0) {
+      if (this.seqNo === 0 || !this.replayStartTime) {
+        if (this.seqNo !== 0) {
+          this.reportError("Replay start time not set but seqNo is not 0. Using current batch start time as a fallback.");
+        }
         this.replayStartTime = batchStartTime;
       }
       var replayLengthMs = data[numEvents - 1].timestamp - this.replayStartTime;
       var reqParams = {
-        "distinct_id": String(this._mixpanel.get_distinct_id()),
-        "seq": this.seqNo,
+        "$current_url": this.batchStartUrl,
+        "$lib_version": Config.LIB_VERSION,
         "batch_start_time": batchStartTime / 1e3,
-        "replay_id": this.replayId,
+        "distinct_id": String(this._mixpanel.get_distinct_id()),
+        "mp_lib": "web",
+        "replay_id": replayId,
         "replay_length_ms": replayLengthMs,
-        "replay_start_time": this.replayStartTime / 1e3
+        "replay_start_time": this.replayStartTime / 1e3,
+        "seq": this.seqNo
       };
       var eventsJson = _.JSONEncode(data);
       var deviceId = this._mixpanel.get_property("$device_id");
@@ -6286,25 +6315,74 @@
         var gzipStream = jsonStream.pipeThrough(new CompressionStream("gzip"));
         new Response(gzipStream).blob().then(_.bind(function(compressedBlob) {
           reqParams["format"] = "gzip";
-          this._sendRequest(reqParams, compressedBlob, callback);
+          this._sendRequest(replayId, reqParams, compressedBlob, callback);
         }, this));
       } else {
         reqParams["format"] = "body";
-        this._sendRequest(reqParams, eventsJson, callback);
+        this._sendRequest(replayId, reqParams, eventsJson, callback);
       }
     }
   });
-  MixpanelRecorder.prototype.reportError = function(msg, err) {
-    logger.error.apply(logger.error, arguments);
+  SessionRecording.prototype.reportError = function(msg, err) {
+    logger$1.error.apply(logger$1.error, arguments);
     try {
       if (!err && !(msg instanceof Error)) {
         msg = new Error(msg);
       }
-      this.get_config("error_reporter")(msg, err);
+      this.getConfig("error_reporter")(msg, err);
     } catch (err2) {
-      logger.error(err2);
+      logger$1.error(err2);
     }
   };
+  var logger = console_with_prefix("recorder");
+  var MixpanelRecorder = function(mixpanelInstance) {
+    this._mixpanel = mixpanelInstance;
+    this.activeRecording = null;
+  };
+  MixpanelRecorder.prototype.startRecording = function(shouldStopBatcher) {
+    if (this.activeRecording && !this.activeRecording.isRrwebStopped()) {
+      logger.log("Recording already in progress, skipping startRecording.");
+      return;
+    }
+    var onIdleTimeout = _.bind(function() {
+      logger.log("Idle timeout reached, restarting recording.");
+      this.resetRecording();
+    }, this);
+    var onMaxLengthReached = _.bind(function() {
+      logger.log("Max recording length reached, stopping recording.");
+      this.resetRecording();
+    }, this);
+    this.activeRecording = new SessionRecording({
+      mixpanelInstance: this._mixpanel,
+      onIdleTimeout,
+      onMaxLengthReached,
+      replayId: _.UUID(),
+      rrwebRecord: record
+    });
+    this.activeRecording.startRecording(shouldStopBatcher);
+  };
+  MixpanelRecorder.prototype.stopRecording = function() {
+    if (this.activeRecording) {
+      this.activeRecording.stopRecording();
+      this.activeRecording = null;
+    }
+  };
+  MixpanelRecorder.prototype.resetRecording = function() {
+    this.stopRecording();
+    this.startRecording(true);
+  };
+  MixpanelRecorder.prototype.getActiveReplayId = function() {
+    if (this.activeRecording && !this.activeRecording.isRrwebStopped()) {
+      return this.activeRecording.replayId;
+    } else {
+      return null;
+    }
+  };
+  Object.defineProperty(MixpanelRecorder.prototype, "replayId", {
+    get: function() {
+      return this.getActiveReplayId();
+    }
+  });
   win["__mp_recorder"] = MixpanelRecorder;
   var DomTracker = function() {
   };
@@ -7220,10 +7298,10 @@
     "record_block_selector": "img, video",
     "record_collect_fonts": false,
     "record_idle_timeout_ms": 30 * 60 * 1e3,
-    "record_inline_images": false,
     "record_mask_text_class": new RegExp("^(mp-mask|fs-mask|amp-mask|rr-mask|ph-mask)$"),
     "record_mask_text_selector": "*",
     "record_max_ms": MAX_RECORDING_MS,
+    "record_min_ms": 0,
     "record_sessions_percent": 0,
     "recorder_src": "https://cdn.mxpnl.com/libs/mixpanel-recorder.min.js"
   };
@@ -7377,13 +7455,31 @@
   };
   MixpanelLib.prototype.get_session_recording_properties = function() {
     var props = {};
-    if (this._recorder) {
-      var replay_id = this._recorder["replayId"];
-      if (replay_id) {
-        props["$mp_replay_id"] = replay_id;
-      }
+    var replay_id = this._get_session_replay_id();
+    if (replay_id) {
+      props["$mp_replay_id"] = replay_id;
     }
     return props;
+  };
+  MixpanelLib.prototype.get_session_replay_url = function() {
+    var replay_url = null;
+    var replay_id = this._get_session_replay_id();
+    if (replay_id) {
+      var query_params = _.HTTPBuildQuery({
+        "replay_id": replay_id,
+        "distinct_id": this.get_distinct_id(),
+        "token": this.get_config("token")
+      });
+      replay_url = "https://mixpanel.com/projects/replay-redirect?" + query_params;
+    }
+    return replay_url;
+  };
+  MixpanelLib.prototype._get_session_replay_id = function() {
+    var replay_id = null;
+    if (this._recorder) {
+      replay_id = this._recorder["replayId"];
+    }
+    return replay_id || null;
   };
   MixpanelLib.prototype._loaded = function() {
     this.get_config("loaded")(this);
@@ -8260,6 +8356,7 @@
   MixpanelLib.prototype["start_session_recording"] = MixpanelLib.prototype.start_session_recording;
   MixpanelLib.prototype["stop_session_recording"] = MixpanelLib.prototype.stop_session_recording;
   MixpanelLib.prototype["get_session_recording_properties"] = MixpanelLib.prototype.get_session_recording_properties;
+  MixpanelLib.prototype["get_session_replay_url"] = MixpanelLib.prototype.get_session_replay_url;
   MixpanelLib.prototype["DEFAULT_API_ROUTES"] = DEFAULT_API_ROUTES;
   MixpanelPersistence.prototype["properties"] = MixpanelPersistence.prototype.properties;
   MixpanelPersistence.prototype["update_search_keyword"] = MixpanelPersistence.prototype.update_search_keyword;
